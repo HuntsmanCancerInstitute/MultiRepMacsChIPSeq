@@ -12,17 +12,16 @@ of alignments at any given position, where X can be assigned by the user.
 This is in contrast to traditional duplicate removers that retain only 
 one alignment per position.
 
-Currently only works with single-end data, for now. Paired-end alignments are 
-treated like single end, likely breaking pairs. Alignments are not selected 
-for retention; only the first X are retained.
-
 The limit can be either an integer, where up to X alignments are tolerated,
 or it can be a fraction (0.xx), whereupon the maximum number of alignments 
 that achieve this target fraction is calculated.
 
-NOTE: This de-duplication is slightly more aggressive than samtools rmdup, 
-since it only examines the alignment start position and does not take into 
-account variations in the end position due to clipping and read trimming.
+Duplicates are checked for start position, strand, and calculated end 
+position to check for duplicates.
+
+Currently only works with single-end data, for now. Paired-end alignments are 
+treated like single end, likely breaking pairs. Alignments are not selected 
+for retention; only the first X are retained.
 
 Usage: $0 <limit> <input.bam> <output.bam>
 
@@ -74,7 +73,7 @@ if ($target_fraction) {
 	
 		# prepare callback data structure
 		my $data = {
-			position   => -1,
+			position   => -1, # a non-coordinate
 			reads      => [],
 		};
 	
@@ -83,8 +82,7 @@ if ($target_fraction) {
 	
 		# check to make sure we don't leave something behind
 		if (defined $data->{reads}->[0]) {
-			my $number = scalar @{ $data->{reads} };
-			$depth2count{$number} += 1;
+			count_up_alignments($data);
 		}
 	}
 
@@ -154,12 +152,8 @@ for my $tid (0 .. $sam->n_targets - 1) {
 	$sam->bam_index->fetch($sam->bam, $tid, 0, $seq_length, \&write_callback, $data);
 	
 	# check to make sure we don't leave something behind
-	if ($data->{reads}->[0]) {
-		for (my $i = 0; $i < $limit; $i++) {
-			my $a = shift @{ $data->{reads} };
-			last unless $a;
-			$outbam->write1($a);
-		}
+	if (defined $data->{reads}->[0]) {
+		write_out_alignments($data);
 	}
 }
 
@@ -169,7 +163,7 @@ printf "
  %12s duplicate mapped reads discarded
  %12s mapped reads retained
  new duplicate rate %.4f
-", $totalCount, $keepCount, $tossCount, $tossCount/$totalCount;
+", $totalCount, $tossCount, $keepCount, $tossCount/$totalCount;
 
 # finish up
 undef $outbam;
@@ -188,8 +182,8 @@ sub count_callback {
 	}
 	else {
 		if ($data->{position} != -1) {
-			my $number = scalar @{ $data->{reads} };
-			$depth2count{$number} += 1;
+			# a real position
+			count_up_alignments($data);
 		}
 		$data->{position} = $pos;
 		$data->{reads} = []; # clear out existing alignments
@@ -209,18 +203,82 @@ sub write_callback {
 	}
 	else {
 		# write out the max number of reads
-		for (my $i = 0; $i < $max; $i++) {
-			my $a = shift @{ $data->{reads} };
-			last unless $a;
-			$outbam->write1($a);
-			$keepCount++;
-		}
-		$tossCount += scalar @{ $data->{reads} };
+		write_out_alignments($data);
 		
 		# reset
 		$data->{reads} = [];
 		$data->{position} = $pos;
 		push @{ $data->{reads} }, $a;
+	}
+}
+
+
+sub count_up_alignments {
+	my $data = shift;
+	
+	# split up based on end point and strand
+	my %fends; # forward ends
+	my %rends; # reverse ends
+	foreach my $r (@{$data->{reads}}) {
+		my $end = $r->calend; 
+		if ($r->reversed) {
+			$rends{$end} ||= [];
+			push @{ $rends{$end} }, $r;
+		}
+		else {
+			$fends{$end} ||= [];
+			push @{ $fends{$end} }, $r;
+		}
+	}
+	
+	# assign count for each depth
+	foreach my $pos (keys %fends) {
+		$depth2count{scalar @{ $fends{$pos} }} += 1;
+	}
+	foreach my $pos (keys %rends) {
+		$depth2count{scalar @{ $rends{$pos} }} += 1;
+	}
+}
+
+
+sub write_out_alignments {
+	my $data = shift;
+	
+	# split up based on end point and strand
+	my %fends; # forward ends
+	my %rends; # reverse ends
+	foreach my $r (@{$data->{reads}}) {
+		my $end = $r->calend; 
+		if ($r->reversed) {
+			$rends{$end} ||= [];
+			push @{ $rends{$end} }, $r;
+		}
+		else {
+			$fends{$end} ||= [];
+			push @{ $fends{$end} }, $r;
+		}
+	}
+	
+	# write forward reads
+	foreach my $pos (keys %fends) {
+		for (my $i = 0; $i < $max; $i++) {
+			my $a = shift @{ $fends{$pos} };
+			last unless $a;
+			$outbam->write1($a);
+			$keepCount++;
+		}
+		$tossCount += scalar @{ $fends{$pos} };
+	}
+	
+	# write reverse reads
+	foreach my $pos (keys %rends) {
+		for (my $i = 0; $i < $max; $i++) {
+			my $a = shift @{ $rends{$pos} };
+			last unless $a;
+			$outbam->write1($a);
+			$keepCount++;
+		}
+		$tossCount += scalar @{ $rends{$pos} };
 	}
 }
 
