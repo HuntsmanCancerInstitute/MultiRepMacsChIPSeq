@@ -16,14 +16,23 @@ The limit can be either an integer, where up to X alignments are tolerated,
 or it can be a fraction (0.xx), whereupon the maximum number of alignments 
 that achieve this target fraction is calculated.
 
-Duplicates are checked for start position, strand, and calculated end 
-position to check for duplicates.
+Duplicates are checked for start position, strand, and calculated alignment 
+end position to check for duplicates. Because of this, the numbers are slightly 
+different than calculated by traditional duplicate removers.
 
 Currently only works with single-end data, for now. Paired-end alignments are 
 treated like single end, likely breaking pairs. Alignments are not selected 
 for retention; only the first X are retained.
 
-Usage: $0 <limit> <input.bam> <output.bam>
+
+USAGE: bam_partial_dedup.pl <limit> <input.bam> <output.bam> 
+       bam_partial_dedup.pl <0.xx> <input.bam> 
+       bam_partial_dedup.pl <limit> <input.bam> <output.bam> <duplicate.bam>
+
+If you simply want to determine the cutoff for a given duplication fraction, 
+provide a fractional limit and omit the output file name.
+
+If you want to retain the duplicates, provide an optional third bam file.
 
 END
 	exit;
@@ -51,7 +60,9 @@ my $sam = open_bam_db($infile) or # automatically takes care of indexing
 	die "unable to read bam $infile $!";
 
 # output bam file
-my $outfile = shift @ARGV or die "no output file provided!\n";
+my $outfile = shift @ARGV || undef;
+
+my $duplicatefile = shift @ARGV || undef;
 
 # write header
 my $header = $sam->bam->header;
@@ -128,6 +139,10 @@ if ($max == 1) {
 }
 
 ### write out new bam file with specified number of targets
+unless ($outfile) {
+	print " No outfile defined. Exiting.\n";
+	exit;
+}
 print " Removing duplicates and writing new bam file....\n";
 
 # open bam new bam file
@@ -135,6 +150,15 @@ my $outbam = write_new_bam_file($outfile) or
 	die "unable to open output bam file $outfile! $!";
 	# this uses low level Bio::DB::Bam object
 $outbam->header_write($header);
+
+# open duplicate bam file if requested
+my $dupbam;
+if ($duplicatefile) {
+	my $dupbam = write_new_bam_file($duplicatefile) or 
+		die "unable to open duplicate bam file $duplicatefile! $!";
+		# this uses low level Bio::DB::Bam object
+	$dupbam->header_write($header);
+}
 
 $totalCount    = 0;
 my $keepCount  = 0;
@@ -268,6 +292,11 @@ sub write_out_alignments {
 			$keepCount++;
 		}
 		$tossCount += scalar @{ $fends{$pos} };
+		if ($dupbam and @{ $fends{$pos} }) {
+			while (@{ $fends{$pos} }) {
+				$dupbam->write1(shift @{ $fends{$pos} } );
+			}
+		}
 	}
 	
 	# write reverse reads
@@ -279,6 +308,11 @@ sub write_out_alignments {
 			$keepCount++;
 		}
 		$tossCount += scalar @{ $rends{$pos} };
+		if ($dupbam and @{ $rends{$pos} }) {
+			while (@{ $rends{$pos} }) {
+				$dupbam->write1(shift @{ $rends{$pos} } );
+			}
+		}
 	}
 }
 
