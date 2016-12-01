@@ -76,9 +76,6 @@ GetOptions(
 if ($max and $fraction) {
 	die "max and frac options are mutually exclusive. Pick one.\n";
 }
-if ($max and $max !~ /^\d+$/) {
-	die "unrecognized max limit '$max'. Should be integer (X)\n";
-}
 if ($fraction and $fraction !~ /^0\.\d+$/) {
 	die "unrecognized fraction '$fraction'. Should be decimal (0.x)\n";
 }
@@ -134,38 +131,33 @@ if ($fraction) {
 
 	# calculate fractions
 	my @depths = sort {$a <=> $b} keys %depth2count;
-#	printf " Counts at depth\n%s\n", join("\n", map { sprintf " depth %s at %s positions", $_, $depth2count{$_} } sort {$a <=> $b} keys %depth2count);
-	my $nondupCount = sum(values %depth2count);
-	my $dupCount = $totalCount - $nondupCount;
-	my $original_duplicate_rate = $dupCount / $totalCount;
-	my $rate = $original_duplicate_rate;
-	foreach (my $i = 1; $i <= $#depths; $i++) {
+	printf " %d total mapped $items\n", $totalCount;
+	my $rate;
+	foreach (my $i = 0; $i <= $#depths; $i++) {
 		my $depth = $depths[$i];
-		my $sumCount = 0;
+		my $sumCount = 0; # count of acceptable reads at given depth
 		foreach my $d (@depths) {
 			if ($d <= $depth) {
+				# we can take up to this depth
 				$sumCount += ($depth2count{$d} * $d);
 			}
 			else {
+				# throw away the excess
 				$sumCount += ($depth2count{$d} * $depth);
 			}
 		}
 		$rate = ($totalCount - $sumCount) / $totalCount;
-# 		printf "  testing %s, effective duplicate rate is $rate\n", $depths[$i];
+		printf "  At maximum depth $depth: %d kept, effective duplicate rate %.4f\n", 
+			$sumCount, $rate;
 		if ($rate < $fraction) {
 			$max = $depths[$i]; 
 			last;
 		}
 	}
 	printf "
- %12s total mapped $items
- %12s predicted duplicate $items
- %12s non-duplicate $items
- duplicate rate at max 1 is %.4f
- maximum duplicate depth is %d, mean depth is %.4f
- setting maximum duplicate count at $max with estimated rate of %.4f\n", 
-	$totalCount, $dupCount, $nondupCount, $dupCount/$totalCount, 
-	max(keys %depth2count), $totalCount / sum(values %depth2count), $rate;
+ setting maximum allowed duplicates to $max
+ maximum observed depth is %d, mean depth is %.4f\n", 
+	max(keys %depth2count), $totalCount / sum(values %depth2count);
 }
 
 if ($max == 1) {
@@ -504,93 +496,6 @@ sub write_out_pe_alignments {
 		}
 	}
 }
-
-
-
-
-
-
-sub OLD_write_pe_callback {
-	my ($a, $data) = @_;
-	return unless $a->proper_pair; # consider only proper pair alignments
-	
-	# process reverse reads
-	if ($a->reversed) {
-		# make sure we have written out all the forward reads before continuing
-		if ($a->pos > $data->{position} and defined $data->{reads}->[0]) {
-			# we've moved past the existing forward position, so write these 
-			# alignments first and identify potential reverse candidates to keep
-			write_out_pe_alignments($data);
-			$data->{reads} = [];
-		} 
-		
-		# we should already have processed the forward alignment 
-		my $name = $a->qname;
-		if (exists $data->{keepers}{$name}) {
-			# we have processed the forward alignment as a keeper
-			# immediately write the reverse alignment
-			$outbam->write1($a);
-			delete $data->{keepers}{$name};
-		}
-		elsif (exists $data->{dupkeepers}{$name}) {
-			# we have processed the forward alignment as a duplicate keeper
-			# immediately write the reverse alignment
-			$dupbam->write1($a);
-			delete $data->{dupkeepers}{$name};
-		}
-		return;
-	}
-	
-	# process forward reads
-	$totalCount++; # only count forward alignments
-	
-	# check position 
-	my $pos = $a->pos;
-	if ($pos == $data->{position}) {
-		push @{ $data->{reads} }, $a;
-	}
-	else {
-		# write out the max number of reads
-		write_out_pe_alignments($data) if defined $data->{reads}->[0];
-		
-		# reset
-		$data->{reads} = [];
-		$data->{position} = $pos;
-		push @{ $data->{reads} }, $a;
-	}
-}
-
-
-sub OLD_write_out_pe_alignments {
-	my $data = shift;
-	
-	# split up based on reported insertion size
-	my %sizes; 
-	foreach my $a (@{$data->{reads}}) {
-		my $s = $a->isize; 
-		$sizes{$s} ||= [];
-		push @{$sizes{$s}}, $a;
-	}
-	
-	# write out alignments
-	foreach my $s (sort {$a <=> $b} keys %sizes) {
-		for (my $i = 0; $i < $max; $i++) {
-			my $a = shift @{ $sizes{$s} };
-			last unless $a;
-			$outbam->write1($a);
-			$data->{keepers}{$a->qname} = 1; # remember name for reverse read
-			$keepCount++;
-		}
-		$tossCount += scalar @{ $sizes{$s} };
-		if ($dupbam and scalar @{ $sizes{$s} }) {
-			while (my $a = shift @{ $sizes{$s} }) {
-				$dupbam->write1($a);
-				$data->{dupkeepers}{$a->qname} = 1; # remember name for rev
-			}
-		}
-	}
-}
-
 
 
 
