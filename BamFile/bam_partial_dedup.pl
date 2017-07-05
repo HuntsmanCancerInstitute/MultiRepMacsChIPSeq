@@ -19,6 +19,8 @@ use Bio::ToolBox::db_helper 1.50 qw(
 	low_level_bam_fetch
 	$BAM_ADAPTER
 );
+# this can import either Bio::DB::Sam or Bio::DB::HTS depending on availability
+# this script is mostly bam adapter agnostic
 
 my $VERSION = 1.2;
 
@@ -60,7 +62,7 @@ removers.
 Paired-end alignments are treated as fragments. Only properly paired 
 alignments are considered; everything else is silently skipped. Fragments 
 are checked for start position and fragment length (paired insertion size) 
-for duplicates. Random subsampling will not result in broken pairs.
+for duplicates. Random subsampling should not result in broken pairs.
 
 Alignment duplicate marks (bit flag 0x400) are ignored. 
 
@@ -69,24 +71,23 @@ USAGE:  bam_partial_dedup.pl --in in.bam
         bam_partial_dedup.pl --m X -i in.bam -o out.bam -d dup.bam
        
 OPTIONS:
-        --in    The input bam file, should be sorted and indexed
-        --out   The output bam file, optional if you're just checking 
-                the duplication rate for a provided fraction
-        --dup   The duplicates bam file, optional if you want to keep 
-                the duplicate alignments
-        --random Randomly subsamples duplicate alignments so that the  
-                final duplication rate will match target duplication rate.
-                Must set --frac option. Incompatible with --max option.
-        --frac  Decimal fraction representing the target duplication 
-                rate in the final file. Mutually exclusive with 
-                the --max option
-        --max   Integer representing the maximum number of duplicates 
-                at each position
-        --pe    Bam files contain paired-end alignments and only 
-                properly paired duplicate fragments will be checked for 
-                duplication. 
-        --seed  Provide an integer to set the random seed generator to 
-                make the subsampling consistent (non-random).
+	--in <file>    The input bam file, should be sorted and indexed
+	--out <file>   The output bam file, optional if you're just checking 
+				   the duplication rate for a provided fraction
+	--dup <file>   The duplicates bam file, optional if you want to keep 
+				   the duplicate alignments
+	--random       Randomly subsamples duplicate alignments so that the  
+				   final duplication rate will match target duplication 
+				   rate. Must set --frac option. 
+	--frac <float> Decimal fraction representing the target 
+				   duplication rate in the final file. 
+	--max <int>    Integer representing the maximum number of duplicates 
+				   at each position
+	--pe           Bam files contain paired-end alignments and only 
+				   properly paired duplicate fragments will be checked for 
+				   duplication. 
+	--seed <int>   Provide an integer to set the random seed generator to 
+				   make the subsampling consistent (non-random).
 
 END
 	exit;
@@ -256,6 +257,7 @@ $outfile .= '.bam' unless $outfile =~ /\.bam$/i;
 my $outbam = Bio::ToolBox::db_helper::write_new_bam_file($outfile) or 
 	die "unable to open output bam file $outfile! $!";
 	# this uses low level Bio::DB::Bam object
+	# using an unexported subroutine imported as necessary depending on bam availability
 $outbam->header_write($header);
 
 # open duplicate bam file if requested
@@ -265,6 +267,7 @@ if ($dupfile) {
 	$dupbam = Bio::ToolBox::db_helper::write_new_bam_file($dupfile) or 
 		die "unable to open duplicate bam file $dupfile! $!";
 		# this uses low level Bio::DB::Bam object
+		# using an unexported subroutine imported as necessary depending on bam availability
 	$dupbam->header_write($header);
 }
 
@@ -328,9 +331,10 @@ printf "  Total mapped: %22d
 
 
 ### Finish up
-$outbam->close if $BAM_ADAPTER eq 'hts';
+$outbam->close if $BAM_ADAPTER eq 'hts'; # annoying different behavior
 undef $outbam;
 Bio::ToolBox::db_helper::check_bam_index($outfile);
+	# using an unexported subroutine as it's imported dependent on bam adapter availability
 if ($dupfile) {
 	$dupbam->close if $BAM_ADAPTER eq 'hts';
 	undef $dupbam;
