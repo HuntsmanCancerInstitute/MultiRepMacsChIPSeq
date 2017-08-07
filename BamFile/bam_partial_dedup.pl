@@ -22,7 +22,7 @@ use Bio::ToolBox::db_helper 1.50 qw(
 # this can import either Bio::DB::Sam or Bio::DB::HTS depending on availability
 # this script is mostly bam adapter agnostic
 
-my $VERSION = 1.2;
+my $VERSION = 1.3;
 
 unless (@ARGV) {
 	print <<END;
@@ -331,12 +331,12 @@ printf "  Total mapped: %22d
 
 
 ### Finish up
-$outbam->close if $BAM_ADAPTER eq 'hts'; # annoying different behavior
+$outbam->close if $outbam->can('close'); # annoying different behavior
 undef $outbam;
 Bio::ToolBox::db_helper::check_bam_index($outfile);
 	# using an unexported subroutine as it's imported dependent on bam adapter availability
 if ($dupfile) {
-	$dupbam->close if $BAM_ADAPTER eq 'hts';
+	$dupbam->close if $dupbam->can('close');
 	undef $dupbam;
 	Bio::ToolBox::db_helper::check_bam_index($dupfile);
 }
