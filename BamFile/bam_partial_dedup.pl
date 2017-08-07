@@ -158,7 +158,7 @@ if ($seed) {
 
 
 ### count the reads and number at each position
-if ($fraction or not $max) {
+if ($fraction > 0 or not defined $max) {
 	# count alignments on each chromosome
 	print " Counting $items....\n";
 	for my $tid (0 .. $sam->n_targets - 1) {
@@ -228,7 +228,7 @@ if ($fraction or not $max) {
 		# calculate the allowed number of reads
 		# take into account maximum allowed duplicates
 		my $possibleDups = $dupCount;
-		if (defined $max) {
+		if ($max > 1) {
 			foreach my $d (keys %depth2count) {
 				$possibleDups -= ($d * $depth2count{$d}) if $d > $max;
 			}
@@ -237,8 +237,9 @@ if ($fraction or not $max) {
 		my $allowedDups = $newTotal - $nondupCount;
 		$chance = 1 - sprintf("%.8f", $allowedDups / $possibleDups);
 		if ($random and $chance < 0) {
-			print "actual duplicate rate less than target rate, nothing to do\n";
-			exit;
+			print "actual duplicate rate less than target rate, no subsampling necessary\n";
+			$chance = 0;
+			exit unless ($max and $max >= 1);
 		}
 		print " Probability of removing duplicate reads: $chance\n";
 	}
@@ -250,6 +251,7 @@ if ($fraction or not $max) {
 
 ### Write out new bam file with specified number of targets
 exit unless ($outfile);
+exit unless ($max > 1 or $fraction > 0);
 print " Removing duplicates and writing new bam file....\n";
 
 # open bam new bam file
