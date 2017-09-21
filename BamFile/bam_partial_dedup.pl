@@ -22,7 +22,7 @@ use Bio::ToolBox::db_helper 1.50 qw(
 # this can import either Bio::DB::Sam or Bio::DB::HTS depending on availability
 # this script is mostly bam adapter agnostic
 
-my $VERSION = 1.3;
+my $VERSION = 1.4;
 
 unless (@ARGV) {
 	print <<END;
@@ -71,23 +71,24 @@ USAGE:  bam_partial_dedup.pl --in in.bam
         bam_partial_dedup.pl --m X -i in.bam -o out.bam -d dup.bam
        
 OPTIONS:
-	--in <file>    The input bam file, should be sorted and indexed
-	--out <file>   The output bam file, optional if you're just checking 
-				   the duplication rate for a provided fraction
-	--dup <file>   The duplicates bam file, optional if you want to keep 
-				   the duplicate alignments
-	--random       Randomly subsamples duplicate alignments so that the  
-				   final duplication rate will match target duplication 
-				   rate. Must set --frac option. 
-	--frac <float> Decimal fraction representing the target 
-				   duplication rate in the final file. 
-	--max <int>    Integer representing the maximum number of duplicates 
-				   at each position
-	--pe           Bam files contain paired-end alignments and only 
-				   properly paired duplicate fragments will be checked for 
-				   duplication. 
-	--seed <int>   Provide an integer to set the random seed generator to 
-				   make the subsampling consistent (non-random).
+    --in <file>    The input bam file, should be sorted and indexed
+    --out <file>   The output bam file, optional if you're just checking 
+                   the duplication rate for a provided fraction
+    --dup <file>   The duplicates bam file, optional if you want to keep 
+                   the duplicate alignments. Non-standard alignments 
+                   are not retained.
+    --random       Randomly subsamples duplicate alignments so that the  
+                   final duplication rate will match target duplication 
+                   rate. Must set --frac option. 
+    --frac <float> Decimal fraction representing the target 
+                   duplication rate in the final file. 
+    --max <int>    Integer representing the maximum number of duplicates 
+                   at each position
+    --pe           Bam files contain paired-end alignments and only 
+                   properly paired duplicate fragments will be checked for 
+                   duplication. 
+    --seed <int>   Provide an integer to set the random seed generator to 
+                   make the subsampling consistent (non-random).
 
 END
 	exit;
@@ -273,6 +274,19 @@ if ($dupfile) {
 	$dupbam->header_write($header);
 }
 
+# set callbacks and subroutines
+my $callback = $paired ? \&write_pe_callback : \&write_se_callback;
+if ($random) {
+	$write_out_alignments = $paired ? \&write_out_random_pe_alignments : 
+		\&write_out_random_se_alignments;
+	$max -= 1; # since we always take the first one, we decrease by max by one 
+				# this only pertains to the random subroutines, not the max subroutines
+}
+else {
+	$write_out_alignments = $paired ? \&write_out_max_pe_alignments : 
+		\&write_out_max_se_alignments;
+}
+
 # set counters
 $totalCount        = 0; # reset to zero from before
 my $positionCount  = 0;
@@ -291,17 +305,6 @@ for my $tid (0 .. $sam->n_targets - 1) {
 		dupkeepers => {}, # hash of names of rev pe dup reads to keep
 	};
 	
-	# set callbacks and routines
-	my $callback = $paired ? \&write_pe_callback : \&write_se_callback;
-	if ($random) {
-		$write_out_alignments = $paired ? \&write_out_random_pe_alignments : 
-			\&write_out_random_se_alignments;
-	}
-	else {
-		$write_out_alignments = $paired ? \&write_out_max_pe_alignments : 
-			\&write_out_max_se_alignments;
-	}
-	
 	# walk through the reads on the chromosome
 	low_level_bam_fetch($sam, $tid, 0, $seq_length, $callback, $data);
 	
@@ -311,8 +314,8 @@ for my $tid (0 .. $sam->n_targets - 1) {
 		&$write_out_alignments($data);
 	}
 	if ($paired and scalar keys %{$data->{keepers}}) {
-		printf " missing reverse alignments: %s\n", 
-			join(", ", keys %{$data->{keepers}});
+		printf " %d un-paired alignments were skipped\n", 
+			scalar(keys %{$data->{keepers}});
 	}
 }
 
@@ -333,15 +336,25 @@ printf "  Total mapped: %22d
 
 
 ### Finish up
-$outbam->close if $outbam->can('close'); # annoying different behavior
-undef $outbam;
-Bio::ToolBox::db_helper::check_bam_index($outfile);
-	# using an unexported subroutine as it's imported dependent on bam adapter availability
-if ($dupfile) {
-	$dupbam->close if $dupbam->can('close');
-	undef $dupbam;
-	Bio::ToolBox::db_helper::check_bam_index($dupfile);
-}
+printf " Wrote %d alignments to $outfile\n", $paired ? 
+	($positionCount + $duplicateCount) * 2 : $positionCount + $duplicateCount;
+printf " Wrote %d alignments to $dupfile\n", $paired ? $tossCount * 2 : $tossCount 
+	if $dupfile;
+exit; # bam files should automatically be closed
+	# there's a bug in Bio::DB::HTS v2.9 with htslib 1.4.1 that causes duplicate 
+	# alignments to be written to dupbam for some inexplicable reason when I attempt 
+	# to undef the adapter and index the files.
+	# I also get errors with Bio::DB::Sam, again only with dupbam
+	# so for now do not index
+# $outbam->close if $outbam->can('close'); # annoying different behavior
+# undef $outbam;
+# Bio::ToolBox::db_helper::check_bam_index($outfile);
+# 	# using an unexported subroutine as it's imported dependent on bam adapter availability
+# if ($dupfile) {
+# 	$dupbam->close if $dupbam->can('close');
+# 	undef $dupbam;
+# 	Bio::ToolBox::db_helper::check_bam_index($dupfile);
+# }
 
 
 
@@ -375,6 +388,8 @@ sub count_pe_callback {
 	return unless $a->proper_pair; # consider only proper pair alignments
 	return unless $a->tid == $a->mtid;
 	return if $a->reversed; # count only forward alignments
+	return unless $a->mreversed;
+	return if $a->isize < 0; # wierd RF pair, a F alignment should only have + isize
 	$totalCount++;
 	
 	# check position 
@@ -470,6 +485,16 @@ sub write_pe_callback {
 	return unless $a->proper_pair; # consider only proper pair alignments
 	return unless $a->tid == $a->mtid;
 	
+	# check pair orientation
+	if ($a->reversed) {
+		return if $a->isize > 0;
+		return if $a->mreversed;
+	}
+	else {
+		return if $a->isize < 0;
+		return unless $a->mreversed;
+	}
+	
 	# process forward reads
 	$totalCount++ unless $a->reversed; # only count forward alignments
 	
@@ -512,7 +537,12 @@ sub write_out_max_se_alignments {
 	# write forward reads
 	foreach my $pos (keys %fends) {
 		$positionCount++;
-		$duplicateCount--; # sneaky way around of not counting one of the duplicates
+		
+		# always write one alignment
+		my $a1 = shift @{ $fends{$pos} };
+		&$write_alignment($outbam, $a1);
+		
+		# write remaining alignments up to max
 		for (my $i = 0; $i < $max; $i++) {
 			my $a = shift @{ $fends{$pos} };
 			last unless $a;
@@ -530,7 +560,12 @@ sub write_out_max_se_alignments {
 	# write reverse reads
 	foreach my $pos (keys %rends) {
 		$positionCount++;
-		$duplicateCount--; # sneaky way around of not counting one of the duplicates
+		
+		# always write one alignment
+		my $a1 = shift @{ $rends{$pos} };
+		&$write_alignment($outbam, $a1);
+		
+		# write remaining alignments up to max
 		for (my $i = 0; $i < $max; $i++) {
 			my $a = shift @{ $rends{$pos} };
 			last unless $a;
@@ -569,7 +604,13 @@ sub write_out_max_pe_alignments {
 	# write out forward alignments
 	foreach my $s (sort {$a <=> $b} keys %f_sizes) {
 		$positionCount++;
-		$duplicateCount--; # sneaky way around of not counting one of the duplicates
+		
+		# always write one alignment
+		my $a1 = shift @{ $f_sizes{$s} };
+		&$write_alignment($outbam, $a1);
+		$data->{keepers}{$a1->qname} = 1; # remember name for reverse read
+		
+		# write remaining up to max
 		for (my $i = 0; $i < $max; $i++) {
 			my $a = shift @{ $f_sizes{$s} };
 			last unless $a;
@@ -641,6 +682,12 @@ sub write_out_random_se_alignments {
 			if ($max and scalar @{ $fends{$pos} } > $max) {
 				my @removed = splice(@{ $fends{$pos} }, $max);
 				$tossCount += scalar(@removed);
+				if ($dupbam) {
+					# write out the removed alignments
+					foreach (@removed) {
+						&$write_alignment($dupbam, $_);
+					}
+				}
 			}
 			
 			# duplicates get to roll the dice
@@ -675,6 +722,12 @@ sub write_out_random_se_alignments {
 			if ($max and scalar @{ $rends{$pos} } > $max) {
 				my @removed = splice(@{ $rends{$pos} }, $max);
 				$tossCount += scalar(@removed);
+				if ($dupbam) {
+					# write out the removed alignments
+					foreach (@removed) {
+						&$write_alignment($dupbam, $_);
+					}
+				}
 			}
 			
 			# duplicates get to roll the dice
@@ -703,7 +756,7 @@ sub write_out_random_pe_alignments {
 	my %f_sizes;
 	my %r_sizes;
 	while (my $a = shift @{$data->{reads}}) {
-		my $s = $a->isize; 
+		my $s = $a->isize; # positive for F reads, negative for R reads
 		if ($a->reversed) {
 			$r_sizes{$s} ||= [];
 			push @{$r_sizes{$s}}, $a;
@@ -726,7 +779,6 @@ sub write_out_random_pe_alignments {
 		else {
 			# always write the first one
 			$positionCount++;
-			$duplicateCount--; # sneaky way around of not counting one of the duplicates
 			my $a = shift @{ $f_sizes{$s} };
 			&$write_alignment($outbam, $a);
 			$data->{keepers}{$a->qname} = 1; # remember name for reverse read
@@ -735,21 +787,31 @@ sub write_out_random_pe_alignments {
 			if ($max and scalar @{ $f_sizes{$s} } > $max) {
 				my @removed = splice(@{ $f_sizes{$s} }, $max);
 				$tossCount += scalar(@removed);
+				if ($dupbam) {
+					# write out the removed alignments
+					foreach (@removed) {
+						&$write_alignment($dupbam, $_);
+						$data->{dupkeepers}{$_->qname} = 1;
+					}
+				}
 			}
 			
-			# duplicates get to roll the dice
+			# any remaining duplicates get to roll the dice
 			while (my $a = shift @{ $f_sizes{$s} }) {
 				if (rand(1) > $chance) {
 					# lucky day, this alignment is kept
 					$duplicateCount++;
 					&$write_alignment($outbam, $a);
-					$data->{keepers}{$a->qname} = 1; # remember name for reverse read
+					$data->{keepers}{$a->qname} = 1; # remember name to write reverse read
 				}
 				else {
 					# no luck, this alignment is tossed
 					$tossCount++;
-					&$write_alignment($dupbam, $a) if $dupbam;
-					$data->{dupkeepers}{$a->qname} = 1; # remember name for reverse read
+					if ($dupbam) {
+						&$write_alignment($dupbam, $a);
+						# remember name to write reverse read
+						$data->{dupkeepers}{$a->qname} = 1; 
+					}
 				}
 			}
 		}
@@ -757,6 +819,8 @@ sub write_out_random_pe_alignments {
 	
 	# write out reverse alignments
 	foreach my $s (sort {$a <=> $b} keys %r_sizes) {
+		# we are sorting negative sizes, so the biggest, ie those with mate furthest 
+		# leftward or largest negative should go first
 		while (my $a = shift @{ $r_sizes{$s} }) {
 			my $name = $a->qname;
 			if (exists $data->{keepers}{$name}) {
