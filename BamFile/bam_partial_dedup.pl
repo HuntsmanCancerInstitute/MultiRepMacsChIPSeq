@@ -22,7 +22,7 @@ use Bio::ToolBox::db_helper 1.50 qw(
 # this can import either Bio::DB::Sam or Bio::DB::HTS depending on availability
 # this script is mostly bam adapter agnostic
 
-my $VERSION = 1.4;
+my $VERSION = 1.5;
 
 unless (@ARGV) {
 	print <<END;
@@ -198,7 +198,7 @@ if ($fraction > 0 or not defined $max) {
   Mean position depth: %15.4f\n", 
 		$totalCount, $nondupCount, $dupCount, $dupRate, 
 		max(keys %depth2count), $totalCount / $nondupCount;
-	
+		
 	# calculate fractions
 	if ($fraction and not $random) {
 		my $rate;
@@ -228,19 +228,29 @@ if ($fraction > 0 or not defined $max) {
 	elsif ($fraction and $random) {
 		# calculate the allowed number of reads
 		# take into account maximum allowed duplicates
-		my $possibleDups = $dupCount;
-		if ($max > 1) {
-			foreach my $d (keys %depth2count) {
-				$possibleDups -= ($d * $depth2count{$d}) if $d > $max;
-			}
+		# take into account that we always write one duplicate read
+		my $maxDups = 0; # number of duplicates to be tossed for exceeding max cutoff
+		my $oneDups = 0; # number of one duplicates that are always written
+		foreach my $d (keys %depth2count) {
+			$maxDups += (($d - $max) * $depth2count{$d}) if ($max > 1 and $d > $max);
+			$oneDups += $depth2count{$d} if $d > 1;
 		}
+		
+		# this is what the new final total should be
 		my $newTotal = int($nondupCount / (1 - $fraction) );
-		my $allowedDups = $newTotal - $nondupCount;
-		$chance = 1 - sprintf("%.8f", $allowedDups / $possibleDups);
+		printf "   expected new total: %15d\n", $newTotal;
+		
+		# this is how many can be duplicates
+		my $allowedDups = int($newTotal * $fraction);
+		printf "   expected duplicates kept: %9d\n", $allowedDups;
+		
+		# this is the chance for being tossed
+		$chance = 1 - sprintf("%.8f", $allowedDups / ($dupCount - $oneDups - $maxDups));
+		
 		if ($random and $chance < 0) {
 			print "actual duplicate rate less than target rate, no subsampling necessary\n";
 			$chance = 0;
-			exit unless ($max and $max >= 1);
+			exit 0 unless ($max and $max >= 1);
 		}
 		print " Probability of removing duplicate reads: $chance\n";
 	}
@@ -251,8 +261,8 @@ if ($fraction > 0 or not defined $max) {
 
 
 ### Write out new bam file with specified number of targets
-exit unless ($outfile);
-exit unless ($max > 1 or $fraction > 0);
+exit 0 unless ($outfile);
+exit 0 unless ($max > 1 or $fraction > 0);
 print " Removing duplicates and writing new bam file....\n";
 
 # open bam new bam file
@@ -346,15 +356,6 @@ exit; # bam files should automatically be closed
 	# to undef the adapter and index the files.
 	# I also get errors with Bio::DB::Sam, again only with dupbam
 	# so for now do not index
-# $outbam->close if $outbam->can('close'); # annoying different behavior
-# undef $outbam;
-# Bio::ToolBox::db_helper::check_bam_index($outfile);
-# 	# using an unexported subroutine as it's imported dependent on bam adapter availability
-# if ($dupfile) {
-# 	$dupbam->close if $dupbam->can('close');
-# 	undef $dupbam;
-# 	Bio::ToolBox::db_helper::check_bam_index($dupfile);
-# }
 
 
 
