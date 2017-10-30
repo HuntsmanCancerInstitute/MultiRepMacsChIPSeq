@@ -22,7 +22,7 @@ use Bio::ToolBox::db_helper 1.50 qw(
 # this can import either Bio::DB::Sam or Bio::DB::HTS depending on availability
 # this script is mostly bam adapter agnostic
 
-my $VERSION = 1.5;
+my $VERSION = 1.6;
 
 unless (@ARGV) {
 	print <<END;
@@ -160,104 +160,8 @@ if ($seed) {
 
 ### count the reads and number at each position
 if ($fraction > 0 or not defined $max) {
-	# count alignments on each chromosome
-	print " Counting $items....\n";
-	for my $tid (0 .. $sam->n_targets - 1) {
-		my $seq_length = $sam->target_len($tid);
-	
-		# prepare callback data structure
-		my $data = {
-			position   => -1, # a non-coordinate
-			reads      => [], # temp buffer for collecting reads
-		};
-	
-		# walk through the reads on the chromosome
-		my $callback = $paired ? \&count_pe_callback : \&count_se_callback;
-		low_level_bam_fetch($sam, $tid, 0, $seq_length, $callback, $data);
-	
-		# check to make sure we don't leave something behind
-		if (defined $data->{reads}->[0]) {
-			$paired ? count_up_pe_alignments($data) : count_up_se_alignments($data);
-		}
-	}
-	
-	# report duplication statistics
-		# remember that depth2count is simply depth and number of positions at that depth
-		# not the number of alignments
-		# to get total alignments sum( map {$_ * $depth2count{$_}} keys %depth2count )
-	my @depths = sort {$a <=> $b} keys %depth2count;
-	my $nondupCount = sum(values %depth2count);
-	my $dupCount = $totalCount - $nondupCount;
-	my $dupRate = $dupCount / $totalCount;
-	# right justify the numbers in the printf to make it look pretty
-	printf "  Total mapped: %22d
-  Non-duplicate count: %15d
-  Duplicate count: %19d
-  Duplication rate: %18.4f
-  Maximum position depth: %12d
-  Mean position depth: %15.4f\n", 
-		$totalCount, $nondupCount, $dupCount, $dupRate, 
-		max(keys %depth2count), $totalCount / $nondupCount;
-		
-	# calculate fractions
-	if ($fraction and not $random) {
-		my $rate;
-		foreach (my $i = 0; $i <= $#depths; $i++) {
-			my $depth = $depths[$i];
-			my $sumCount = 0; # count of acceptable reads at given depth
-			foreach my $d (@depths) {
-				if ($d <= $depth) {
-					# we can take up to this depth
-					$sumCount += ($depth2count{$d} * $d);
-				}
-				else {
-					# throw away the excess
-					$sumCount += ($depth2count{$d} * $depth);
-				}
-			}
-			$rate = ($totalCount - $sumCount) / $totalCount;
-			printf "  At maximum depth $depth: %d kept, effective duplicate rate %.4f\n", 
-				$sumCount, $rate;
-			if ($rate < $fraction) {
-				$max = $depths[$i]; 
-				last;
-			}
-		}
-		print " Setting maximum allowed duplicates to $max\n";
-	}
-	elsif ($fraction and $random) {
-		# calculate the allowed number of reads
-		# take into account maximum allowed duplicates
-		# take into account that we always write one duplicate read
-		my $maxDups = 0; # number of duplicates to be tossed for exceeding max cutoff
-		my $oneDups = 0; # number of one duplicates that are always written
-		foreach my $d (keys %depth2count) {
-			$maxDups += (($d - $max) * $depth2count{$d}) if ($max > 1 and $d > $max);
-			$oneDups += $depth2count{$d} if $d > 1;
-		}
-		
-		# this is what the new final total should be
-		my $newTotal = int($nondupCount / (1 - $fraction) );
-		printf "   expected new total: %15d\n", $newTotal;
-		
-		# this is how many can be duplicates
-		my $allowedDups = int($newTotal * $fraction);
-		printf "   expected duplicates kept: %9d\n", $allowedDups;
-		
-		# this is the chance for being tossed
-		$chance = 1 - sprintf("%.8f", $allowedDups / ($dupCount - $oneDups - $maxDups));
-		
-		if ($random and $chance < 0) {
-			print "actual duplicate rate less than target rate, no subsampling necessary\n";
-			$chance = 0;
-			exit 0 unless ($max and $max >= 1);
-		}
-		print " Probability of removing duplicate reads: $chance\n";
-	}
+	count_alignments();
 }
-
-
-
 
 
 ### Write out new bam file with specified number of targets
@@ -289,8 +193,6 @@ my $callback = $paired ? \&write_pe_callback : \&write_se_callback;
 if ($random) {
 	$write_out_alignments = $paired ? \&write_out_random_pe_alignments : 
 		\&write_out_random_se_alignments;
-	$max -= 1; # since we always take the first one, we decrease by max by one 
-				# this only pertains to the random subroutines, not the max subroutines
 }
 else {
 	$write_out_alignments = $paired ? \&write_out_max_pe_alignments : 
@@ -337,10 +239,9 @@ printf "  Total mapped: %22d
   Non-duplicate count: %15d
   Retained duplicate count: %10d 
   Removed duplicate count: %11d
-  Effective duplication rate: %8.4f
   Current duplication rate: %10.4f\n",
 	$totalCount, $positionCount, $duplicateCount, $tossCount, 
-	$duplicateCount/$totalCount, $duplicateCount/($duplicateCount + $positionCount);
+	$duplicateCount/($duplicateCount + $positionCount);
 
 
 
@@ -358,6 +259,107 @@ exit; # bam files should automatically be closed
 	# so for now do not index
 
 
+
+
+### Count alignments and calculate fractions
+sub count_alignments {
+	# count alignments on each chromosome
+	print " Counting $items....\n";
+	for my $tid (0 .. $sam->n_targets - 1) {
+		my $seq_length = $sam->target_len($tid);
+	
+		# prepare callback data structure
+		my $data = {
+			position   => -1, # a non-coordinate
+			reads      => [], # temp buffer for collecting reads
+		};
+	
+		# walk through the reads on the chromosome
+		my $callback = $paired ? \&count_pe_callback : \&count_se_callback;
+		low_level_bam_fetch($sam, $tid, 0, $seq_length, $callback, $data);
+	
+		# check to make sure we don't leave something behind
+		if (defined $data->{reads}->[0]) {
+			$paired ? count_up_pe_alignments($data) : count_up_se_alignments($data);
+		}
+	}
+	
+	# report duplication statistics
+		# remember that depth2count is simply depth and number of positions at that depth
+		# not the number of alignments
+		# to get total alignments sum( map {$_ * $depth2count{$_}} keys %depth2count )
+	my @depths = sort {$a <=> $b} keys %depth2count;
+	my $nondupCount = sum(values %depth2count);# assumes one unique at every single position
+	my $dupCount = $totalCount - $nondupCount; # essentially count of positions with 2+ alignments
+	my $dupRate = $dupCount / $totalCount;
+	# right justify the numbers in the printf to make it look pretty
+	printf "  Total mapped: %22d
+  Non-duplicate count: %15d
+  Duplicate count: %19d
+  Duplication rate: %18.4f
+  Maximum position depth: %12d
+  Mean position depth: %15.4f\n", 
+		$totalCount, $nondupCount, $dupCount, $dupRate, 
+		max(keys %depth2count), $totalCount / $nondupCount;
+	
+	
+	if ($fraction and $dupRate <= $fraction) {
+		print " Actual duplication rate is less than target fraction. No de-duplication necessary\n";
+		exit 0 unless ($max and $max >= 1);
+		return;
+	}
+	
+	# calculate fractions
+	if ($fraction and not $random) {
+		my $rate;
+		foreach (my $i = 0; $i <= $#depths; $i++) {
+			my $depth = $depths[$i];
+			my $sumCount = 0; # count of acceptable reads at given depth
+			foreach my $d (@depths) {
+				if ($d <= $depth) {
+					# we can take up to this depth
+					$sumCount += ($depth2count{$d} * $d);
+				}
+				else {
+					# throw away the excess
+					$sumCount += ($depth2count{$d} * $depth);
+				}
+			}
+			$rate = ($totalCount - $sumCount) / $totalCount;
+			printf "  At maximum depth $depth: %d kept, effective duplicate rate %.4f\n", 
+				$sumCount, $rate;
+			if ($rate < $fraction) {
+				$max = $depths[$i]; 
+				last;
+			}
+		}
+		print " Setting maximum allowed duplicates to $max\n";
+	}
+	elsif ($fraction and $random) {
+		
+		# this is the number of duplicates available to be subsampled
+		my $availableDups = $dupCount;
+		if ($max) {
+			# adjust for the number of duplicates to be tossed for exceeding max cutoff
+			foreach my $d (keys %depth2count) {
+				$availableDups -= (($d - $max) * $depth2count{$d}) 
+					if ($max > 1 and $d > $max);
+			}
+		}
+		
+		# this is what the new final total should be
+		my $newTotal = int($nondupCount / (1 - $fraction) );
+		printf "  Expected new total: %16d\n", $newTotal;
+		
+		# this is how many can be duplicates
+		my $allowedDups = int($newTotal * $fraction);
+		printf "  Expected duplicates kept: %10d\n", $allowedDups;
+		
+		# this is the chance for being kept
+		$chance = sprintf("%.8f", $allowedDups / $availableDups); 
+		printf "  Probability of keeping: %12s\n", $chance;
+	}
+}
 
 
 
@@ -675,35 +677,7 @@ sub write_out_random_se_alignments {
 			&$write_alignment($outbam, $fends{$pos}->[0]);
 		}
 		else {
-			# always write the first one
-			$positionCount++;
-			&$write_alignment($outbam, shift @{ $fends{$pos} });
-			
-			# cut off above maximum
-			if ($max and scalar @{ $fends{$pos} } > $max) {
-				my @removed = splice(@{ $fends{$pos} }, $max);
-				$tossCount += scalar(@removed);
-				if ($dupbam) {
-					# write out the removed alignments
-					foreach (@removed) {
-						&$write_alignment($dupbam, $_);
-					}
-				}
-			}
-			
-			# duplicates get to roll the dice
-			while (my $a = shift @{ $fends{$pos} }) {
-				if (rand(1) > $chance) {
-					# lucky day, this alignment is kept
-					$duplicateCount++;
-					&$write_alignment($outbam, $a);
-				}
-				else {
-					# no luck, this alignment is tossed
-					$tossCount++;
-					&$write_alignment($dupbam, $a) if $dupbam;
-				}
-			}
+			random_se_alignment_writer($fends{$pos});
 		}
 	}
 	
@@ -715,40 +689,52 @@ sub write_out_random_se_alignments {
 			&$write_alignment($outbam, $rends{$pos}->[0]);
 		}
 		else {
-			# always write the first one
-			$positionCount++;
-			&$write_alignment($outbam, shift @{ $rends{$pos} });
-			
-			# cut off above maximum
-			if ($max and scalar @{ $rends{$pos} } > $max) {
-				my @removed = splice(@{ $rends{$pos} }, $max);
-				$tossCount += scalar(@removed);
-				if ($dupbam) {
-					# write out the removed alignments
-					foreach (@removed) {
-						&$write_alignment($dupbam, $_);
-					}
-				}
-			}
-			
-			# duplicates get to roll the dice
-			while (my $a = shift @{ $rends{$pos} }) {
-				if (rand(1) > $chance) {
-					# lucky day, this alignment is kept
-					$duplicateCount++;
-					&$write_alignment($outbam, $a);
-				}
-				else {
-					# no luck, this alignment is tossed
-					$tossCount++;
-					&$write_alignment($dupbam, $a) if $dupbam;
-				}
-			}
+			random_se_alignment_writer($rends{$pos});
 		}
 	}
 
 }
 
+
+sub random_se_alignment_writer {
+	my $alignments = shift;
+	
+	# always write the first one
+	$positionCount++;
+	&$write_alignment($outbam, shift @{$alignments});
+	
+	# duplicates get to roll the dice
+	my @keep;
+	my @toss;
+	while (my $a = shift @{$alignments}) {
+		if (rand(1) < $chance) {
+			push @keep, $a;
+		}
+		else {
+			push @toss, $a;
+		}
+	}
+	
+	# cut off above maximum
+	if ($max and scalar @keep > $max) {
+		my @removed = splice(@keep, $max - 1);
+		push @toss, @removed;
+	}
+	
+	# write out keepers
+	$duplicateCount += scalar(@keep);
+	foreach (@keep) {
+		&$write_alignment($outbam, $_);
+	}
+	
+	# record losers
+	$tossCount += scalar(@toss);
+	if ($dupbam) {
+		foreach (@toss) {
+			&$write_alignment($dupbam, $_);
+		}
+	}
+}
 
 sub write_out_random_pe_alignments {
 	my $data = shift;
@@ -784,35 +770,37 @@ sub write_out_random_pe_alignments {
 			&$write_alignment($outbam, $a);
 			$data->{keepers}{$a->qname} = 1; # remember name for reverse read
 			
-			# cut off above maximum
-			if ($max and scalar @{ $f_sizes{$s} } > $max) {
-				my @removed = splice(@{ $f_sizes{$s} }, $max);
-				$tossCount += scalar(@removed);
-				if ($dupbam) {
-					# write out the removed alignments
-					foreach (@removed) {
-						&$write_alignment($dupbam, $_);
-						$data->{dupkeepers}{$_->qname} = 1;
-					}
-				}
-			}
-			
-			# any remaining duplicates get to roll the dice
+			# duplicates get to roll the dice
+			my @keep;
+			my @toss;
 			while (my $a = shift @{ $f_sizes{$s} }) {
-				if (rand(1) > $chance) {
-					# lucky day, this alignment is kept
-					$duplicateCount++;
-					&$write_alignment($outbam, $a);
-					$data->{keepers}{$a->qname} = 1; # remember name to write reverse read
+				if (rand(1) < $chance) {
+					push @keep, $a;
 				}
 				else {
-					# no luck, this alignment is tossed
-					$tossCount++;
-					if ($dupbam) {
-						&$write_alignment($dupbam, $a);
-						# remember name to write reverse read
-						$data->{dupkeepers}{$a->qname} = 1; 
-					}
+					push @toss, $a;
+				}
+			}
+	
+			# cut off above maximum
+			if ($max and scalar @keep > $max) {
+				my @removed = splice(@keep, $max - 1);
+				push @toss, @removed;
+			}
+	
+			# write out keepers
+			$duplicateCount += scalar(@keep);
+			foreach (@keep) {
+				&$write_alignment($outbam, $_);
+				$data->{keepers}{$_->qname} = 1; # remember name to write reverse read
+			}
+	
+			# record losers
+			$tossCount += scalar(@toss);
+			if ($dupbam) {
+				foreach (@toss) {
+					&$write_alignment($dupbam, $_);
+					$data->{dupkeepers}{$_->qname} = 1; # remember name 
 				}
 			}
 		}
