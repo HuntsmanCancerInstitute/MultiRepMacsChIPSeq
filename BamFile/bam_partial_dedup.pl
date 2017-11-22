@@ -22,7 +22,7 @@ use Bio::ToolBox::db_helper 1.50 qw(
 # this can import either Bio::DB::Sam or Bio::DB::HTS depending on availability
 # this script is mostly bam adapter agnostic
 
-my $VERSION = 1.6;
+my $VERSION = 1.7;
 
 unless (@ARGV) {
 	print <<END;
@@ -166,7 +166,7 @@ if ($fraction > 0 or not defined $max) {
 
 ### Write out new bam file with specified number of targets
 exit 0 unless ($outfile);
-exit 0 unless ($max > 1 or $fraction > 0);
+exit 0 unless ($max > 1 or $chance > 0);
 print " Removing duplicates and writing new bam file....\n";
 
 # open bam new bam file
@@ -190,7 +190,7 @@ if ($dupfile) {
 
 # set callbacks and subroutines
 my $callback = $paired ? \&write_pe_callback : \&write_se_callback;
-if ($random) {
+if ($random and defined $chance) {
 	$write_out_alignments = $paired ? \&write_out_random_pe_alignments : 
 		\&write_out_random_se_alignments;
 }
@@ -204,6 +204,7 @@ $totalCount        = 0; # reset to zero from before
 my $positionCount  = 0;
 my $duplicateCount = 0;
 my $tossCount      = 0;
+my $unpairedCount  = 0;
 
 # walk through bam file again
 for my $tid (0 .. $sam->n_targets - 1) {
@@ -226,8 +227,7 @@ for my $tid (0 .. $sam->n_targets - 1) {
 		&$write_out_alignments($data);
 	}
 	if ($paired and scalar keys %{$data->{keepers}}) {
-		printf " %d un-paired alignments were skipped\n", 
-			scalar(keys %{$data->{keepers}});
+		$unpairedCount += scalar(keys %{$data->{keepers}});
 	}
 }
 
@@ -242,7 +242,9 @@ printf "  Total mapped: %22d
   Current duplication rate: %10.4f\n",
 	$totalCount, $positionCount, $duplicateCount, $tossCount, 
 	$duplicateCount/($duplicateCount + $positionCount);
-
+if ($paired and $unpairedCount) {
+	printf "  Unpaired count: %20d\n", $unpairedCount;
+}
 
 
 
@@ -292,6 +294,7 @@ sub count_alignments {
 	my $nondupCount = sum(values %depth2count);# assumes one unique at every single position
 	my $dupCount = $totalCount - $nondupCount; # essentially count of positions with 2+ alignments
 	my $dupRate = $dupCount / $totalCount;
+	my $maxObserved = max(keys %depth2count);
 	# right justify the numbers in the printf to make it look pretty
 	printf "  Total mapped: %22d
   Non-duplicate count: %15d
@@ -300,13 +303,26 @@ sub count_alignments {
   Maximum position depth: %12d
   Mean position depth: %15.4f\n", 
 		$totalCount, $nondupCount, $dupCount, $dupRate, 
-		max(keys %depth2count), $totalCount / $nondupCount;
+		$maxObserved, $totalCount / $nondupCount;
 	
-	
+	# check if we need to continue
 	if ($fraction and $dupRate <= $fraction) {
-		print " Actual duplication rate is less than target fraction. No de-duplication necessary\n";
-		exit 0 unless ($max and $max >= 1);
+		print " Actual duplication rate is less than target fraction. No de-duplication necessary.\n";
+		if ($max and $max >= 1) {
+			if ($maxObserved <= $max) {
+				print " Maximum observed depth is less than maximum allowed. No de-duplication necessary.\n";
+				exit 0;
+			}
+			else {
+				# we will continue with max cutoff
+				print " Maximum observed depth is above maximum allowed.\n";
+			}
+		}
 		return;
+	}
+	if ($max and $max >= 1 and $max >= $maxObserved) {
+		print " Maximum observed depth is less than maximum allowed. No maximum cutoff necessary.\n";
+		undef $max;
 	}
 	
 	# calculate fractions
