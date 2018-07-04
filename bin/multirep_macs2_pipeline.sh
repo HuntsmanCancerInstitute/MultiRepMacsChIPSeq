@@ -1,38 +1,23 @@
 #!/usr/bin/bash
 
-###### Multi-replica ChIP-seq analysis with MACS2
+################     Multi-replica ChIP-seq analysis with MACS2 ############
 
-# Macs2 doesn't natively handle replicates. By default, putting in more than one 
-# replicate bam file leads to simple concatenation of the alignments, which can be 
-# a problem with uneven sequencing depth
-
-# This script is a pipeline for calling ChIPSeq in a way that averages sequencing 
-# depths across the replicates before merging the files for calling
-
-# Feel free to modify the user variables
-# Paths and program calls can be adjusted as needed for advanced users
-
-
-VERSION='1'
+VERSION=2
 
 ################     USER VARIABLES     ####################################
 
-
+# Modify the user variables
 
 ### Name
-# this is the 
 NAME=Experiment1
 
 
 ### Sorted indexed bam files
-# change list to one or more files
 CHIPBAMFILES=( chip1.bam chip2.bam chip3.bam )
 CONTROLBAMFILES=( input1.bam input2.bam input3.bam )
 
-
 ### Paired-end data
 # set this to 1 for paired-end data
-# Do NOT mix single and paired-end bam files!!!!
 PAIRED=0
 
 
@@ -46,35 +31,18 @@ PAIRED=0
 GENOME=2700000000
 
 ### Fragment length
-# this can be determined by running macs2 predictd if necessary 
-# if you check individual ChIP samples, take an average of the results
-# note that the reported fragment size from macs2 predictd is not always the ideal size
-# example: macs2 predictd -g hs -i chip1.bam 
+# should empirically check for each new dataset
 FRAGMENTSIZE=300
 
-
 ### Target duplication rate
-# Samples may be de-duplicated, either completely, or to a consistent level 
-# across all replicates through subsampling. Some experiments like MNase should 
-# not necessarily have duplicates removed.
-# Set maximum duplication to 1 to remove all duplicates
-# Set maximum duplication to 0 to keep all duplicates
-# Set maximum duplication > 1 and duplicate fraction for random subsampling
-MAXDUP=50
+# set to 0 to skip duplicate removal
+# set to 1 for duplicate subsample to target fraction
+# set to 2 to remove all duplicates
+REMOVE_DUPLICATES=1
+MAXDUP=25
 DUPFRACTION=0.1
 
 ### Peak calling parameters
-# specify the macs2 q-value cutoff for calling peaks
-#   this is -log10(q-value), so 2 is equivalent to 0.01
-# slocal and llocal are sizes for local chromatin bias lambda control. 
-#   see macs2 documentation for more information
-# minimum peak size is usually the same as fragment size, but could be 
-#   bigger or smaller as needed
-# peak gap size is minimum distance between peaks before merging
-# target depth is average number of millions read depth between samples
-#   since all tracks are scaled to Reads Per Million, this is an arbitrary 
-#   read depth for macs2 to scale back to the original read depth for proper 
-#   estimation of enrichment
 QVAL=2
 SLOCAL=1000
 LLOCAL=10000
@@ -82,24 +50,24 @@ PEAKSIZE=300
 PEAKGAP=200
 TARGETDEPTH=25
 
-
 ### Chromosomes to skip
-# this is a regular expression and should be single double quoted
-CHRSKIP='"chrM|MT|lambda|adapter"'
+# this is a case sensitive regular expression and should be single double quoted
+CHRSKIP='"chrM|MT|lambda|adapter|PhiX"'
 
-
-### Black list
-# this is a bed file of blacklisted regions to avoid calling peaks in troublesome regions
-# see https://sites.google.com/site/anshulkundaje/projects/blacklists
+### Black list bed file
 # single doublequote this because it can be left null
 BLACKLIST='""'
 
 
-### Jobs 
-# for multiprocessing files
-# please be considerate of community resources and adjust appropriately
+### Job number for parallel processing 
 JOBNUMBER=3
 THREADNUMBER=6
+
+
+### Bin size in bp for making smaller bedgraphs
+CHIPBIN=10
+SLOCALBIN=50
+LLOCALBIN=100
 
 
 
@@ -118,21 +86,6 @@ GNUPARALLEL=/usr/local/bin/parallel
 PRINTCHR=/home/BioApps/biotoolbox/print_chromosome_lengths.pl
 DEDUP=/home/BioApps/biotoolbox/bam_partial_dedup.pl
 
-### for CHPC HCI nodes
-# module load parallel
-# export PYTHONUSERBASE=/uufs/chpc.utah.edu/common/home/hcibcore/Library/
-# export PERL5LIB=/uufs/chpc.utah.edu/common/home/hcibcore/Library/lib/perl5
-# JOBNUMBER=6
-# THREADNUMBER=16
-# 
-# BAM2WIG=/uufs/chpc.utah.edu/common/home/hcibcore/Library/bin/bam2wig.pl
-# MACS=/uufs/chpc.utah.edu/common/home/hcibcore/Library/bin/macs2
-# MANWIG=/uufs/chpc.utah.edu/common/home/hcibcore/Library/bin/manipulate_wig.pl
-# BDG2BW=/tomato/dev/app/UCSC/bedGraphToBigWig
-# GNUPARALLEL=`which parallel`
-# PRINTCHR=/uufs/chpc.utah.edu/common/home/hcibcore/Library/bin/print_chromosome_lengths.pl
-# DEDUP=/uufs/chpc.utah.edu/common/home/hcibcore/Library/bin/bam_partial_dedup.pl
-
 
 
 
@@ -146,8 +99,15 @@ echo "Name: $NAME"
 echo "ChIP Bam files: ${CHIPBAMFILES[@]}"
 echo "Control Bam files: ${CONTROLBAMFILES[@]}"
 echo "Fragment size: $FRAGMENTSIZE bp"
-echo "Maximum duplicates allowed: $MAXDUP"
-echo "Subsample duplicates to fraction: $DUPFRACTION"
+if [ $REMOVE_DUPLICATES == 1 ]
+then
+	echo "Remove all duplicates"
+elif [ $REMOVE_DUPLICATES == 2 ]
+then
+	echo "Subsample Duplicates"
+	echo "Maximum duplicates allowed: $MAXDUP"
+	echo "Subsample duplicates to fraction: $DUPFRACTION"
+fi
 echo "Skipped chromosomes: $CHRSKIP"
 echo "Black list interval file: $BLACKLIST"
 echo "Q-value threshold: $QVAL"
@@ -167,52 +127,9 @@ fi
 
 
 #### Removing Duplicates
-if [ $MAXDUP == 1 ]
+if [ $REMOVE_DUPLICATES == 1 ]
 then
-	echo "==== Removing duplicates to depth $MAXDUP"
-	echo
-	
-	# run deduplication on bam files
-	$GNUPARALLEL -j $JOBNUMBER -v -k \
-	$DEDUP --max $MAXDUP --in {} --out {.}.dedup.bam $PAIREDSTRING \
-	':::' ${CHIPBAMFILES[@]} ${CONTROLBAMFILES[@]} 
-	
-	# check for new chip bam files
-	NEWFILES=()
-	for f in ${CHIPBAMFILES[@]}
-	do
-		if [ -e ${f%.bam}.dedup.bam ]
-		then
-			NEWFILES+=(${f%.bam}.dedup.bam)
-		else
-			# something went wrong, so use old one
-			echo "PROBLEM: can't find ${f%.bam}.dedup.bam so using $f"
-			NEWFILES+=($f)
-		fi
-	done
-	CHIPBAMFILES=( ${NEWFILES[@]} )
-	echo; echo "= NEW ChIP files ${CHIPBAMFILES[@]}"
-	
-	# check for new control bam files
-	NEWFILES=()
-	for f in ${CONTROLBAMFILES[@]}
-	do
-		if [ -e ${f%.bam}.dedup.bam ]
-		then
-			NEWFILES+=(${f%.bam}.dedup.bam)
-		else
-			# something went wrong, so use old one
-			echo "PROBLEM: can't find ${f%.bam}.dedup.bam so using $f"
-			NEWFILES+=($f)
-		fi
-	done
-	CONTROLBAMFILES=( ${NEWFILES[@]} )
-	echo; echo "= NEW Control files ${CONTROLBAMFILES[@]}"
-	
-	
-elif [ $(echo "$DUPFRACTION > 0"| bc -l) ]
-then
-	echo "==== Subsampling duplicates to fraction $DUPFRACTION"
+	echo "==== Subsampling duplicates to fraction $DUPFRACTION, maximum $MAXDUP"
 	echo
 	
 	# run deduplication on bam files
@@ -253,6 +170,48 @@ then
 	done
 	CONTROLBAMFILES=( ${NEWFILES[@]} )
 	echo; echo "= NEW Control files ${CONTROLBAMFILES[@]}"
+
+elif [ $REMOVE_DUPLICATES == 2 ]
+then
+	echo "==== Removing all duplicates"
+	echo
+	
+	# run deduplication on bam files
+	$GNUPARALLEL -j $JOBNUMBER -v -k \
+	$DEDUP --max 1 $PAIREDSTRING --in {} --out {.}.dedup.bam \
+	':::' ${CHIPBAMFILES[@]} ${CONTROLBAMFILES[@]} 
+	
+	# check for new chip bam files
+	NEWFILES=()
+	for f in ${CHIPBAMFILES[@]}
+	do
+		if [ -e ${f%.bam}.dedup.bam ]
+		then
+			NEWFILES+=(${f%.bam}.dedup.bam)
+		else
+			# something went wrong, so use old one
+			echo "PROBLEM: can't find ${f%.bam}.dedup.bam so using $f"
+			NEWFILES+=($f)
+		fi
+	done
+	CHIPBAMFILES=( ${NEWFILES[@]} )
+	echo; echo "= NEW ChIP files ${CHIPBAMFILES[@]}"
+	
+	# check for new control bam files
+	NEWFILES=()
+	for f in ${CONTROLBAMFILES[@]}
+	do
+		if [ -e ${f%.bam}.dedup.bam ]
+		then
+			NEWFILES+=(${f%.bam}.dedup.bam)
+		else
+			# something went wrong, so use old one
+			echo "PROBLEM: can't find ${f%.bam}.dedup.bam so using $f"
+			NEWFILES+=($f)
+		fi
+	done
+	CONTROLBAMFILES=( ${NEWFILES[@]} )
+	echo; echo "= NEW Control files ${CONTROLBAMFILES[@]}"
 fi
 
 
@@ -265,14 +224,14 @@ echo
 echo "==== Generating Mean RPM ChIP coverage"
 
 $BAM2WIG --cpu $THREADNUMBER --extend --extval $FRAGMENTSIZE \
---rpm --mean --bdg --chrskip $CHRSKIP --blacklist $BLACKLIST \
+--rpm --mean --bdg --bin $CHIPBIN --chrskip $CHRSKIP --blacklist $BLACKLIST \
 $PAIREDSTRING --out $NAME.extend.bdg ${CHIPBAMFILES[@]}
 
 echo
 echo "==== Generating Mean RPM d control"
 
 $BAM2WIG --cpu $THREADNUMBER --cspan --extval $FRAGMENTSIZE \
---rpm --mean --bdg --chrskip $CHRSKIP --blacklist $BLACKLIST \
+--rpm --mean --bdg --bin $CHIPBIN --chrskip $CHRSKIP --blacklist $BLACKLIST \
 $PAIREDSTRING --out $NAME.dlocal.bdg ${CONTROLBAMFILES[@]}
 
 echo
@@ -281,8 +240,8 @@ echo "==== Generating Mean RPM slocal control"
 SSCALE=$(echo "$FRAGMENTSIZE / $SLOCAL" | bc -l)
 echo " Small local lambda scale $SSCALE"
 $BAM2WIG --cpu $THREADNUMBER --cspan --extval $SLOCAL --rpm \
---mean --bdg --chrskip $CHRSKIP --blacklist $BLACKLIST --scale $SSCALE \
-$PAIREDSTRING --out $NAME.slocal.bdg ${CONTROLBAMFILES[@]}
+--mean --bdg --bin $SLOCALBIN --chrskip $CHRSKIP --blacklist $BLACKLIST \
+--scale $SSCALE $PAIREDSTRING --out $NAME.slocal.bdg ${CONTROLBAMFILES[@]}
 
 echo
 echo "==== Generating Mean RPM llocal control"
@@ -290,8 +249,8 @@ echo "==== Generating Mean RPM llocal control"
 LSCALE=$(echo "$FRAGMENTSIZE / $LLOCAL" | bc -l)
 echo " Large local lambda scale $LSCALE"
 $BAM2WIG --cpu $THREADNUMBER --cspan --extval $LLOCAL --rpm \
---mean --bdg --chrskip $CHRSKIP --blacklist $BLACKLIST --scale $LSCALE \
-$PAIREDSTRING --out $NAME.llocal.bdg ${CONTROLBAMFILES[@]}
+--mean --bdg --bin $LLOCALBIN --chrskip $CHRSKIP --blacklist $BLACKLIST \
+--scale $LSCALE $PAIREDSTRING --out $NAME.llocal.bdg ${CONTROLBAMFILES[@]}
 
 echo
 echo "==== Generating lambda control"
@@ -302,6 +261,7 @@ $MACS bdgcmp -m max -t $NAME.slocal.bdg -c $NAME.llocal.bdg -o $NAME.sllocal.bdg
 $MACS bdgcmp -m max -t $NAME.sllocal.bdg -c $NAME.dlocal.bdg -o $NAME.sldlocal.bdg \
 && rm $NAME.sllocal.bdg $NAME.dlocal.bdg
 
+# genomic background based on 1 million reads
 BACKGROUND=$(expr 1000000 \* $FRAGMENTSIZE)
 BACKGROUND=$(echo "$BACKGROUND / $GENOME" | bc -l)
 echo "= Genome background depth is $BACKGROUND"
