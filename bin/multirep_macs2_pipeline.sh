@@ -2,7 +2,7 @@
 
 ################     Multi-replica ChIP-seq analysis with MACS2 ############
 
-VERSION=2
+VERSION=2.1
 
 ################     USER VARIABLES     ####################################
 
@@ -81,7 +81,7 @@ LLOCALBIN=100
 BAM2WIG=/home/BioApps/biotoolbox/bam2wig
 MACS=/home/BioApps/macs2/macs2
 MANWIG=/home/BioApps/biotoolbox/manipulate_wig.pl
-BDG2BW=/tomato/dev/app/UCSC/bedGraphToBigWig
+BDG2BW=/tomato/dev/app/UCSC/wigToBigWig
 GNUPARALLEL=/usr/local/bin/parallel
 PRINTCHR=/home/BioApps/biotoolbox/print_chromosome_lengths.pl
 DEDUP=/home/BioApps/biotoolbox/bam_partial_dedup.pl
@@ -220,12 +220,29 @@ fi
 # generation of lambda control based on 
 # https://github.com/taoliu/MACS/wiki/Advanced%3A-Call-peaks-using-MACS2-subcommands
 
+# set parameter again for paired end or single end for ChIP coverage only
+if [ $PAIRED == 1 ]; then
+	PAIREDSTRING='--span --pe'
+else
+	PAIREDSTRING='--extend --extval $FRAGMENTSIZE'
+fi
+
 echo
 echo "==== Generating Mean RPM ChIP coverage"
 
-$BAM2WIG --cpu $THREADNUMBER --extend --extval $FRAGMENTSIZE \
+$BAM2WIG --cpu $THREADNUMBER $PAIREDSTRING \
 --rpm --mean --bdg --bin $CHIPBIN --chrskip $CHRSKIP --blacklist $BLACKLIST \
-$PAIREDSTRING --out $NAME.extend.bdg ${CHIPBAMFILES[@]}
+--out $NAME.extend.bdg ${CHIPBAMFILES[@]}
+
+
+# set parameter again for paired end or single end for control coverage
+if [ $PAIRED == 1 ]; then
+	PAIREDSTRING='--pe'
+else
+	PAIREDSTRING=''
+fi
+
+
 
 echo
 echo "==== Generating Mean RPM d control"
