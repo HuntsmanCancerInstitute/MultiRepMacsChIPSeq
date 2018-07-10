@@ -5,7 +5,7 @@ use IO::File;
 use File::Spec;
 use Getopt::Long;
 
-my $VERSION = 1;
+my $VERSION = 2;
 
 my $parallel;
 eval {
@@ -60,6 +60,8 @@ $opts{job} = $parallel ? 2 : 1;
 my @names;
 my @chips;
 my @controls;
+my @chip_scales;
+my @control_scales;
 
 my $documentation = <<DOC;
 
@@ -84,10 +86,16 @@ be provided as comma-delimited lists.
 
 Fragment size should be empirically determined by the user, especially when multiple
 samples and/or replicates are being used. The same fragment size is used across all
-samples and replicates to ensure equal comparisons.
+samples and replicates to ensure equal comparisons. NOTE: even in paired-end mode, 
+fragment size is used for control lambda. 
 
 By default, this employs Macs2 local lambda chromatin bias modeling from input. If 
 this isn't desired, set slocal and llocal to 0 for both.
+
+When using a calibration genome in the ChIPSeq (ChIP-Rx), calculate the ratio of 
+target/reference alignments for each replica and sample. Provide these with the 
+scale options in the same order as the bam files. Note that significant 
+de-duplication levels may affect these ratios.
 
 Advanced users may provide one processed bigWig file per ChIP or control sample. 
 
@@ -97,6 +105,8 @@ Options:
   --chip      file1,file2...    Repeat for each sample set
   --name      text              Repeat for each sample
   --control   file1,file2...    Repeat if matching multiple samples
+  --chscale   number,number...  Calibration scales for each ChIP replica and set
+  --coscale   number,number...  Calibration scales for each control replica and set
  
  Output
   --dir       directory         Directory for writing all files ($opts{dir})
@@ -165,6 +175,8 @@ GetOptions(
 	'chip=s'				=> \@chips,
 	'control=s'             => \@controls,
 	'name=s'                => \@names,
+	'chscale=s'             => \@chip_scales,
+	'coscale=s'             => \@control_scales,
 	'species=s'             => \$opts{species},
 	'genome=i'              => \$opts{genome},
 	'mapq=i'                => \$opts{mapq},
@@ -236,6 +248,12 @@ sub check_inputs {
 	if (scalar(@controls) > 1 and scalar(@controls) != scalar(@chips)) {
 		die "Control and ChIP samples quantity doesn't match!\n";
 	}
+	if (scalar(@chip_scales) and scalar(@chip_scales) != scalar(@chips)) {
+		die "unequl ChIP samples and ChIP scale factors!\n";
+	}
+	if (scalar(@control_scales) and scalar(@control_scales) != scalar(@controls)) {
+		die "unequl control samples and control scale factors!\n";
+	}
 	if (not $opts{genome}) {
 		my $s = $opts{species};
 		$opts{genome} = $s eq 'human' ? 2700000000 : $s eq 'mouse' ? 1870000000 : 
@@ -274,13 +292,16 @@ sub generate_job_file_structure {
 	if (scalar(@controls) == 1 and scalar(@chips) > 1) {
 		print "Using only one control for multiple ChIP experiments\n";
 		my $universal_control = shift @controls;
+		my $universal_scale = shift @control_scales || undef;
 		foreach (@names) {
 			push @controls, 'universal';
 		}
-		push @jobs, ChIPjob->new($opts{out} . "_control", '', $universal_control);
+		push @jobs, ChIPjob->new($opts{out} . "_control", '', $universal_control, 
+			undef, $universal_scale);
 	}
 	for my $i (0 .. $#names) {
-		push @jobs, ChIPjob->new($names[$i], $chips[$i], $controls[$i] || undef);
+		push @jobs, ChIPjob->new($names[$i], $chips[$i], $controls[$i] || undef, 
+			$chip_scales[$i] || undef, $control_scales[$i] || undef);
 	}
 	return @jobs;
 }
@@ -498,7 +519,7 @@ package ChIPjob;
 
 sub new {
 	# pass name, comma-list of ChIP files, and comma-list of control files
-	my ($class, $name, $chip, $control) = @_;
+	my ($class, $name, $chip, $control, $chip_scale, $control_scale) = @_;
 	my $namepath = File::Spec->catfile($opts{dir}, $name);
 	my $self = {
 	    name => $name,
@@ -506,8 +527,10 @@ sub new {
 	    control_bams => undef,
 	    chip_dedup_bams => [],
 	    chip_use_bams => [],
+	    chip_scale => undef,
 	    control_dedup_bams => [],
 	    control_use_bams => [],
+	    control_scale => undef,
 	    chip_bw => undef,
 	    chip_bdg => undef,
 	    d_control_bdg => undef,
@@ -544,6 +567,11 @@ sub new {
 		$self->{fe_bdg} = "$namepath.FE.bdg";
 		$self->{logfe_bw} = "$namepath.log2FE.bw";
 		$self->{peak} = "$namepath.narrowPeak";
+		if ($chip_scale) {
+			$self->{chip_scale} = [split(',', $chip_scale)];
+			die "unequal scale factors and bam files!\n" if 
+				scalar(@{$self->{chip_bams}}) != scalar(@{$self->{chip_scale}});
+		}
 	}
 	else {
 		# must be a control
@@ -572,6 +600,11 @@ sub new {
 		$self->{l_control_bdg} = "$namepath.llocal.bdg";
 		$self->{sl_control_bdg} = "$namepath.sllocal.bdg";
 		$self->{sld_control_bdg} = "$namepath.sldlocal.bdg";
+		if ($control_scale) {
+			$self->{control_scale} = [split(',', $control_scale)];
+			die "unequal scale factors and bam files!\n" if 
+				scalar(@{$self->{control_bams}}) != scalar(@{$self->{control_scale}});
+		}
 	}
 	else {
 		# must be just a chip without corresponding control
@@ -709,6 +742,10 @@ sub generate_bam2wig_commands {
 		if ($opts{chrskip}) {
 			$command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
 		}
+		# scaling
+		if ($self->{chip_scale}) {
+			$command .= sprintf("--scale %s ", join(',', @{$self->{chip_scale}} ) );
+		}
 		my $log = $self->{chip_bw};
 		$log =~ s/bw$/out.txt/;
 		$command .= " 2>&1 > $log";
@@ -720,13 +757,13 @@ sub generate_bam2wig_commands {
 	if (scalar @{$self->{control_use_bams}}) {
 		# base command
 		my $command = sprintf(
-			"%s --in %s --qual %s --cpu %s --rpm --mean --cspan --bdg ", 
+			"%s --in %s --qual %s --cpu %s --rpm --mean --bdg ", 
 			$opts{bam2wig}, 
 			join(',', @{$self->{control_use_bams}}), 
 			$opts{mapq},
 			$opts{cpu}
 		);
-		# paired options
+		# general paired options, restrict size for all
 		if ($opts{paired}) {
 			$command .= sprintf("--pe --minsize %s --maxsize %s ", 
 				$opts{minsize}, $opts{maxsize});
@@ -741,32 +778,51 @@ sub generate_bam2wig_commands {
 		
 		# now duplicate the base command for each size lambda control
 		
-		# d control
+		# d control, use extend or paired span just like ChIP
 		my $command1 = $command;
-		$command1 .= sprintf("--extval %s --bin %s --out %s ", 
-			$opts{fragsize}, $opts{chipbin}, $self->{d_control_bdg}
-		);
+		if ($opts{paired}) {
+			$command1 .= "--span ";
+		}
+		else {
+			$command1 .= sprintf("--extend --extval %s ", $opts{fragsize});
+		}
+		if ($self->{control_scale}) {
+			$command1 .= sprintf("--scale %s ", join(',', @{$self->{control_scale}} ) );
+		}
+		$command1 .= sprintf("--bin %s --out %s ", $opts{chipbin}, $self->{d_control_bdg});
 		my $log = $self->{d_control_bdg};
 		$log =~ s/bdg$/out.txt/;
 		$command1 .= " 2>&1 > $log";
 		push @commands, $command1;
 		
-		# small local lambda
+		# small local lambda, extend both directions, scaled to compensate for length
 		if ($opts{slocal}) {
 			my $command2 = $command;
-			$command2 .= sprintf("--extval %s --scale %.6f --bin %s --out %s ",
-				$opts{slocal}, $opts{fragsize}/$opts{slocal}, $opts{slocalbin}, 
+			my $scale = sprintf("%.4f", $opts{fragsize}/$opts{slocal});
+			if ($self->{control_scale}) {
+				# user provided scale, multiply this with the lambda size scale
+				my @scales = map {sprintf("%.4f", $_ * $scale)} @{$self->{control_scale}};
+				$scale = join(',', @scales);
+			}
+			$command2 .= sprintf("--cspan --extval %s --scale %s --bin %s --out %s ",
+				$opts{slocal}, $scale, $opts{slocalbin}, 
 				$self->{s_control_bdg});
 			$log = $self->{s_control_bdg};
 			$log =~ s/bdg$/out.txt/;
 			$command2 .= " 2>&1 > $log";
 			push @commands, $command2;
 		}
-		# large local lambda
+		# large local lambda, extend both directions, scaled to compensate for length
 		if ($opts{llocal}) {
 			my $command3 = $command;
-			$command3 .= sprintf("--extval %s --scale %.6f --bin %s --out %s ",
-				$opts{llocal}, $opts{fragsize}/$opts{llocal}, $opts{llocalbin}, 
+			my $scale = sprintf("%.4f", $opts{fragsize}/$opts{llocal});
+			if ($self->{control_scale}) {
+				# user provided scale, multiply this with the lambda size scale
+				my @scales = map {sprintf("%.4f", $_ * $scale)} @{$self->{control_scale}};
+				$scale = join(',', @scales);
+			}
+			$command3 .= sprintf("--cspan --extval %s --scale %s --bin %s --out %s ",
+				$opts{llocal}, $scale, $opts{llocalbin}, 
 				$self->{l_control_bdg});
 			$log = $self->{l_control_bdg};
 			$log =~ s/bdg$/out.txt/;
