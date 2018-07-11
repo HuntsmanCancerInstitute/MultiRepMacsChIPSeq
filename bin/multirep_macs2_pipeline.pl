@@ -5,7 +5,7 @@ use IO::File;
 use File::Spec;
 use Getopt::Long;
 
-my $VERSION = 2;
+my $VERSION = 3;
 
 my $parallel;
 eval {
@@ -623,10 +623,11 @@ sub generate_dedup_commands {
 			$out = File::Spec->catfile($opts{dir}, $out);
 			$out =~ s/\.bam$/.dedup.bam/i;
 			$self->{chip_dedup_bams}->[$i] = $out;
-			my $command = sprintf "%s --in %s --out %s ", 
+			my $command = sprintf "%s --in %s --out %s --cpu %s ", 
 				$opts{bamdedup},
 				$in,
-				$out;
+				$out,
+				$opts{cpu};
 			if ($opts{dupfrac} > 0) {
 				$command .= sprintf("--random --seed 1 --frac %s ", $opts{dupfrac});
 			}
@@ -635,6 +636,9 @@ sub generate_dedup_commands {
 			}
 			if ($opts{paired}) {
 				$command .= "--pe ";
+			}
+			if ($opts{blacklist}) {
+				$command .= sprintf("--blacklist %s ", $opts{blacklist});
 			}
 			my $log = $out;
 			$log =~ s/\.bam$/.out.txt/i;
@@ -649,10 +653,11 @@ sub generate_dedup_commands {
 			$out = File::Spec->catfile($opts{dir}, $out);
 			$out =~ s/\.bam$/.dedup.bam/i;
 			$self->{control_dedup_bams}->[$i] = $out;
-			my $command = sprintf "%s --in %s --out %s ", 
+			my $command = sprintf "%s --in %s --out %s --cpu %s ", 
 				$opts{bamdedup},
 				$in,
-				$out;
+				$out,
+				$opts{cpu};
 			if ($opts{dupfrac} > 0) {
 				$command .= sprintf("--random --seed 1 --frac %s ", $opts{dupfrac});
 			}
@@ -661,6 +666,9 @@ sub generate_dedup_commands {
 			}
 			if ($opts{paired}) {
 				$command .= "--pe ";
+			}
+			if ($opts{blacklist}) {
+				$command .= sprintf("--blacklist %s ", $opts{blacklist});
 			}
 			my $log = $out;
 			$log =~ s/\.bam$/.out.txt/i;
