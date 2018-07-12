@@ -5,7 +5,7 @@ use IO::File;
 use File::Spec;
 use Getopt::Long;
 
-my $VERSION = 3;
+my $VERSION = 4;
 
 my $parallel;
 eval {
@@ -55,6 +55,7 @@ my %opts = (
 	getdata     => 'get_datasets.pl',
 # 	getrdata    => 'get_relative_data.pl',
 	printchr    => 'print_chromosome_lengths.pl',
+	meanbdg     => 'generate_global_mean_bedGraph.pl',
 ) or die " unrecognized parameter!\n";
 $opts{job} = $parallel ? 2 : 1;
 my @names;
@@ -82,7 +83,9 @@ treat them as individual samples.
 
 One control may be used for all samples, or sample-matched controls may be 
 provided by repeating the option, keeping the same order. Control replicas may 
-be provided as comma-delimited lists.
+be provided as comma-delimited lists. If no control is available (for example, 
+ATACSeq often has no genomic input), then a global mean coverage will be calculated 
+from the ChIP samples and used as the control.
 
 Fragment size should be empirically determined by the user, especially when multiple
 samples and/or replicates are being used. The same fragment size is used across all
@@ -117,7 +120,7 @@ Options:
   --genome    integer           Alternatively give effective genome size
   
  Bam options
-  --mapq      integer           Minimum mapping quality, ($opts{species})
+  --mapq      integer           Minimum mapping quality, ($opts{mapq})
   --pe                          Bam files are paired-end
   --min       integer           Minimum paired-end size allowed ($opts{minsize} bp)
   --max       integer           Maximum paired-end size allowed ($opts{maxsize} bp)
@@ -132,7 +135,7 @@ Options:
   --maxdup    integer           Maximum allowed duplication depth ($opts{maxdup})
 
  Fragment coverage
-  --size      integer           Predicted fragment size ($opts{fragsize} bp)
+  --size      integer           Predicted fragment size (single-end only, $opts{fragsize} bp)
   --slocal    integer           Small local lambda size ($opts{slocal} bp)
   --llocal    integer           Large local lambda size ($opts{llocal} bp)
   --cbin      integer           ChIP fragment bin size ($opts{chipbin} bp)
@@ -159,7 +162,7 @@ Options:
   --bedtools  path             ($opts{bedtools})
   --printchr  path             ($opts{printchr})
   --getdata   path             ($opts{getdata})
-  
+  --meanbdg   path             ($opts{meanbdg})
 DOC
 
 
@@ -208,6 +211,7 @@ GetOptions(
 	'bedtools=s'            => \$opts{bedtools},
 	'getdata=s'             => \$opts{getdata},
 	'printchr=s'            => \$opts{printchr},
+	'meanbdg=s'             => \$opts{meanbdg},
 ) or die "unrecognized option(s)!\n";
 
 
@@ -247,6 +251,11 @@ sub check_inputs {
 	}
 	if (scalar(@controls) > 1 and scalar(@controls) != scalar(@chips)) {
 		die "Control and ChIP samples quantity doesn't match!\n";
+	}
+	elsif (scalar(@controls) == 0) {
+		# no controls, turn off lambda
+		$opts{slocal} = 0;
+		$opts{llocal} = 0;
 	}
 	if (scalar(@chip_scales) and scalar(@chip_scales) != scalar(@chips)) {
 		die "unequl ChIP samples and ChIP scale factors!\n";
@@ -370,13 +379,23 @@ sub check_control {
 		}
 	}
 	else {
-		# we don't want lambda control, so just rename the file
+		# we don't want lambda control, just use d control
 		my @commands;
 		foreach my $Job (@Jobs) {
 			if ($Job->{d_control_bdg}) {
+				# we have a d_control file, rename it to lambda control
 				push @commands, sprintf("mv %s %s", $Job->{d_control_bdg}, $Job->{lambda_bdg});
 				$Job->{lambda_bdg} =~ s/\.lambda_control// if $Job->{lambda_bdg};
 				$Job->{lambda_bw} =~ s/\.lambda_control// if $Job->{lambda_bw};
+			}
+			else {
+				# we don't have a control at all!!!!
+				# calculate a global mean from the input ChIP files
+				my $f = $Job->{chip_bw};
+				$f =~ s/\.bw$/_expected_mean.bdg/i; # this is what should be output
+				$Job->{lambda_bdg} = $f;
+				push @commands, sprintf("%s %s && mv %s %s", $opts{meanbdg}, 
+					$Job->{chip_bw}, $f, $Job->{lambda_bdg});
 			}
 		}
 		if (@commands) {
@@ -465,11 +484,14 @@ sub run_rescore {
 	die "unable to find merged bed file '$input'!\n" unless -e $input;
 	my $output1 = File::Spec->catfile($opts{dir}, $opts{out} . '_qvalue.txt');
 	my $output2 = File::Spec->catfile($opts{dir}, $opts{out} . '_log2FE.txt');
+	my $output3 = File::Spec->catfile($opts{dir}, $opts{out} . '_counts.txt');
 	
 	my $command1 = sprintf("%s --method mean --cpu %s --in %s --out %s ",
 		$opts{getdata}, $opts{cpu}, $input, $output1);
 	my $command2 = sprintf("%s --method mean --cpu %s --in %s --out %s ",
 		$opts{getdata}, $opts{cpu}, $input, $output2);
+	my $command3 = sprintf("%s --method pcount --extend %s --cpu %s",
+		$opts{getdata}, $opts{fragsize}, $opts{cpu});
 	foreach my $Job (@Jobs) {
 		if ($Job->{qvalue_bw}) {
 			$command1 .= sprintf("--data %s ", $Job->{qvalue_bw});
@@ -477,12 +499,24 @@ sub run_rescore {
 		if ($Job->{logfe_bw}) {
 			$command2 .= sprintf("--data %s ", $Job->{logfe_bw});
 		}
+		if ($Job->{chip_bams}) {
+			$command3 .= join(" ", map { sprintf("--data %s", $_)} 
+				(@{ $Job->{chip_dedup_bams} }, @{ $Job->{control_dedup_bams} }) );
+		}
 	}
+	
+	# we actually run command3 for the counts twice, once for sense strand
+	# and again for antisense, this way we get 2 counts for each bam file
+	my $command4 = $command3 . " --strand sense --in $input --out $output3 && " . 
+		$command3 . " --strand antisense --in $output3";
+	
 	$command1 .= sprintf(" 2>&1 > %s", File::Spec->catfile($opts{dir}, 
 		'qvalue_get_datasets.out.txt'));
 	$command2 .= sprintf(" 2>&1 > %s", File::Spec->catfile($opts{dir}, 
 		'log2FE_get_datasets.out.txt'));
-	execute_commands([$command1, $command2]);
+	$command4 .= sprintf(" 2>&1 > %s", File::Spec->catfile($opts{dir}, 
+		'counts_get_datasets.out.txt'));
+	execute_commands([$command1, $command2, $command4]);
 }
 
 sub finish {
@@ -609,6 +643,8 @@ sub new {
 	else {
 		# must be just a chip without corresponding control
 		$self->{control_bams} = [];
+		$self->{lambda_bdg} = "$namepath.expected_mean.bdg";
+		$self->{lambda_bw} = "$namepath.expected_mean.bw";
 	}
 	return bless $self, $class;
 }
@@ -640,6 +676,9 @@ sub generate_dedup_commands {
 			if ($opts{blacklist}) {
 				$command .= sprintf("--blacklist %s ", $opts{blacklist});
 			}
+			if ($opts{chrskip}) {
+				$command .= sprintf("--chrskip %s ", $opts{chrskip});
+			}
 			my $log = $out;
 			$log =~ s/\.bam$/.out.txt/i;
 			$command .= " 2>&1 > $log";
@@ -669,6 +708,9 @@ sub generate_dedup_commands {
 			}
 			if ($opts{blacklist}) {
 				$command .= sprintf("--blacklist %s ", $opts{blacklist});
+			}
+			if ($opts{chrskip}) {
+				$command .= sprintf("--chrskip %s ", $opts{chrskip});
 			}
 			my $log = $out;
 			$log =~ s/\.bam$/.out.txt/i;
