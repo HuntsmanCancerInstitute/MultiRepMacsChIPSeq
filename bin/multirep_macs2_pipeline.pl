@@ -6,7 +6,7 @@ use File::Spec;
 use File::Which;
 use Getopt::Long;
 
-my $VERSION = 5;
+my $VERSION = 5.1;
 
 my $parallel;
 eval {
@@ -34,6 +34,7 @@ my %opts = (
 	maxdup      => undef,
 	dupfrac     => 0.1,
 	fragsize    => 300,
+	shiftsize   => 0,
 	slocal      => 1000,
 	llocal      => 10000,
 	qvalue      => 2,
@@ -136,6 +137,7 @@ Options:
 
  Fragment coverage
   --size      integer           Predicted fragment size (single-end only, $opts{fragsize} bp)
+  --shift     integer           Shift the fragment, e.g. ATACSeq ($opts{shiftsize} bp)
   --slocal    integer           Small local lambda size ($opts{slocal} bp)
   --llocal    integer           Large local lambda size ($opts{llocal} bp)
   --cbin      integer           ChIP fragment bin size ($opts{chipbin} bp)
@@ -192,6 +194,7 @@ GetOptions(
 	'dupfrac=f'             => \$opts{dupfrac},
 	'maxdup=i'              => \$opts{maxdup},
 	'size=i'                => \$opts{fragsize},
+	'shift=i'               => \$opts{shiftsize},
 	'slocal=i'              => \$opts{slocal},
 	'llocal=i'              => \$opts{llocal},
 	'cbin=i'                => \$opts{chipbin},
@@ -789,6 +792,7 @@ sub generate_bam2wig_commands {
 		}
 		else {
 			$command .= sprintf("--extend --extval %s ", $opts{fragsize});
+			$command .= sprintf("--shiftval %s ", $opts{shiftsize}) if $opts{shiftsize};
 		}
 		# additional filtering
 		if ($opts{blacklist}) {
