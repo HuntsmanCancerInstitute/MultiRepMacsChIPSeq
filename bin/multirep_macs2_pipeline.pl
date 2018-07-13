@@ -3,6 +3,7 @@
 use strict;
 use IO::File;
 use File::Spec;
+use File::Which;
 use Getopt::Long;
 
 my $VERSION = 5;
@@ -45,17 +46,16 @@ my %opts = (
 	chipbin     => 10,
 	slocalbin   => 50,
 	llocalbin   => 100,
-	bam2wig     => 'bam2wig.pl',
-	bamdedup    => 'bam_partial_dedup.pl',
-	macs        => 'macs2',
-	manwig      => 'manipulate_wig.pl',
-	wig2bw      => 'wigToBigWig',
-	bw2bdg      => 'bigWigToBedGraph',
-	bedtools    => 'bedtools',
-	getdata     => 'get_datasets.pl',
-# 	getrdata    => 'get_relative_data.pl',
-	printchr    => 'print_chromosome_lengths.pl',
-	meanbdg     => 'generate_global_mean_bedGraph.pl',
+	bam2wig     => sprintf("%s", which 'bam2wig.pl'),
+	bamdedup    => sprintf("%s", which 'bam_partial_dedup.pl'),
+	macs        => sprintf("%s", which 'macs2'),
+	manwig      => sprintf("%s", which 'manipulate_wig.pl'),
+	wig2bw      => sprintf("%s", which 'wigToBigWig'),
+	bw2bdg      => sprintf("%s", which 'bigWigToBedGraph'),
+	bedtools    => sprintf("%s", which 'bedtools'),
+	getdata     => sprintf("%s", which 'get_datasets.pl'),
+	printchr    => sprintf("%s", which 'print_chromosome_lengths.pl'),
+	meanbdg     => sprintf("%s", which 'generate_mean_bedGraph.pl'),
 ) or die " unrecognized parameter!\n";
 $opts{job} = $parallel ? 2 : 1;
 my @names;
@@ -289,7 +289,7 @@ sub print_start {
 	}
 	print "\n\n======= Configuration\n";
 	foreach my $k (sort {$a cmp $b} keys %opts) {
-		printf "%10s %30s\n", $k, $opts{$k};
+		printf "%10s  %s\n", $k, $opts{$k};
 	}
 	print "\n\n";
 }
@@ -391,6 +391,7 @@ sub check_control {
 			else {
 				# we don't have a control at all!!!!
 				# calculate a global mean from the input ChIP files
+				die "no generate_mean_bedGraph.pl script in path!\n" unless $opts{meanbdg} =~ /\w+/;
 				my $f = $Job->{chip_bw};
 				$f =~ s/\.bw$/_mean.bdg/i; # this is what should be output
 				$Job->{lambda_bdg} = $f;
@@ -465,6 +466,7 @@ sub generate_chr_file {
 
 sub run_peak_merge {
 	print "\n\n======= Merging called narrowPeak files\n";
+	die "no bedtools application in path!\n" unless $opts{bedtools} =~ /\w+/;
 	my $command = "cat ";
 	foreach my $Job (@Jobs) {
 		if ($Job->{peak}) {
@@ -479,6 +481,7 @@ sub run_peak_merge {
 
 sub run_rescore {
 	print "\n\n======= Re-scoring all merged peaks\n";
+	die "no get_datasets.pl script in path!\n" unless $opts{getdata} =~ /\w+/;
 	
 	my $input = File::Spec->catfile($opts{dir}, $opts{out} . '.bed');
 	die "unable to find merged bed file '$input'!\n" unless -e $input;
@@ -651,6 +654,7 @@ sub new {
 
 sub generate_dedup_commands {
 	my $self = shift;
+	die "no bam_partial_dedup.pl script in path!\n" unless $opts{bamdedup} =~ /\w+/;
 	my @commands;
 	if (defined $self->{chip_bams}) {
 		for (my $i = 0; $i < scalar @{$self->{chip_bams}}; $i++) {
@@ -761,6 +765,7 @@ sub find_dedup_bams {
 
 sub generate_bam2wig_commands {
 	my $self = shift;
+	die "no bam2wig.pl script in path!\n" unless $opts{bam2wig} =~ /\w+/;
 	my @commands;
 	
 	# ChIP bams
@@ -887,6 +892,8 @@ sub generate_bam2wig_commands {
 
 sub generate_lambda_control_commands {
 	my $self = shift;
+	die "no macs2 application in path!\n" unless $opts{macs} =~ /\w+/;
+	
 	my $dfile = $self->{d_control_bdg};
 	my $sfile = $self->{s_control_bdg};
 	my $lfile = $self->{l_control_bdg};
@@ -923,6 +930,7 @@ sub generate_lambda_control_commands {
 
 sub convert_bw_to_bdg {
 	my $self = shift;
+	die "no bigWigToBedGraph application in path!\n" unless $opts{bw2bdg} =~ /\w+/;
 	my @commands;
 	if ($self->{chip_bw} and -e $self->{chip_bw}) {
 		push @commands, sprintf("%s %s %s", $opts{bw2bdg}, $self->{chip_bw}, 
@@ -937,6 +945,7 @@ sub convert_bw_to_bdg {
 
 sub generate_enrichment_commands {
 	my $self = shift;
+	die "no macs2 application in path!\n" unless $opts{macs} =~ /\w+/;
 	my $chip = $self->{chip_bdg} || undef;
 	my $lambda = $self->{lambda_bdg} || undef;
 	return unless ($chip and $lambda);
@@ -954,6 +963,7 @@ sub generate_enrichment_commands {
 
 sub generate_peakcall_commands {
 	my $self = shift;
+	die "no macs2 application in path!\n" unless $opts{macs} =~ /\w+/;
 	my $qtrack = $self->{qvalue_bdg} || undef;
 	return unless $qtrack;
 	die "no qvalue bedGraph file $qtrack!\n" unless -e $qtrack;
@@ -994,6 +1004,7 @@ sub generate_bdg2bw_commands {
 		}
 	}
 	if ($self->{qvalue_bdg} and $self->{qvalue_bw}) {
+		die "no wigToBigWig application in path!\n" unless $opts{wig2bw} =~ /\w+/;
 		my $command = sprintf("%s %s %s %s && rm %s", 
 			$opts{wig2bw},
 			$self->{qvalue_bdg},
@@ -1005,6 +1016,8 @@ sub generate_bdg2bw_commands {
 	}
 	if ($self->{fe_bdg}) {
 		# convert this to log2 Fold Enrichment because I like this better
+		die "no wigToBigWig application in path!\n" unless $opts{wig2bw} =~ /\w+/;
+		die "no manipulate_wig.pl script in path!\n" unless $opts{manwig} =~ /\w+/;
 		my $log = $self->{logfe_bw};
 		$log =~ s/bw$/out.txt/;
 		my $command = sprintf("%s --in %s --log 2 --place 4 --out stdout 2> $log | %s stdin %s %s",
