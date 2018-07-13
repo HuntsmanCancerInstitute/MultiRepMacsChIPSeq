@@ -5,7 +5,7 @@ use IO::File;
 use File::Spec;
 use Getopt::Long;
 
-my $VERSION = 4;
+my $VERSION = 5;
 
 my $parallel;
 eval {
@@ -392,7 +392,7 @@ sub check_control {
 				# we don't have a control at all!!!!
 				# calculate a global mean from the input ChIP files
 				my $f = $Job->{chip_bw};
-				$f =~ s/\.bw$/_expected_mean.bdg/i; # this is what should be output
+				$f =~ s/\.bw$/_mean.bdg/i; # this is what should be output
 				$Job->{lambda_bdg} = $f;
 				push @commands, sprintf("%s %s && mv %s %s", $opts{meanbdg}, 
 					$Job->{chip_bw}, $f, $Job->{lambda_bdg});
@@ -490,7 +490,7 @@ sub run_rescore {
 		$opts{getdata}, $opts{cpu}, $input, $output1);
 	my $command2 = sprintf("%s --method mean --cpu %s --in %s --out %s ",
 		$opts{getdata}, $opts{cpu}, $input, $output2);
-	my $command3 = sprintf("%s --method pcount --extend %s --cpu %s",
+	my $command3 = sprintf("%s --method pcount --extend %s --cpu %s ",
 		$opts{getdata}, $opts{fragsize}, $opts{cpu});
 	foreach my $Job (@Jobs) {
 		if ($Job->{qvalue_bw}) {
@@ -500,8 +500,8 @@ sub run_rescore {
 			$command2 .= sprintf("--data %s ", $Job->{logfe_bw});
 		}
 		if ($Job->{chip_bams}) {
-			$command3 .= join(" ", map { sprintf("--data %s", $_)} 
-				(@{ $Job->{chip_dedup_bams} }, @{ $Job->{control_dedup_bams} }) );
+			$command3 .= join(" ", map { sprintf("--data %s ", $_)} 
+				(@{ $Job->{chip_use_bams} }, @{ $Job->{control_use_bams} }) );
 		}
 	}
 	
@@ -677,7 +677,7 @@ sub generate_dedup_commands {
 				$command .= sprintf("--blacklist %s ", $opts{blacklist});
 			}
 			if ($opts{chrskip}) {
-				$command .= sprintf("--chrskip %s ", $opts{chrskip});
+				$command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
 			}
 			my $log = $out;
 			$log =~ s/\.bam$/.out.txt/i;
