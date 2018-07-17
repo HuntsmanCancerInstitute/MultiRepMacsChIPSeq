@@ -13,6 +13,7 @@
 
 use strict;
 use Getopt::Long;
+use File::Which;
 use List::Util qw(sum max);
 use Bio::ToolBox::db_helper 1.50 qw(
 	open_db_connection 
@@ -28,7 +29,7 @@ eval {
 	$parallel = 1;
 };
 
-my $VERSION = 1.8;
+my $VERSION = 1.9;
 
 unless (@ARGV) {
 	print <<END;
@@ -110,7 +111,7 @@ END
 
 ### Get Options
 my ($fraction, $max, $infile, $outfile, $mark, $random, $paired, $chr_exclude, 
-	$black_list, $seed, $cpu);
+	$black_list, $seed, $cpu, $no_sam);
 my @program_options = @ARGV;
 GetOptions( 
 	'in=s'       => \$infile, # the input bam file path
@@ -125,6 +126,7 @@ GetOptions(
 	'seed=i'     => \$seed, # seed for non-random random subsampling
 	'cpu=i'      => \$cpu, # number of cpu cores to use
 	'bam=s'      => \$BAM_ADAPTER, # specifically set the bam adapter, advanced!
+	'nosam!'     => \$no_sam, # avoid using external sam adapter, advanced!
 ) or die " unrecognized option(s)!! please refer to the help documentation\n\n";
 
 if ($max and $fraction and not $random) {
@@ -795,6 +797,22 @@ sub deduplicate_multithread {
 		$pm->finish(0, $data); 
 	}
 	$pm->wait_all_children;
+	
+	
+	# attempt to use external samtools to merge the bam files
+	# this should be faster than going through Perl and bam adapters
+	my $sam_app = which('samtools');
+	if ($sam_app and not $no_sam) {
+		my $command = sprintf "%s cat -o %s ", $sam_app, $outfile;
+		$command .= join(' ', map { $targetfiles{$_} } @tid_list);
+		print " executing $sam_app cat to merge children...\n";
+		if (system($command)) {
+			die "something went wrong with command '$command'!\n";
+		}
+		unlink values(%targetfiles);
+		return (\%counts, $outbam);
+	}
+	
 	
 	# open final bam new bam file
 	my $outbam = Bio::ToolBox::db_helper::write_new_bam_file($outfile) or 
