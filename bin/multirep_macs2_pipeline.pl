@@ -6,7 +6,7 @@ use File::Spec;
 use File::Which;
 use Getopt::Long;
 
-my $VERSION = 5.1;
+my $VERSION = 5.2;
 
 my $parallel;
 eval {
@@ -47,6 +47,7 @@ my %opts = (
 	chipbin     => 10,
 	slocalbin   => 50,
 	llocalbin   => 100,
+	chrapply    => undef,
 	bam2wig     => sprintf("%s", which 'bam2wig.pl'),
 	bamdedup    => sprintf("%s", which 'bam_partial_dedup.pl'),
 	macs        => sprintf("%s", which 'macs2'),
@@ -64,6 +65,7 @@ my @chips;
 my @controls;
 my @chip_scales;
 my @control_scales;
+my @chrnorms;
 
 my $documentation = <<DOC;
 
@@ -144,6 +146,10 @@ Options:
   --slbin     integer           Small local lambda bin size ($opts{slocalbin} bp)
   --llbin     integer           Large local lambda bin size ($opts{llocalbin} bp)
 
+ Chromosome-specific normalization
+  --chrnorm   fraction          Specific chromosome normalization factor
+  --chrapply  "text"            Apply factor to specified chromosomes
+ 
  Peak calling
   --cutoff    number            Threshold q-value for calling peaks ($opts{qvalue}) 
                                  Higher numbers are more significant, -1*log10(q)
@@ -161,6 +167,7 @@ Options:
   --macs      path             ($opts{macs})
   --manwig    path             ($opts{manwig})
   --wig2bw    path             ($opts{wig2bw})
+  --bw2bdg    path             ($opts{bw2bdg})
   --bedtools  path             ($opts{bedtools})
   --printchr  path             ($opts{printchr})
   --getdata   path             ($opts{getdata})
@@ -200,6 +207,8 @@ GetOptions(
 	'cbin=i'                => \$opts{chipbin},
 	'slbin=i'               => \$opts{slocalbin},
 	'llbin=i'               => \$opts{llocalbin},
+	'chrnorm=f'             => \@chrnorms,
+	'chrapply=s'            => \$opts{chrapply},
 	'cutoff=f'              => \$opts{qvalue},
 	'tdep=f'                => \$opts{targetdep},
 	'peaksize=i'            => \$opts{peaksize},
@@ -211,6 +220,7 @@ GetOptions(
 	'macs=s'                => \$opts{macs},
 	'manwig=s'              => \$opts{manwig},
 	'wig2bw=s'              => \$opts{wig2bw},
+	'bw2bdg=s'              => \$opts{bw2bdg},
 	'bedtools=s'            => \$opts{bedtools},
 	'getdata=s'             => \$opts{getdata},
 	'printchr=s'            => \$opts{printchr},
@@ -220,10 +230,13 @@ GetOptions(
 
 
 ### Begin main pipeline
+print "======== ChIPSeq multi-replicate pipeline ==========\n";
+print "\nversion $VERSION\n";
 my $start = time;
 my @finished_commands;
 check_inputs();
 print_start();
+my $chromofile = generate_chr_file();
 my @Jobs = generate_job_file_structure();
 run_dedup() if ($opts{dedup});
 check_bams();
@@ -261,10 +274,32 @@ sub check_inputs {
 		$opts{llocal} = 0;
 	}
 	if (scalar(@chip_scales) and scalar(@chip_scales) != scalar(@chips)) {
-		die "unequl ChIP samples and ChIP scale factors!\n";
+		die "unequal ChIP samples and ChIP scale factors!\n";
 	}
 	if (scalar(@control_scales) and scalar(@control_scales) != scalar(@controls)) {
-		die "unequl control samples and control scale factors!\n";
+		die "unequal control samples and control scale factors!\n";
+	}
+	if (scalar(@chrnorms) and not $opts{chrapply}) {
+		die "chromosome normalization factors given but no chromosome specified!\n";
+	}
+	if (not scalar(@chrnorms) and $opts{chrapply}) {
+		die "chromosome name for normalization specified but no factors given!\n";
+	}
+	if (scalar(@chrnorms) and scalar(@chrnorms) != scalar(@chips)) {
+		# apply to all the ChIPs
+		if (scalar @chrnorms == 1) {
+			print "WARNING: using the same chromosome normalization factor for each ChIP sample\n";
+			my $n = shift @chrnorms;
+			foreach (@names) {
+				push @chrnorms, $n;
+			}
+		}
+		else {
+			die "ERROR: inequal number of chromosome normalization factors and ChIP samples!\n";
+		}
+	}
+	if (scalar(@chrnorms) > 1 and scalar(@controls) == 1) {
+		print "WARNING: using first chromosome normalization factor for universal control!\n";
 	}
 	if (not $opts{genome}) {
 		my $s = $opts{species};
@@ -280,11 +315,13 @@ sub check_inputs {
 	unless (-w $opts{dir}) {
 		die sprintf("target directory %s is not writable!\n", $opts{dir});
 	}
+	# add parameters to option hash for printing configuration
+	$opts{chipscale} = join(", ", @chip_scales);
+	$opts{controlscale} = join(", ", @control_scales);
+	$opts{chrnorms} = join(", ", @chrnorms);
 }
 
 sub print_start {
-	print "======== ChIPSeq multi-replicate pipeline ==========\n";
-	print "\nversion $VERSION\n";
 	print "\n\n======= Samples\n";
 	for my $i (0 .. $#names) {
 		printf " %s: %s\n", $names[$i], $chips[$i]; 
@@ -292,13 +329,15 @@ sub print_start {
 	}
 	print "\n\n======= Configuration\n";
 	foreach my $k (sort {$a cmp $b} keys %opts) {
-		printf "%10s  %s\n", $k, $opts{$k};
+		printf "%12s  %s\n", $k, $opts{$k};
 	}
 	print "\n\n";
 }
 
 sub generate_job_file_structure {
-	# we pass this off to ChIPjob package with 3 options: name, chip files, control files
+	# we pass this off to ChIPjob package with 6 options: 
+	# name, chip files, control files, chip scale factor, control scale factor, 
+	# chromosome normalization factor
 	my @jobs;
 	# check for a unversal control
 	if (scalar(@controls) == 1 and scalar(@chips) > 1) {
@@ -309,11 +348,12 @@ sub generate_job_file_structure {
 			push @controls, 'universal';
 		}
 		push @jobs, ChIPjob->new($opts{out} . "_control", '', $universal_control, 
-			undef, $universal_scale);
+			undef, $universal_scale, $chrnorms[0] || undef);
 	}
 	for my $i (0 .. $#names) {
 		push @jobs, ChIPjob->new($names[$i], $chips[$i], $controls[$i] || undef, 
-			$chip_scales[$i] || undef, $control_scales[$i] || undef);
+			$chip_scales[$i] || undef, $control_scales[$i] || undef, 
+			$chrnorms[$i] || undef );
 	}
 	return @jobs;
 }
@@ -439,14 +479,12 @@ sub run_call_peaks {
 }
 
 sub run_bdg_conversion {
-	my $chromofile = generate_chr_file();
 	my @commands;
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_bdg2bw_commands($chromofile);
 	}
 	print "\n\n======= Converting bedGraph files\n";
 	execute_commands(\@commands);
-	unlink $chromofile;
 }
 
 sub generate_chr_file {
@@ -546,6 +584,7 @@ sub finish {
 		$fh->print($_);
 	}
 	$fh->close;
+	unlink $chromofile;
 	print "\n Combined all job output log files into '$file'\n";
 	printf " Finished in %.1f minutes\n", (time -$start) / 60;
 	print "\n======== Finished ChIPSeq multi-replicate pipeline ==========\n";
@@ -559,7 +598,7 @@ package ChIPjob;
 
 sub new {
 	# pass name, comma-list of ChIP files, and comma-list of control files
-	my ($class, $name, $chip, $control, $chip_scale, $control_scale) = @_;
+	my ($class, $name, $chip, $control, $chip_scale, $control_scale, $chrnorm) = @_;
 	my $namepath = File::Spec->catfile($opts{dir}, $name);
 	my $self = {
 	    name => $name,
@@ -585,6 +624,7 @@ sub new {
 	    logfe_bw => undef,
 	    peak => undef,
 	    qvalue_bw => undef,
+	    chrnorm => $chrnorm,
 	};
 	
 	# check the ChIP files
@@ -717,7 +757,7 @@ sub generate_dedup_commands {
 				$command .= sprintf("--blacklist %s ", $opts{blacklist});
 			}
 			if ($opts{chrskip}) {
-				$command .= sprintf("--chrskip %s ", $opts{chrskip});
+				$command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
 			}
 			my $log = $out;
 			$log =~ s/\.bam$/.out.txt/i;
@@ -805,6 +845,11 @@ sub generate_bam2wig_commands {
 		if ($self->{chip_scale}) {
 			$command .= sprintf("--scale %s ", join(',', @{$self->{chip_scale}} ) );
 		}
+		# chromosome-specific scaling
+		if ($self->{chrnorm}) {
+			$command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
+				$opts{chrapply});
+		}
 		my $log = $self->{chip_bw};
 		$log =~ s/bw$/out.txt/;
 		$command .= " 2>&1 > $log";
@@ -833,6 +878,11 @@ sub generate_bam2wig_commands {
 		}
 		if ($opts{chrskip}) {
 			$command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
+		}
+		# chromosome-specific scaling
+		if ($self->{chrnorm}) {
+			$command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
+				$opts{chrapply});
 		}
 		
 		# now duplicate the base command for each size lambda control
