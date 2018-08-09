@@ -558,6 +558,17 @@ sub run_rescore {
 		}
 	}
 	
+	# add log outputs
+	my $log = $output1;
+	$log =~ s/txt$/log.txt/;
+	$command1 .= " 2>&1 > $log";
+	$log = $output2;
+	$log =~ s/txt$/log.txt/;
+	$command2 .= " 2>&1 > $log";
+	$log = $output3;
+	$log =~ s/txt$/log.txt/;
+	$command3 .= " 2>&1 > $log";
+	
 	# write conditions file
 	my $output4 = File::Spec->catfile($opts{dir}, $opts{out} . '_conditions.txt');
 	my $fh = IO::File->new($output4, "w");
