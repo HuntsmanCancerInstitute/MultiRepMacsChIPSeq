@@ -33,6 +33,7 @@ my %opts = (
 	dedup       => 1,
 	maxdup      => undef,
 	dupfrac     => 0.1,
+	savebam     => 0,
 	fragsize    => 300,
 	shiftsize   => 0,
 	slocal      => 1000,
@@ -144,6 +145,7 @@ Options:
   --nodup                       Skip deduplication
   --dupfrac   fraction          Minimum allowed fraction of duplicates ($opts{dupfrac})
   --maxdup    integer           Maximum allowed duplication depth ($opts{maxdup})
+  --savebam                     Save de-duplicated bam files
 
  Fragment coverage
   --size      integer           Predicted fragment size (single-end only, $opts{fragsize} bp)
@@ -210,6 +212,7 @@ GetOptions(
 	'dup!'                  => \$opts{dedup},
 	'dupfrac=f'             => \$opts{dupfrac},
 	'maxdup=i'              => \$opts{maxdup},
+	'savebam!'              => \$opts{savebam},
 	'size=i'                => \$opts{fragsize},
 	'shift=i'               => \$opts{shiftsize},
 	'slocal=i'              => \$opts{slocal},
@@ -559,6 +562,7 @@ sub run_rescore {
 }
 
 sub finish {
+	# combine output logs
 	my @combined_output;
 	foreach my $c (@finished_commands) {
 		if ($c =~ m/> ([^ ]+\.out\.txt)/) {
@@ -579,7 +583,21 @@ sub finish {
 		$fh->print($_);
 	}
 	$fh->close;
+	
+	# remove files no longer need
 	unlink $chromofile;
+	unless ($opts{savebam}) {
+		foreach my $Job (@Jobs) {
+			foreach my $b ( @{ $Job->{chip_dedup_bams} } ) {
+				unlink($b, "$b.bai") if -e $b;
+			}
+			foreach my $b ( @{ $Job->{control_dedup_bams} } ) {
+				unlink($b, "$b.bai") if -e $b;
+			}
+		}
+	}
+	
+	# final print statements
 	print "\n Combined all job output log files into '$file'\n";
 	printf " Finished in %.1f minutes\n", (time -$start) / 60;
 	print "\n======== Finished ChIPSeq multi-replicate pipeline ==========\n";
