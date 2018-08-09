@@ -494,6 +494,7 @@ sub generate_chr_file {
 }
 
 sub run_peak_merge {
+	return if scalar(@Jobs) == 1; # no sense merging one job!
 	print "\n\n======= Merging called narrowPeak files\n";
 	die "no bedtools application in path!\n" unless $opts{bedtools} =~ /\w+/;
 	die "no intersect_peaks.pl application in path!\n" unless $opts{intersect} =~ /\w+/;
@@ -512,8 +513,15 @@ sub run_rescore {
 	die "no get_datasets.pl script in path!\n" unless $opts{getdata} =~ /\w+/;
 	
 	# prepare filenames
-	my $input = File::Spec->catfile($opts{dir}, $opts{out} . '.bed');
-	die "unable to find merged bed file '$input'!\n" unless -e $input;
+	my $input;
+	if (scalar(@Jobs) > 1) {
+		$input = File::Spec->catfile($opts{dir}, $opts{out} . '.bed');
+		die "unable to find merged bed file '$input'!\n" unless -e $input;
+	}
+	else {
+		$input = $Jobs[0]->{peak};
+		die "unable to find peak file '$input'!\n" unless -e $input;
+	}
 	my $output1 = File::Spec->catfile($opts{dir}, $opts{out} . '_qvalue.txt');
 	my $output2 = File::Spec->catfile($opts{dir}, $opts{out} . '_log2FE.txt');
 	my $output3 = File::Spec->catfile($opts{dir}, $opts{out} . '_counts.txt');
