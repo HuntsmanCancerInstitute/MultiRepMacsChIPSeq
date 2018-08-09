@@ -9,6 +9,7 @@ use Bio::ToolBox::Data;
 my $tool = which('bedtools');
 my $outfile;
 my @files;
+my $help;
 
 
 ### Documentation
