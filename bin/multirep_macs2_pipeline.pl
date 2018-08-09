@@ -608,10 +608,14 @@ sub finish {
 	unless ($opts{savebam}) {
 		foreach my $Job (@Jobs) {
 			foreach my $b ( @{ $Job->{chip_dedup_bams} } ) {
-				unlink($b, "$b.bai") if -e $b;
+				unlink $b if -e $b;
+				$b .= ".bai";
+				unlink $b if -e $b;
 			}
 			foreach my $b ( @{ $Job->{control_dedup_bams} } ) {
-				unlink($b, "$b.bai") if -e $b;
+				unlink $b if -e $b;
+				$b .= ".bai";
+				unlink $b if -e $b;
 			}
 		}
 	}
