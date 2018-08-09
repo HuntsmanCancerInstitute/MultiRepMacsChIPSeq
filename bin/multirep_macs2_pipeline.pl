@@ -6,7 +6,7 @@ use File::Spec;
 use File::Which;
 use Getopt::Long;
 
-my $VERSION = 5.2;
+my $VERSION = 6;
 
 my $parallel;
 eval {
@@ -58,6 +58,7 @@ my %opts = (
 	getdata     => sprintf("%s", which 'get_datasets.pl'),
 	printchr    => sprintf("%s", which 'print_chromosome_lengths.pl'),
 	meanbdg     => sprintf("%s", which 'generate_mean_bedGraph.pl'),
+	intersect   => sprintf("%s", which 'intersect_peaks.pl'),
 ) or die " unrecognized parameter!\n";
 $opts{job} = $parallel ? 2 : 1;
 my @names;
@@ -168,10 +169,11 @@ Options:
   --manwig    path             ($opts{manwig})
   --wig2bw    path             ($opts{wig2bw})
   --bw2bdg    path             ($opts{bw2bdg})
-  --bedtools  path             ($opts{bedtools})
   --printchr  path             ($opts{printchr})
   --getdata   path             ($opts{getdata})
   --meanbdg   path             ($opts{meanbdg})
+  --bedtools  path             ($opts{bedtools})
+  --intersect path             ($opts{intersect})
 DOC
 
 
@@ -225,6 +227,7 @@ GetOptions(
 	'getdata=s'             => \$opts{getdata},
 	'printchr=s'            => \$opts{printchr},
 	'meanbdg=s'             => \$opts{meanbdg},
+	'intersect=s'           => \$opts{intersect},
 ) or die "unrecognized option(s)!\n";
 
 
@@ -508,15 +511,14 @@ sub generate_chr_file {
 sub run_peak_merge {
 	print "\n\n======= Merging called narrowPeak files\n";
 	die "no bedtools application in path!\n" unless $opts{bedtools} =~ /\w+/;
-	my $command = "cat ";
+	die "no intersect_peaks.pl application in path!\n" unless $opts{intersect} =~ /\w+/;
+	my $command = sprintf("%s --bed %s --out %s ", $opts{intersect}, $opts{bedtools}, 
+		File::Spec->catfile($opts{dir}, $opts{out}) );
 	foreach my $Job (@Jobs) {
 		if ($Job->{peak}) {
 			$command .= sprintf("%s ", $Job->{peak});
 		}
 	}
-	$command .= sprintf(" | %s sort -i - | %s merge -i - > %s",
-		$opts{bedtools}, $opts{bedtools}, 
-		File::Spec->catfile($opts{dir}, $opts{out} . '.bed') );
 	execute_commands([$command]);
 }
 
