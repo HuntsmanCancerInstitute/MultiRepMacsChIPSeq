@@ -390,21 +390,58 @@ sub execute_commands {
 	if ($parallel) {
 		my $pm = Parallel::ForkManager->new($opts{job});
 		foreach my $command (@$commands) {
+			next if check_command_finished($command);
 			print "=== Job: $command\n";
 			$pm->start and next;
 			# in child
-			system($command);
+			system($command->[0]);
 			$pm->finish;
 		}
 		$pm->wait_all_children;
 	}
 	else {
 		foreach my $command (@$commands) {
+			next if check_command_finished($command);
 			print "=== Job: $command\n\n";
-			system($command);
+			system($command->[0]);
 		}
 	}
 	push @finished_commands, @$commands;
+}
+
+sub check_command_finished {
+	my $command = shift;
+	my ($command_string, $command_out, $command_log) = @$command;
+	my $command_app;
+	if ($command_string =~ m/^([\w\_\.\/]+) /) {
+		$command_app = $1;
+	}
+	if (length($command_out) and length($command_log)) {
+		# both 
+		if (-e $command_out and -e $command_log) {
+			print "=== Job: $command_app previously finished, have $command_out and $command_log files\n";
+			return 1;
+		}
+		elsif (not -e $command_out and -e $command_log and 
+			$command_app eq $opts{bamdedup}) 
+		{
+			# the deduplication command will not write out a bam file if the actual 
+			# duplication rate is below the target rate
+			# presume this is good!?
+			print "=== Job: $command_app presumed finished, have $command_log file only\n";
+			return 1;
+		}
+	}
+	elsif (length($command_out)) {
+		if (-e $command_out) {
+			print "=== Job: $command_app previously finished, have $command_out\n";
+			return 1;
+		}
+	}
+	elsif ($command_app eq 'rm') {
+		return 1; # assume these are done????
+	}
+	return;
 }
 
 sub check_bams {
@@ -498,14 +535,16 @@ sub run_peak_merge {
 	print "\n\n======= Merging called narrowPeak files\n";
 	die "no bedtools application in path!\n" unless $opts{bedtools} =~ /\w+/;
 	die "no intersect_peaks.pl application in path!\n" unless $opts{intersect} =~ /\w+/;
+	my $merge_file = File::Spec->catfile($opts{dir}, $opts{out} . '.bed');
 	my $command = sprintf("%s --bed %s --out %s ", $opts{intersect}, $opts{bedtools}, 
-		File::Spec->catfile($opts{dir}, $opts{out}) );
+		 $merge_file);
+	
 	foreach my $Job (@Jobs) {
 		if ($Job->{peak}) {
 			$command .= sprintf("%s ", $Job->{peak});
 		}
 	}
-	execute_commands([$command]);
+	execute_commands([[$command, $merge_file, '']]);
 }
 
 sub run_rescore {
@@ -558,16 +597,20 @@ sub run_rescore {
 		}
 	}
 	
-	# add log outputs
+	# add log outputs to commands
+	my @commands;
 	my $log = $output1;
 	$log =~ s/txt$/log.txt/;
 	$command1 .= " 2>&1 > $log";
+	push @commands, [$command1, $output1, $log];
 	$log = $output2;
 	$log =~ s/txt$/log.txt/;
 	$command2 .= " 2>&1 > $log";
+	push @commands, [$command2, $output2, $log];
 	$log = $output3;
 	$log =~ s/txt$/log.txt/;
 	$command3 .= " 2>&1 > $log";
+	push @commands, [$command3, $output3, $log];
 	
 	# write conditions file
 	my $output4 = File::Spec->catfile($opts{dir}, $opts{out} . '_conditions.txt');
@@ -577,7 +620,7 @@ sub run_rescore {
 	}
 	$fh->close;
 	
-	execute_commands([$command1, $command2, $command3]);
+	execute_commands(\@commands);
 }
 
 sub finish {
@@ -789,7 +832,7 @@ sub generate_dedup_commands {
 			my $log = $out;
 			$log =~ s/\.bam$/.out.txt/i;
 			$command .= " 2>&1 > $log";
-			push @commands, $command;
+			push @commands, [$command, $out, $log];
 		}
 	}
 	if (defined $self->{control_bams}) {
@@ -822,7 +865,7 @@ sub generate_dedup_commands {
 			my $log = $out;
 			$log =~ s/\.bam$/.out.txt/i;
 			$command .= " 2>&1 > $log";
-			push @commands, $command;
+			push @commands, [$command, $out, $log];
 		}
 	}
 	return @commands;
@@ -939,7 +982,7 @@ sub generate_bam2wig_commands {
 		my $log = $self->{chip_bw};
 		$log =~ s/bw$/out.txt/;
 		$frag_command .= " 2>&1 > $log";
-		push @commands, $frag_command;
+		push @commands, [$frag_command, $self->{chip_bw}, $log];
 		
 		# finish count commands
 		for my $i (0 .. $#{$self->{chip_use_bams}} ) {
@@ -948,7 +991,7 @@ sub generate_bam2wig_commands {
 			my $log = $self->{chip_count_bw}->[$i];
 			$log =~ s/bw$/out.txt/;
 			$command .= " 2>&1 > $log";
-			push @commands, $command;
+			push @commands, [$command, $self->{chip_count_bw}->[$i], $log];
 		}
 	}
 	
@@ -1018,7 +1061,7 @@ sub generate_bam2wig_commands {
 			my $log = $self->{control_count_bw}->[$i];
 			$log =~ s/bw$/out.txt/;
 			$command .= " 2>&1 > $log";
-			push @commands, $command;
+			push @commands, [$command, $self->{control_count_bw}->[$i], $log];
 		}
 		
 		
@@ -1039,7 +1082,7 @@ sub generate_bam2wig_commands {
 		my $log = $self->{d_control_bdg};
 		$log =~ s/bdg$/out.txt/;
 		$command1 .= " 2>&1 > $log";
-		push @commands, $command1;
+		push @commands, [$command1, $self->{d_control_bdg}, $log];
 		
 		# small local lambda, extend both directions, scaled to compensate for length
 		if ($opts{slocal}) {
@@ -1056,7 +1099,7 @@ sub generate_bam2wig_commands {
 			$log = $self->{s_control_bdg};
 			$log =~ s/bdg$/out.txt/;
 			$command2 .= " 2>&1 > $log";
-			push @commands, $command2;
+			push @commands, [$command2, $self->{s_control_bdg}, $log];
 		}
 		# large local lambda, extend both directions, scaled to compensate for length
 		if ($opts{llocal}) {
@@ -1073,7 +1116,7 @@ sub generate_bam2wig_commands {
 			$log = $self->{l_control_bdg};
 			$log =~ s/bdg$/out.txt/;
 			$command3 .= " 2>&1 > $log";
-			push @commands, $command3
+			push @commands, [$command3, $self->{l_control_bdg}, $log];
 		}
 	}
 	elsif (scalar @{$self->{control_use_bams}} and not $opts{use_lambda}) {
@@ -1143,7 +1186,7 @@ sub generate_bam2wig_commands {
 		my $log = $self->{lambda_bdg};
 		$log =~ s/bdg$/out.txt/;
 		$frag_command .= " 2>&1 > $log";
-		push @commands, $frag_command;
+		push @commands, [$frag_command, $self->{lambda_bdg}, $log];
 		
 		# add count command
 		for my $i (0 .. $#{$self->{control_use_bams}} ) {
@@ -1152,7 +1195,7 @@ sub generate_bam2wig_commands {
 			my $log = $self->{control_count_bw}->[$i];
 			$log =~ s/bw$/out.txt/;
 			$command .= " 2>&1 > $log";
-			push @commands, $command;
+			push @commands, [$command, $self->{control_count_bw}->[$i], $log];
 		}
 	}
 	
@@ -1232,7 +1275,7 @@ sub generate_lambda_control_commands {
 		die "programming error! how did we get here with no sfile and no lfile????";
 	}
 	
-	return $command;
+	return [$command, $self->{lambda_bdg}, $log];
 }
 
 sub convert_bw_to_bdg {
@@ -1240,12 +1283,18 @@ sub convert_bw_to_bdg {
 	die "no bigWigToBedGraph application in path!\n" unless $opts{bw2bdg} =~ /\w+/;
 	my @commands;
 	if ($self->{chip_bw} and -e $self->{chip_bw}) {
-		push @commands, sprintf("%s %s %s", $opts{bw2bdg}, $self->{chip_bw}, 
+		my $log = $self->{chip_bdg};
+		$log =~ s/bdg$/out.txt/;
+		my $command = sprintf("%s %s %s 2> $log", $opts{bw2bdg}, $self->{chip_bw}, 
 			$self->{chip_bdg});
+		push @commands, [$command, $self->{chip_bdg}, $log]
 	}
 	if ($self->{lambda_bw} and -e $self->{lambda_bw}) {
-		push @commands, sprintf("%s %s %s", $opts{bw2bdg}, $self->{lambda_bw}, 
+		my $log = $self->{lambda_bdg};
+		$log =~ s/bdg$/out.txt/;
+		my $command = sprintf("%s %s %s 2> $log", $opts{bw2bdg}, $self->{lambda_bw}, 
 			$self->{lambda_bdg});
+		push @commands, [$command, $self->{lambda_bdg}, $log];
 	}
 	return @commands;
 }
@@ -1265,7 +1314,7 @@ sub generate_enrichment_commands {
 	my $log = $self->{qvalue_bdg};
 	$log =~ s/bdg$/out.txt/;
 	$command .= " 2> $log ";
-	return $command;
+	return [$command, $self->{qvalue_bdg}, $log];
 }
 
 sub generate_peakcall_commands {
@@ -1281,7 +1330,7 @@ sub generate_peakcall_commands {
 	my $log = $self->{peak};
 	$log =~ s/narrowPeak$/peakcall.out.txt/;
 	$command .= " 2> $log";
-	return $command;
+	return [$command, $self->{peak}, $log];
 }
 
 sub generate_bdg2bw_commands {
@@ -1292,22 +1341,23 @@ sub generate_bdg2bw_commands {
 		# we should have both files here
 		if (-e $self->{chip_bdg} and -e $self->{chip_bw}) {
 			# bigWig already exists so just delete the bdg
-			push @commands, sprintf("rm %s",$self->{chip_bdg});
+			push @commands, [sprintf("rm %s",$self->{chip_bdg}), '', ''];
 		}
 	}
 	if ($self->{lambda_bdg} and $self->{lambda_bw}) {
 		if (-e $self->{lambda_bw}) {
 			# we must have started with a lambda bigWig so remove the bedGraph
-			push @commands, sprintf("rm %s", $self->{lambda_bdg});
+			push @commands, [sprintf("rm %s", $self->{lambda_bdg}), '', ''];
 		}
 		else {
-			push @commands, sprintf("%s %s %s %s && rm %s", 
+			my $command = sprintf("%s %s %s %s && rm %s", 
 				$opts{wig2bw},
 				$self->{lambda_bdg},
 				$chromofile,
 				$self->{lambda_bw},
 				$self->{lambda_bdg},
 			);
+			push @commands, [$command, $self->{lambda_bw}, '']
 		}
 	}
 	if ($self->{qvalue_bdg} and $self->{qvalue_bw}) {
@@ -1319,7 +1369,7 @@ sub generate_bdg2bw_commands {
 			$self->{qvalue_bw},
 			$self->{qvalue_bdg},
 		);
-		push @commands, $command;
+		push @commands, [$command, $self->{qvalue_bw}, ''];
 	}
 	if ($self->{fe_bdg}) {
 		# convert this to log2 Fold Enrichment because I like this better
@@ -1335,7 +1385,7 @@ sub generate_bdg2bw_commands {
 			$self->{logfe_bw},
 		);
 		$command .= sprintf(" && rm %s", $self->{fe_bdg});
-		push @commands, $command;
+		push @commands, [$command, $self->{logfe_bw}, $log];
 	}
 	return @commands;
 }
