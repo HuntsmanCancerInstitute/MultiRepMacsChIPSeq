@@ -1,8 +1,24 @@
 #!/usr/bin/env Rscript
+
 # script to plot bam2wig shift models
 
-args <- commandArgs(TRUE)
-out <- args[1]
+suppressPackageStartupMessages(library("optparse"))
+
+opts <-  list(
+    make_option(c("-i", "--input"), default="NA",
+         help="Path and basename to the bam2wig *_model.txt and *_correlations.txt files"),
+)
+
+parser <- OptionParser(option_list=opts, description = "
+This script will plot the predicted shift models from the BioToolBox bam2wig
+application. Two plots are prepared: the mean stranded coverage around peaks, 
+and the mean correlation for different shift values.")
+
+opt <- parse_args(parser)
+if( opt$input == "NA" ){
+ print_help(parser)
+ quit(status=1)
+}
 
 library(ggplot2)
 library(reshape2)
@@ -33,11 +49,11 @@ plotCorrelations <- function(gdata, outFile) {
 }
 
 # plot the model PDF plot
-mdata <- read.table(paste0(out, "_model.txt"), header = T)
-plotShiftModel(mdata, paste0(out, "_model.pdf"))
+mdata <- read.table(paste0(opt$input, "_model.txt"), header = T)
+plotShiftModel(mdata, paste0(opt$input, "_model.pdf"))
 
 # plot the correlation PDF plot
-cdata <- read.table(paste0(out, "_correlations.txt"), header = T)
-plotCorrelations(cdata, paste0(out, "_correlations.pdf"))
+cdata <- read.table(paste0(opt$input, "_correlations.txt"), header = T)
+plotCorrelations(cdata, paste0(opt$input, "_correlations.pdf"))
 
 

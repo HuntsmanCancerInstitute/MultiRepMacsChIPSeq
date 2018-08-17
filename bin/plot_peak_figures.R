@@ -1,13 +1,31 @@
 #!/usr/bin/env Rscript
+
 # script for plotting collected peak information
 
+suppressPackageStartupMessages(library("optparse"))
 
-# run with basename as first argument in target directory
+opts <-  list(
+    make_option(c("-i", "--input"), default="NA",
+         help="Path and basename to the multirep_macs2_pipeline combined output"),
+    make_option(c("-n","--min"), default=-4,
+         help="Minimum log2 Fold Enrichment value to plot, default -4"),
+    make_option(c("-x","--max"), default=4,
+         help="Maximum log2 Fold Enrichment value to plot, default 4"),
+    make_option(c("-q","--qmax"), default=30,
+         help="Maximum q-value to plot, default 30")
+)
 
+parser <- OptionParser(option_list=opts, description = "
+This script generates a number of heat maps for the jaccard intersection  
+statistic,q-value heat map for all called regions, and log2 fold enrichment 
+heat maps with k-means clusters to examine groups of similar enrichment.
+")
 
-
-args <- commandArgs(TRUE)
-expname = args[1]
+opt <- parse_args(parser)
+if( opt$input == "NA" ){
+ print_help(parser)
+ quit(status=1)
+}
 
 
 library(ggplot2)
@@ -49,7 +67,8 @@ makekmeans <-function(rdata, hm_min, hm_max, k, hm_color, rowColor, outbase) {
            show_colnames = T, annotation_row = rowAnnot, 
            annotation_colors = list("Cluster" = rowColor),
            filename = paste0(outbase, ".png"), width = 8, height = 10)
-  write.table(data.frame(kresult$cluster), file = paste0(outbase, "_klist.txt"), sep = "\t", quote = F)
+  write.table(data.frame(kresult$cluster), file = paste0(outbase, "_klist.txt"), 
+              sep = "\t", quote = F)
 }
 
 makehm <-function(rdata, hm_min, hm_max, hm_color, outbase) {
@@ -66,27 +85,35 @@ makehm <-function(rdata, hm_min, hm_max, hm_color, outbase) {
 
 
 # jaccard table
-jdata <- read.table(paste0(expname,'.jaccard.txt'),header=TRUE,sep="\t", row.names = 1, check.names = F)
+jdata <- read.table(paste0(opt$input,'.jaccard.txt'),header=TRUE,sep="\t", row.names = 1, check.names = F)
 pheatmap( jdata, col=colorRampPalette(brewer.pal(9, 'Blues'))(255), 
           main = "Jaccard metric of spatial overlap", 
-          filename = paste0(expname, '.jaccard.pdf'), width = 8, height = 8)
+          filename = paste0(opt$input, '.jaccard.pdf'), width = 8, height = 8)
 
 # number of intersections
-ndata <- read.table(paste0(expname,'.n_intersection.txt'),header=TRUE,sep="\t", row.names = 1, check.names = F)
+ndata <- read.table(paste0(opt$input,'.n_intersection.txt'),header=TRUE,sep="\t", 
+                    row.names = 1, check.names = F)
 pheatmap( ndata, col=colorRampPalette(brewer.pal(9, 'Greens'))(255), 
           main = "Number of intersections", 
-          filename = paste0(expname, '.n_intersection.pdf'), width = 8, height = 8)
+          filename = paste0(opt$input, '.n_intersection.pdf'), width = 8, height = 8)
 
 # qvalue table
-qdata = read.table(paste0(expname,"_qvalue.txt"),header=TRUE,sep="\t", row.names = 1, check.names = F, na.strings = '.')
-makehm(qdata, 0, 30, colorRampPalette(brewer.pal(9, 'Reds'))(256), paste0(expname,"_qvalue_hm"))
+qdata = read.table(paste0(opt$input, "_qvalue.txt"), header=TRUE, sep="\t", 
+                   row.names = 1, check.names = F, na.strings = '.')
+makehm(qdata, 0, opt$qmax, colorRampPalette(brewer.pal(9, 'Reds'))(256), 
+       paste0(opt$input,"_qvalue_hm"))
 
 # log2FE table
-lfedata = read.table(paste0(expname,"_log2FE.txt"),header=TRUE,sep="\t", row.names = 1, check.names = F, na.strings = '.')
-makehm(lfedata, -4, 4, colorRampPalette(rev(brewer.pal(9, 'RdBu')))(256), paste0(expname,"_log2FE_hm"))
-makekmeans(lfedata, -4, 4, 6, colorRampPalette(rev(brewer.pal(9, 'RdBu')))(256), color6, paste0(expname,"_log2FE_hm_K6"))
-makekmeans(lfedata, -4, 4, 8, colorRampPalette(rev(brewer.pal(9, 'RdBu')))(256), color8, paste0(expname,"_log2FE_hm_K8"))
-makekmeans(lfedata, -4, 4, 10, colorRampPalette(rev(brewer.pal(9, 'RdBu')))(256), color10, paste0(expname,"_log2FE_hm_K10"))
+lfedata = read.table(paste0(opt$input,"_log2FE.txt"),header=TRUE,sep="\t", 
+                     row.names = 1, check.names = F, na.strings = '.')
+clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(256)
+makehm(lfedata, opt$min, opt$max, clrs, paste0(opt$input,"_log2FE_hm"))
+makekmeans(lfedata, opt$min, opt$max, 6, clrs, color6, 
+           paste0(opt$input,"_log2FE_hm_K6"))
+makekmeans(lfedata, opt$min, opt$max, 8, clrs, color8, 
+           paste0(opt$input,"_log2FE_hm_K8"))
+makekmeans(lfedata, opt$min, opt$max, 10, clrs, color10, 
+           paste0(opt$input,"_log2FE_hm_K10"))
 
 
 
