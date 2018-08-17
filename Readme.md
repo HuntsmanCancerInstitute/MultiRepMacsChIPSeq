@@ -119,7 +119,7 @@ usually derive similar values, and then evaluate and take the most reasonable on
 
         bam2wig.pl -i chip.bam --shift --model --out chip_shift 
     
-        plot_shift_models.R chip_shift
+        plot_shift_models.R --input chip_shift
 
 	Note that bam2wig example will only sample a subset of the chromosomes unless you direct 
 	it to check more with `--chroms` option. It is multi-threaded with the `--cpu` option. 
@@ -168,7 +168,8 @@ reference, then `--control` can be repeated for each as well.
     --control input.bam \
     --name condition1 \ 
     --name condition2 \ 
-    --name condition3 
+    --name condition3 \
+    --out all_chips
 
 At the end of the pipeline, individual peaks from all conditions are merged into a 
 single master list of all peaks identified. These are then re-scored for log2 fold 
@@ -185,7 +186,7 @@ generate a k-means clustered heat map of the log2 fold enrichment to identify po
 interesting clusters of differential enrichment between the conditions. Give the script 
 the `--out` name you provided to the wrapper:
 
-    plot_peak_figures.R merged
+    plot_peak_figures.R --input all_chips
 
 
 ## Pipeline options
