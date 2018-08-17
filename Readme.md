@@ -102,24 +102,25 @@ in the pysano folder.
 ## Fragment length estimation
 
 Single-end sequenced samples should be empirically checked for fragment length. There 
-are two ways to determine this: using Macs2 `predictd` function and BioToolBox [bam2wig](). 
+are two ways to determine this: using Macs2 `predictd` function and BioToolBox 
+[bam2wig](https://metacpan.org/pod/bam2wig.pl). 
 It's probably recommended to run both, as each has similar but different algorithms that 
 usually derive similar values, and then evaluate and take the most reasonable one value. 
 
 - Example using Macs2:
 
-        macs2 predictd -i chip.bam -g hs --rfile chip.predictd
+        $ macs2 predictd -i chip.bam -g hs --rfile chip.predictd
     
-        RScript chip.predictd 
+        $ RScript chip.predictd 
 
     Note that the genome size (or `hs` or `mm` shortcuts) should be provided to Macs2. The 
     resulting file is an R script that will generate a PDF for visualization.
 
 - Example using bam2wig:
 
-        bam2wig.pl -i chip.bam --shift --model --out chip_shift 
+        $ bam2wig.pl -i chip.bam --shift --model --out chip_shift 
     
-        plot_shift_models.R --input chip_shift
+        $ plot_shift_models.R --input chip_shift
 
 	Note that bam2wig example will only sample a subset of the chromosomes unless you direct 
 	it to check more with `--chroms` option. It is multi-threaded with the `--cpu` option. 
@@ -133,7 +134,7 @@ target level to the lowest observed. Typically 5-20% duplication rates is not un
 many ChIPSeq samples. If all samples have 1-2% duplication or less, then de-duplication 
 could be skipped, as it likely won't significantly alter levels. 
 
-    bam_partial_dedup.pl -i file1.bam 
+    $ bam_partial_dedup.pl -i file1.bam 
 
 ## Sample Peak call
 
@@ -141,7 +142,7 @@ To call peaks on a single ChIPSeq sample with multiple replicates, call the
 `multirep_macs2_pipeline.pl` script, giving the bam files as a comma-delimited list 
 as shown below.
 
-    multirep_macs2_pipeline.pl \
+    $ multirep_macs2_pipeline.pl \
     --chip file1.bam,file2.bam,file3.bam \
     --control input.bam \
     --name my_experiment 
@@ -161,7 +162,7 @@ When multiple conditions are being tested and compared for differential binding,
 simply add additional `--chip` and `--name` arguments. If each condition has a separate 
 reference, then `--control` can be repeated for each as well.
 
-    multirep_macs2_pipeline.pl \
+    $ multirep_macs2_pipeline.pl \
     --chip file1.bam,file2.bam,file3.bam \
     --chip file4.bam,file5.bam,file6.bam \
     --chip file7.bam,file8.bam \
@@ -186,7 +187,7 @@ generate a k-means clustered heat map of the log2 fold enrichment to identify po
 interesting clusters of differential enrichment between the conditions. Give the script 
 the `--out` name you provided to the wrapper:
 
-    plot_peak_figures.R --input all_chips
+    $ plot_peak_figures.R --input all_chips
 
 
 ## Pipeline options
@@ -195,11 +196,12 @@ the `--out` name you provided to the wrapper:
 
     You can set the maximum allowed level of duplication, for example to 5%.
     
-        --dupfrac 0.05
+        --dupfrac 0.05 \
     
     Alternatively you can set a maximum number of allowed reads at any position.
     
-        --dupfrac 0 --maxdup 10
+        --dupfrac 0 \
+        --maxdup 10 \
     
     Or you may completely turn off de-duplication by using the `--nodup` flag. Use 
     this option if you have already marked duplicates, perhaps by unique molecular 
@@ -212,7 +214,9 @@ the `--out` name you provided to the wrapper:
     chromosomes using a Perl regular expression. Secondary, supplementary, and marked 
     duplicate reads are always skipped.
     
-        --mapq 13 --blacklist hg38.blacklist.bed.gz --chrskip 'chrM|MT|lambda|Adapter|PhiX'
+        --mapq 13 \
+        --blacklist hg38.blacklist.bed.gz \
+        --chrskip 'chrM|MT|lambda|Adapter|PhiX' \
 
 - Fragment size
 
@@ -221,7 +225,7 @@ the `--out` name you provided to the wrapper:
     Use the methods described above to empirically check your fragment sizes from your 
     bam files prior to running the pipeline.
     
-        --size 250
+        --size 250 \
     
     For paired-end ChIPSeq, skip the size parameter and set the `--pe` flag instead. 
     This will record the span of properly-paired fragments only.
@@ -246,12 +250,15 @@ the `--out` name you provided to the wrapper:
     
         factor = 1 / (reference_count / 1000000)
     
-    Then provide the normalization factor for each replicate.
+    This factor will normalize the bam coverage as reads per million reference-genome 
+    mapped. It is essential to do this for _both_ ChIP and Input; shared input for 
+    multiple biological replicates is not recommended. Provide the normalization factor 
+    for each replicate. 
     
         --chip file1.bam,file2.bam,file3.bam \
         --chscale 0.692933,1.820191,0.814981 \
-        --control file4.bam \
-        --coscale 0.262140 \
+        --control file4.bam, file5.bam, file6.bam \
+        --coscale 0.262140,0.301934,0.286234 \
     
     For chromosome-specific normalizations, calculate the sum of alignments on the 
     chromosome of interest across all reference control (input chromatin) replicates; 
@@ -272,7 +279,7 @@ the `--out` name you provided to the wrapper:
     based on three size ranges: d or the fragment size (`--size`), small local lambda 
     (`--slocal`), and large local lambda (`--llocal`). Either small or local lambda may 
     be turned off by setting the value to 0. Local lambda can be completely turned off 
-    by using `--nolambda`. If no reference control bam file is provided (not recommended), 
+    by using `--nolambda`. If a reference control bam file is not provided (NOT recommended), 
     then a chromosomal mean is calculated from the ChIP fragment coverage track.
 
 - Enrichment tracks
@@ -296,7 +303,9 @@ the `--out` name you provided to the wrapper:
     Typically, peak size is fragment size or a little larger, and gap size is around half 
     of the fragment size.
     
-        --cutoff 2 --peaksize 250 --peakgap 150
+        --cutoff 2 \
+        --peaksize 250 \
+        --peakgap 150 \
     
     Peaks are reported as [narrowPeak](http://genome.ucsc.edu/FAQ/FAQformat.html#format12)
     files, although the Macs2 `bdgpeakcall` function used in the pipeline does not 
@@ -333,7 +342,9 @@ For ATACSeq, there are two variations of analysis.
     higher for multi-nucleosomal fragments. Use the `--min` and `--max` options  
     to specify acceptable paired-end size ranges. For example,
     
-        --pe --min 30 --max 120 
+        --pe \
+        --min 30 \
+        --max 120 \
     
     For single-end, you can treat it as you would as ChIP-Seq.
     
@@ -347,16 +358,17 @@ For ATACSeq, there are two variations of analysis.
     (to shift the alignment start in the 3' direction instead) and then extend only a 
     small distance. For example
     
-        --shift=-25 --extend 50
+        --shift=-25 \
+        --extend 50 \
 
 # Installation
 
 HCI users running the pipeline on local servers can simply load the packages into your 
 environment using a module command
 
-    module load multirepchipseq
-    multirep_macs2_pipeline.pl
-    module unload multirepchipseq
+    $ module load multirepchipseq
+    $ multirep_macs2_pipeline.pl
+    $ module unload multirepchipseq
 
 The package only includes scripts in the `bin` directory. The scripts require additional 
 library requirements of [Bio::ToolBox](https://metacpan.org/pod/Bio::ToolBox),  
@@ -368,9 +380,9 @@ BioToolBox can be found at the [Bio::ToolBox repository](https://github.com/tjpa
 A standard [Module::Build](https://metacpan.org/pod/Module::Build) script is also 
 provided for semi-automated installation of the Perl scripts.
 
-    perl ./Build.PL
-    ./Build
-    ./Build install
+    $ perl ./Build.PL
+    $ ./Build
+    $ ./Build install
 
 # AUTHOR
 
