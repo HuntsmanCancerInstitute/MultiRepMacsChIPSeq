@@ -29,7 +29,7 @@ while (@ARGV) {
 	$dir =~ s/\/$//; # strip trailing / if present
 	
 	# possible stdout values
-	my ($total_mapped, $nondup, $dup, $duprate, $trimMeanShift, $extension) = 
+	my ($total_mapped, $nondup, $dup, $duprate, $keepdup, $trimMeanShift, $extension) = 
 		(0, 0, 0, 0, 0, 0, );
 	
 	# possible stderr values
@@ -68,6 +68,11 @@ while (@ARGV) {
 			elsif ($line =~ /^  Duplication rate:\s+(\d\.\d+)$/) {
 				# bam_partial_dedup
 				$duprate = $1;
+			}
+			elsif ($line =~ /^  Retained duplicate count:\s+(\d+)\s*$/) {
+				# bam_partial_dedup
+				# oops, there may be a space at the end
+				$keepdup = $1;
 			}
 			elsif ($line =~ /^  The trimmed mean shift value is (\d+) /) {
 				# bam2wig
@@ -121,7 +126,7 @@ while (@ARGV) {
 	push @output, join("\t", $dir, $novoReads, $novoUnique, $novoMulti, $novoNoMap, 
 		$novoUniquePer, $novoMultiPer, $novoNoMapPer, $novoPEmean, $novoPEstdev, 
 		$total_mapped, $nondup, $dup, 
-		$duprate, $trimMeanShift, $extension, $macsFragLength);
+		$duprate, $keepdup, $trimMeanShift, $extension, $macsFragLength);
 	
 	# sort order
 	if ($dir =~ /^(\d+)X(\d+)/) {
@@ -142,7 +147,7 @@ my $fh = IO::File->new($outfile, 'w') or die "can't write to $outfile!\n";
 $fh->printf( "%s\n", join("\t", qw(Sample NovoalignTotalReads NovoalignUniqueMapped NovoalignMultiMap 
 	NovoalignUnMapped NovoalignUniqueMappedFrac NovoalignMultiMapFrac NovoalignUnMappedFrac 
 	NovoalignInsertMean NovoalignInsertStdDev 
-	TotalMapped NonDuplicateCount DuplicateCount DuplicateRate Bam2WigShift Bam2WigExtension 
+	TotalMapped NonDuplicateCount DuplicateCount DuplicateRate RetainedDuplicateCount Bam2WigShift Bam2WigExtension 
 	Macs2Extension)));
 # sort by experiment ID, requestXsample, e.g. 1234X1
 foreach my $i (sort {$a <=> $b} keys %{$sorter{num}}) {
