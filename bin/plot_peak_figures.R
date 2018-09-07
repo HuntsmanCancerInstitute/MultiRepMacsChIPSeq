@@ -79,9 +79,10 @@ makehm <-function(rdata, hm_min, hm_max, hm_color, outbase) {
   pheatmap(rdata, cluster_cols = F, color = hm_color, 
            border_color = NA, breaks = seq(hm_min,hm_max,length=256), 
            cluster_rows = F, show_rownames = F, show_colnames = T, 
-           annotation_colors = list("stage" = stage_color),
            filename = paste0(outbase, ".png"), width = 8, height = 10)
 }
+
+
 
 
 # jaccard table
@@ -97,15 +98,33 @@ pheatmap( ndata, col=colorRampPalette(brewer.pal(9, 'Greens'))(255),
           main = "Number of intersections", 
           filename = paste0(opt$input, '.n_intersection.pdf'), width = 8, height = 8)
 
+
+
+
+
 # qvalue table
 qdata = read.table(paste0(opt$input, "_qvalue.txt"), header=TRUE, sep="\t", 
                    row.names = 1, check.names = F, na.strings = '.')
+if ( colnames(qdata)[1] == "Name" ) {
+	# exclude this column name
+	qdata <- qdata[,2:ncol(qdata)]
+}
+qdata[is.na(qdata)] <- 0
 makehm(qdata, 0, opt$qmax, colorRampPalette(brewer.pal(9, 'Reds'))(256), 
        paste0(opt$input,"_qvalue_hm"))
+
+
+
 
 # log2FE table
 lfedata = read.table(paste0(opt$input,"_log2FE.txt"),header=TRUE,sep="\t", 
                      row.names = 1, check.names = F, na.strings = '.')
+if ( colnames(lfedata)[1] == "Name" ) {
+	# exclude this column name
+	lfedata <- lfedata[,2:ncol(lfedata)]
+}
+lfedata[is.na(lfedata)] <- 0
+
 clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(256)
 makehm(lfedata, opt$min, opt$max, clrs, paste0(opt$input,"_log2FE_hm"))
 makekmeans(lfedata, opt$min, opt$max, 6, clrs, color6, 
