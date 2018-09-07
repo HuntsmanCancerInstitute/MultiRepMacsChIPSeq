@@ -211,8 +211,12 @@ the `--out` name you provided to the wrapper:
 
     You can filter reads based on a minimum mapping quality, overlap with known 
     trouble hot spots (Encode blacklists or repetitive regions), or even skip entire 
-    chromosomes using a Perl regular expression. Secondary, supplementary, and marked 
-    duplicate reads are always skipped.
+    chromosomes using a Perl regular expression. Filtering against known hot spots, repetitive 
+    regions, ribosomal genes, and the mitochondrial chromosome is *highly* recommended, 
+    especially when subsampling duplicates, as these can be a large source of duplicate 
+    reads.
+    
+    Secondary, supplementary, and marked duplicate reads are always skipped. 
     
         --mapq 13 \
         --blacklist hg38.blacklist.bed.gz \
