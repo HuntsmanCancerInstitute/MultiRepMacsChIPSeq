@@ -6,7 +6,7 @@ use File::Spec;
 use File::Which;
 use Getopt::Long;
 
-my $VERSION = 6;
+my $VERSION = 6.1;
 
 my $parallel;
 eval {
@@ -964,12 +964,7 @@ sub generate_bam2wig_commands {
 		# scaling
 		if ($self->{chip_scale}) {
 			$frag_command .= sprintf("--scale %s ", join(',', @{$self->{chip_scale}} ) );
-			$count_command .= sprintf("--scale %s ", join(',', 
-				map {$_ * $opts{targetdep}} @{$self->{chip_scale}} ) );
-		}
-		else {
-			# we always scale the count by the target depth
-			$count_command .= sprintf("--scale %d ", $opts{targetdep})
+			# count command gets scaled below
 		}
 		# chromosome-specific scaling
 		if ($self->{chrnorm}) {
@@ -986,8 +981,18 @@ sub generate_bam2wig_commands {
 		
 		# finish count commands
 		for my $i (0 .. $#{$self->{chip_use_bams}} ) {
+			# add filenames
 			my $command = $count_command . sprintf("--in %s --out %s ", 	
 				$self->{chip_use_bams}->[$i], $self->{chip_count_bw}->[$i]);
+			# add scaling
+			if ($self->{chip_scale}) {
+				$command .= sprintf("--scale %.4f ", 
+					$opts{targetdep} * $self->{chip_scale}->[$i] );
+			}
+			else {
+				# we always scale the count by the target depth
+				$command .= sprintf("--scale %d ", $opts{targetdep})
+			}
 			my $log = $self->{chip_count_bw}->[$i];
 			$log =~ s/bw$/out.txt/;
 			$command .= " 2>&1 > $log";
@@ -1044,20 +1049,21 @@ sub generate_bam2wig_commands {
 			$count_command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
 				$opts{chrapply});
 		}
-		# scaling for the count command only, fragment below
-		if ($self->{control_scale}) {
-			$count_command .= sprintf("--scale %s ", join(',', 
-				map {$_ * $opts{targetdep}} @{$self->{chip_scale}} ) );
-		}
-		else {
-			# we always scale the count by the target depth
-			$count_command .= sprintf("--scale %d ", $opts{targetdep})
-		}
 		
 		# add count commands
 		for my $i (0 .. $#{$self->{control_use_bams}} ) {
+			# add filenames
 			my $command = $count_command . sprintf("--in %s --out %s ", 	
 				$self->{control_use_bams}->[$i], $self->{control_count_bw}->[$i]);
+			# add scaling
+			if ($self->{control_scale}) {
+				$command .= sprintf("--scale %.4f ", 
+					$opts{targetdep} * $self->{control_scale}->[$i] );
+			}
+			else {
+				# we always scale the count by the target depth
+				$command .= sprintf("--scale %d ", $opts{targetdep})
+			}
 			my $log = $self->{control_count_bw}->[$i];
 			$log =~ s/bw$/out.txt/;
 			$command .= " 2>&1 > $log";
@@ -1171,15 +1177,9 @@ sub generate_bam2wig_commands {
 			$count_command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
 				$opts{chrapply});
 		}
-		# scaling for the count command only, fragment below
+		# scaling for the fragment command only, count below
 		if ($self->{control_scale}) {
 			$frag_command .= sprintf("--scale %s ", join(',', @{$self->{control_scale}} ) );
-			$count_command .= sprintf("--scale %s ", join(',', 
-				map {$_ * $opts{targetdep}} @{$self->{chip_scale}} ) );
-		}
-		else {
-			# we always scale the count by the target depth
-			$count_command .= sprintf("--scale %d ", $opts{targetdep})
 		}
 		
 		# add frag command
@@ -1190,8 +1190,18 @@ sub generate_bam2wig_commands {
 		
 		# add count command
 		for my $i (0 .. $#{$self->{control_use_bams}} ) {
+			# add filenames
 			my $command = $count_command . sprintf("--in %s --out %s ", 	
 				$self->{control_use_bams}->[$i], $self->{control_count_bw}->[$i]);
+			# add scaling
+			if ($self->{control_scale}) {
+				$command .= sprintf("--scale %.4f ", 
+					$opts{targetdep} * $self->{control_scale}->[$i] );
+			}
+			else {
+				# we always scale the count by the target depth
+				$command .= sprintf("--scale %d ", $opts{targetdep})
+			}
 			my $log = $self->{control_count_bw}->[$i];
 			$log =~ s/bw$/out.txt/;
 			$command .= " 2>&1 > $log";
