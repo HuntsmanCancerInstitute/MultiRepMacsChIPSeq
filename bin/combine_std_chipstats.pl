@@ -45,7 +45,7 @@ while (@ARGV) {
 				# bam_partial_dedup
 				$total_mapped = $1;
 			}
-			elsif ($line =~ /^\s+(\d+) total mapped alignments$/) {
+			elsif ($line =~ /^\s+(\d+) total mapped .*alignments$/) {
 				# bam_umi_dedup
 				$total_mapped = $1;
 			}
@@ -53,7 +53,7 @@ while (@ARGV) {
 				# bam_partial_dedup
 				$nondup = $1;
 			}
-			elsif ($line =~ /^\s+(\d+) \(\d+\.\d%\) UMI-unique alignments retained$/) {
+			elsif ($line =~ /^\s+(\d+) \(\d+\.\d%\) UMI-unique .*alignments retained$/) {
 				# bam_umi_dedup
 				$nondup = $1;
 			}
@@ -61,7 +61,7 @@ while (@ARGV) {
 				# bam_partial_dedup
 				$dup = $1;
 			}
-			elsif ($line =~ /^\s+(\d+) \(\d+\.\d%\) UMI-duplicate alignments marked$/) {
+			elsif ($line =~ /^\s+(\d+) \(\d+\.\d%\) UMI-duplicate .*alignments/) {
 				# bam_umi_dedup
 				$dup = $1;
 			}
