@@ -6,7 +6,7 @@ use File::Spec;
 use File::Which;
 use Getopt::Long;
 
-my $VERSION = 6.1;
+my $VERSION = 6.2;
 
 my $parallel;
 eval {
@@ -391,7 +391,7 @@ sub execute_commands {
 		my $pm = Parallel::ForkManager->new($opts{job});
 		foreach my $command (@$commands) {
 			next if check_command_finished($command);
-			print "=== Job: $command\n";
+			printf "=== Job: %s\n", $command->[0];
 			$pm->start and next;
 			# in child
 			system($command->[0]);
