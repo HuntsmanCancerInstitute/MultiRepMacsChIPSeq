@@ -59,6 +59,7 @@ unless (@ARGV) {
 	print $docs;
 	exit;
 }
+$outfile =~ s/\.(?:bed|narrowPeak)$//i; # strip any existing extension if provided
 
 # inputs
 my @files = @ARGV;
