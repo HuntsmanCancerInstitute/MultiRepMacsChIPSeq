@@ -535,7 +535,7 @@ sub run_peak_merge {
 	print "\n\n======= Merging called narrowPeak files\n";
 	die "no bedtools application in path!\n" unless $opts{bedtools} =~ /\w+/;
 	die "no intersect_peaks.pl application in path!\n" unless $opts{intersect} =~ /\w+/;
-	my $merge_file = File::Spec->catfile($opts{dir}, $opts{out} . '.bed');
+	my $merge_file = File::Spec->catfile($opts{dir}, $opts{out});
 	my $command = sprintf("%s --bed %s --out %s ", $opts{intersect}, $opts{bedtools}, 
 		 $merge_file);
 	
