@@ -627,17 +627,15 @@ sub finish {
 	# combine output logs
 	my @combined_output;
 	foreach my $c (@finished_commands) {
-		if ($c =~ m/> ([^ ]+\.out\.txt)/) {
-			my $f = $1;
-			push @combined_output, "===Job: $c\n";
-			unless (-z $f) {
-				my $fh = IO::File->new($f) or next;
-				push @combined_output, <$fh>;
-				push @combined_output, "\n\n";
-				$fh->close;
-			}
-			unlink $f if -e _;
+		my $f = $c->[2]; # the log file
+		push @combined_output, "===Job: $f\n";
+		unless (-z $f) {
+			my $fh = IO::File->new($f) or next;
+			push @combined_output, <$fh>;
+			push @combined_output, "\n\n";
+			$fh->close;
 		}
+		unlink $f if -e $f;
 	}
 	my $file = File::Spec->catfile($opts{dir}, $opts{out} . "_job_output_logs.txt");
 	my $fh = IO::File->new($file, "w");
