@@ -627,20 +627,23 @@ sub finish {
 	# combine output logs
 	my @combined_output;
 	foreach my $c (@finished_commands) {
-		my $f = $c->[2]; # the log file
-		push @combined_output, "===Job: $f\n";
-		if (-z $f) {
-			# an empty file
-			push @combined_output, "\n";
+		my $log = $c->[2]; # the log file
+		push @combined_output, "=== Log file: $log\n";
+		if (-e $log) {
+			if (-z _) {
+				# an empty file
+				push @combined_output, "\n";
+				unlink $log
+			}
+			else {
+				# push log contents to combined output
+				my $fh = IO::File->new($log) or next;
+				push @combined_output, <$fh>;
+				push @combined_output, "\n";
+				$fh->close;
+			}
+			unlink $log if -e $log;
 		}
-		else {
-			# push log contents to combined output
-			my $fh = IO::File->new($f) or next;
-			push @combined_output, <$fh>;
-			push @combined_output, "\n\n";
-			$fh->close;
-		}
-		unlink $f if -e $f;
 	}
 	my $file = File::Spec->catfile($opts{dir}, $opts{out} . "_job_output_logs.txt");
 	my $fh = IO::File->new($file, "w");
@@ -667,9 +670,9 @@ sub finish {
 	}
 	
 	# final print statements
-	print "\n Combined all job output log files into '$file'\n";
-	printf " Finished in %.1f minutes\n", (time -$start) / 60;
-	print "\n======== Finished ChIPSeq multi-replicate pipeline ==========\n";
+	print "\nCombined all job output log files into '$file'\n";
+	printf "Finished in %.1f minutes\n", (time -$start) / 60;
+	print "\n======== Finished ChIPSeq multi-replicate pipeline ==========\n\n";
 }
 
 
