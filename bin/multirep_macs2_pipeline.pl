@@ -1302,14 +1302,14 @@ sub convert_bw_to_bdg {
 	if ($self->{chip_bw} and -e $self->{chip_bw}) {
 		my $log = $self->{chip_bdg};
 		$log =~ s/bdg$/out.txt/;
-		my $command = sprintf("%s %s %s 2> $log", $opts{bw2bdg}, $self->{chip_bw}, 
+		my $command = sprintf("%s %s %s 2>> $log", $opts{bw2bdg}, $self->{chip_bw}, 
 			$self->{chip_bdg});
 		push @commands, [$command, $self->{chip_bdg}, $log]
 	}
 	if ($self->{lambda_bw} and -e $self->{lambda_bw}) {
 		my $log = $self->{lambda_bdg};
 		$log =~ s/bdg$/out.txt/;
-		my $command = sprintf("%s %s %s 2> $log", $opts{bw2bdg}, $self->{lambda_bw}, 
+		my $command = sprintf("%s %s %s 2>> $log", $opts{bw2bdg}, $self->{lambda_bw}, 
 			$self->{lambda_bdg});
 		push @commands, [$command, $self->{lambda_bdg}, $log];
 	}
