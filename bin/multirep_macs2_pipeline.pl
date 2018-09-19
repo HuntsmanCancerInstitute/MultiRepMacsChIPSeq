@@ -738,7 +738,9 @@ sub new {
 			die "unequal scale factors and bam files!\n" if 
 				scalar(@{$self->{chip_bams}}) != scalar(@bams);
 		}
+		# count bw files
 		foreach my $bam (@bams) {
+			$bam =~ s/\.bam$//i;
 			my (undef, undef, $bamname) = File::Spec->splitpath($bam);
 			push @{ $self->{chip_count_bw} }, sprintf("%s.count.bw",
 				File::Spec->catfile($opts{dir}, $bamname));
@@ -785,7 +787,9 @@ sub new {
 			die "unequal scale factors and bam files!\n" if 
 				scalar(@bams) != scalar(@{$self->{control_scale}});
 		}
+		# count bw files
 		foreach my $bam (@bams) {
+			$bam =~ s/\.bam$//i;
 			my (undef, undef, $bamname) = File::Spec->splitpath($bam);
 			push @{ $self->{control_count_bw} }, sprintf("%s.count.bw",
 				File::Spec->catfile($opts{dir}, $bamname));
