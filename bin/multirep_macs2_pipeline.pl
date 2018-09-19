@@ -439,7 +439,7 @@ sub check_command_finished {
 		}
 	}
 	elsif ($command_app eq 'rm') {
-		return 1; # assume these are done????
+		return; 
 	}
 	return;
 }
@@ -629,7 +629,12 @@ sub finish {
 	foreach my $c (@finished_commands) {
 		my $f = $c->[2]; # the log file
 		push @combined_output, "===Job: $f\n";
-		unless (-z $f) {
+		if (-z $f) {
+			# an empty file
+			push @combined_output, "\n";
+		}
+		else {
+			# push log contents to combined output
 			my $fh = IO::File->new($f) or next;
 			push @combined_output, <$fh>;
 			push @combined_output, "\n\n";
