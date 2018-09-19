@@ -1331,6 +1331,9 @@ sub generate_enrichment_commands {
 	my $command = sprintf("%s bdgcmp -t %s -c %s -S %s -m qpois FE -o %s %s ", 
 		$opts{macs}, $chip, $lambda, $opts{targetdep}, $self->{qvalue_bdg}, 
 		$self->{fe_bdg});
+	if (not $opts{use_lambda}) {
+		$command .= "-p 1 "; # add a pseudo count of 1 when doing explicit comparisons
+	}
 	my $log = $self->{qvalue_bdg};
 	$log =~ s/bdg$/out.txt/;
 	$command .= " 2> $log ";
