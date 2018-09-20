@@ -255,7 +255,7 @@ check_inputs();
 print_start();
 my $chromofile = generate_chr_file();
 my @Jobs = generate_job_file_structure();
-run_dedup() if ($opts{dedup});
+run_dedup();
 check_bams();
 run_bam_conversion();
 check_control();
@@ -376,13 +376,14 @@ sub generate_job_file_structure {
 }
 
 sub run_dedup {
+	return unless ($opts{dedup});
 	my @commands;
 	my %name2done;
+	print "\n\n======= De-duplicating bam files\n";
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_dedup_commands(\%name2done);
 	}
 	if (@commands) {
-		print "\n\n======= De-duplicating bam files\n";
 		execute_commands(\@commands);
 	}
 }
@@ -457,11 +458,11 @@ sub check_bams {
 sub run_bam_conversion {
 	my @commands;
 	my %name2done;
+	print "\n\n======= Converting bam files\n";
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_bam2wig_commands(\%name2done);
 	}
 	if (@commands) {
-		print "\n\n======= Converting bam files\n";
 		execute_commands(\@commands);
 	}
 }
@@ -470,11 +471,11 @@ sub check_control {
 	return unless ($opts{use_lambda});
 	my @commands;
 	my %name2done;
+	print "\n\n======= Generate control lambda files\n";
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_lambda_control_commands(\%name2done);
 	}
 	if (@commands) {
-		print "\n\n======= Generate control lambda files\n";
 		execute_commands(\@commands);
 	}
 }
@@ -482,40 +483,40 @@ sub check_control {
 sub run_bw_conversion {
 	my @commands;
 	my %name2done;
+	print "\n\n======= Converting Fragment bigWig files to bedGraph\n";
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->convert_bw_to_bdg(\%name2done);
 	}
 	if (@commands) {
-		print "\n\n======= Converting Fragment bigWig files to bedGraph\n";
 		execute_commands(\@commands);
 	}
 }
 
 sub run_bdgcmp {
 	my @commands;
+	print "\n\n======= Generate enrichment files\n";
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_enrichment_commands();
 	}
-	print "\n\n======= Generate enrichment files\n";
 	execute_commands(\@commands);
 }
 
 sub run_call_peaks {
 	my @commands;
+	print "\n\n======= Call peaks\n";
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_peakcall_commands;
 	}
-	print "\n\n======= Call peaks\n";
 	execute_commands(\@commands);
 }
 
 sub run_bdg_conversion {
 	my @commands;
 	my %name2done;
+	print "\n\n======= Converting bedGraph files\n";
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_bdg2bw_commands($chromofile, \%name2done);
 	}
-	print "\n\n======= Converting bedGraph files\n";
 	execute_commands(\@commands);
 }
 
