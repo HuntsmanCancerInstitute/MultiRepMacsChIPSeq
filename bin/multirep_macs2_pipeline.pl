@@ -628,6 +628,7 @@ sub finish {
 	my @combined_output;
 	foreach my $c (@finished_commands) {
 		my $log = $c->[2]; # the log file
+		next unless $log;
 		push @combined_output, "=== Log file: $log\n";
 		if (-e $log) {
 			if (-z _) {
