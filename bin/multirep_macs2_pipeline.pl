@@ -6,7 +6,7 @@ use File::Spec;
 use File::Which;
 use Getopt::Long;
 
-my $VERSION = 6.2;
+my $VERSION = 7;
 
 my $parallel;
 eval {
@@ -89,9 +89,11 @@ treat them as individual samples.
 
 One control may be used for all samples, or sample-matched controls may be 
 provided by repeating the option, keeping the same order. Control replicas may 
-be provided as comma-delimited lists. If no control is available (for example, 
-ATACSeq often has no genomic input), then a global mean coverage will be calculated 
-from the ChIP samples and used as the control.
+be provided as comma-delimited lists. If multiple, but not all, ChIP samples share 
+controls, then they should still be listed individually for each ChIP; duplicate 
+controls will be properly handled. If no control is available (for example, ATACSeq 
+often has no genomic input), then a global mean coverage will be calculated from 
+the ChIP samples and used as the control. 
 
 Fragment size should be empirically determined by the user, especially when multiple
 samples and/or replicates are being used. The same fragment size is used across all
@@ -375,8 +377,9 @@ sub generate_job_file_structure {
 
 sub run_dedup {
 	my @commands;
+	my %name2done;
 	foreach my $Job (@Jobs) {
-		push @commands, $Job->generate_dedup_commands;
+		push @commands, $Job->generate_dedup_commands(\%name2done);
 	}
 	if (@commands) {
 		print "\n\n======= De-duplicating bam files\n";
@@ -453,8 +456,9 @@ sub check_bams {
 
 sub run_bam_conversion {
 	my @commands;
+	my %name2done;
 	foreach my $Job (@Jobs) {
-		push @commands, $Job->generate_bam2wig_commands;
+		push @commands, $Job->generate_bam2wig_commands(\%name2done);
 	}
 	if (@commands) {
 		print "\n\n======= Converting bam files\n";
@@ -465,8 +469,9 @@ sub run_bam_conversion {
 sub check_control {
 	return unless ($opts{use_lambda});
 	my @commands;
+	my %name2done;
 	foreach my $Job (@Jobs) {
-		push @commands, $Job->generate_lambda_control_commands;
+		push @commands, $Job->generate_lambda_control_commands(\%name2done);
 	}
 	if (@commands) {
 		print "\n\n======= Generate control lambda files\n";
@@ -476,8 +481,9 @@ sub check_control {
 
 sub run_bw_conversion {
 	my @commands;
+	my %name2done;
 	foreach my $Job (@Jobs) {
-		push @commands, $Job->convert_bw_to_bdg;
+		push @commands, $Job->convert_bw_to_bdg(\%name2done);
 	}
 	if (@commands) {
 		print "\n\n======= Converting Fragment bigWig files to bedGraph\n";
@@ -488,7 +494,7 @@ sub run_bw_conversion {
 sub run_bdgcmp {
 	my @commands;
 	foreach my $Job (@Jobs) {
-		push @commands, $Job->generate_enrichment_commands;
+		push @commands, $Job->generate_enrichment_commands();
 	}
 	print "\n\n======= Generate enrichment files\n";
 	execute_commands(\@commands);
@@ -505,8 +511,9 @@ sub run_call_peaks {
 
 sub run_bdg_conversion {
 	my @commands;
+	my %name2done;
 	foreach my $Job (@Jobs) {
-		push @commands, $Job->generate_bdg2bw_commands($chromofile);
+		push @commands, $Job->generate_bdg2bw_commands($chromofile, \%name2done);
 	}
 	print "\n\n======= Converting bedGraph files\n";
 	execute_commands(\@commands);
@@ -550,6 +557,7 @@ sub run_peak_merge {
 sub run_rescore {
 	print "\n\n======= Re-scoring all merged peaks\n";
 	die "no get_datasets.pl script in path!\n" unless $opts{getdata} =~ /\w+/;
+	my %name2done;
 	
 	# prepare filenames
 	my $input;
@@ -590,10 +598,12 @@ sub run_rescore {
 			push @conditions, sprintf("%s\t%s\n", $name, $Job->{name})
 		}
 		foreach my $b ( @{ $Job->{control_count_bw} } ) {
+			next if exists $name2done{$b};
 			$command3 .=  "--data $b ";
 			my (undef, undef, $name) = File::Spec->splitpath($b);
 			$name =~ s/^([\w\d\-\_]+)\..+$/$1/i; # take everything up to first .
 			push @conditions, "$name\tInput\n";
+			$name2done{$b} = 1; # remember it's done
 		}
 	}
 	
@@ -813,6 +823,7 @@ sub new {
 
 sub generate_dedup_commands {
 	my $self = shift;
+	my $name2done = shift;
 	die "no bam_partial_dedup.pl script in path!\n" unless $opts{bamdedup} =~ /\w+/;
 	my @commands;
 	if (defined $self->{chip_bams}) {
@@ -851,6 +862,7 @@ sub generate_dedup_commands {
 	if (defined $self->{control_bams}) {
 		for (my $i = 0; $i < scalar @{$self->{control_bams}}; $i++) {
 			my $in = $self->{control_bams}->[$i];
+			next if exists $name2done->{$in};
 			my (undef,undef,$out) = File::Spec->splitpath($in);
 			$out = File::Spec->catfile($opts{dir}, $out);
 			$out =~ s/\.bam$/.dedup.bam/i;
@@ -879,6 +891,7 @@ sub generate_dedup_commands {
 			$log =~ s/\.bam$/.out.txt/i;
 			$command .= " 2>&1 > $log";
 			push @commands, [$command, $out, $log];
+			$name2done->{$in} = 1; # remember that this has been done
 		}
 	}
 	return @commands;
@@ -924,10 +937,11 @@ sub find_dedup_bams {
 
 sub generate_bam2wig_commands {
 	my $self = shift;
+	my $name2done = shift;
 	die "no bam2wig.pl script in path!\n" unless $opts{bam2wig} =~ /\w+/;
 	my @commands;
 	
-	# ChIP bams
+	### ChIP bams
 	if (scalar @{$self->{chip_use_bams}}) {
 		# we have bam files to convert to bw
 		
@@ -1013,19 +1027,31 @@ sub generate_bam2wig_commands {
 		}
 	}
 	
-	# Control bams
-	if (scalar @{$self->{control_use_bams}} and $opts{use_lambda}) {
-		# process control bams into a chromatin bias lambda-control track
+	### Control bams
+	my $control_bam_string = join(',', @{$self->{control_use_bams}});
+	
+	# first check if we've processed this control yet
+	if (exists $name2done->{$control_bam_string}) {
+		# we have, so change the lambda bedgraph name to the file that's been used
+		# this will look funny, because it will look like we're using another chip's 
+		# control file, but that's the way it will be
+		$self->{lambda_bdg} = $name2done->{$control_bam_string};
+	}
+	
+	# process control bams into a chromatin bias lambda-control track
+	if (scalar @{$self->{control_use_bams}} and $opts{use_lambda} and 
+		not exists $name2done->{$control_bam_string}
+	) {
 		
 		# base fragment command
 		my $frag_command = sprintf(
 			"%s --in %s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --rpm --mean --bdg ", 
 			$opts{bam2wig}, 
-			join(',', @{$self->{control_use_bams}}), 
+			$control_bam_string, 
 			$opts{mapq},
 			$opts{cpu}
 		);
-		# count command
+		# base count command
 		my $count_command = sprintf(
 			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --rpm --mean --format 0 --bw --bwapp %s ", 
 			$opts{bam2wig}, 
@@ -1137,15 +1163,23 @@ sub generate_bam2wig_commands {
 			$command3 .= " 2>&1 > $log";
 			push @commands, [$command3, $self->{l_control_bdg}, $log];
 		}
+		
+		# record that we've done this bam
+		# we store the lambda bedgraph name because it might be reused again for another job
+		$name2done->{$control_bam_string} = $self->{lambda_bdg};
 	}
-	elsif (scalar @{$self->{control_use_bams}} and not $opts{use_lambda}) {
-		# skipping chromatin-bias lambda control track, use control track as is
+	
+	
+	# skipping chromatin-bias lambda control track, use control track as is
+	elsif (scalar @{$self->{control_use_bams}} and not $opts{use_lambda} and 
+			not exists $name2done->{$control_bam_string}
+	) {
 		
 		# fragment command
 		my $frag_command = sprintf(
 			"%s --in %s --out %s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --rpm --mean --bdg ", 
 			$opts{bam2wig}, 
-			join(',', @{$self->{control_use_bams}}), 
+			$control_bam_string, 
 			$self->{lambda_bdg},
 			$opts{mapq},
 			$opts{cpu}
@@ -1220,6 +1254,10 @@ sub generate_bam2wig_commands {
 			$command .= " 2>&1 > $log";
 			push @commands, [$command, $self->{control_count_bw}->[$i], $log];
 		}
+		
+		# record that we've done this bam
+		# we store the lambda bedgraph name because it might be reused again for another job
+		$name2done->{$control_bam_string} = $self->{lambda_bdg};
 	}
 	
 	# finished
@@ -1228,6 +1266,8 @@ sub generate_bam2wig_commands {
 
 sub generate_lambda_control_commands {
 	my $self = shift;
+	my $name2done = shift;
+	return if exists $name2done->{ $self->{lambda_bdg} }; # already done
 	die "no macs2 application in path!\n" unless $opts{macs} =~ /\w+/;
 	
 	my $dfile = $self->{d_control_bdg};
@@ -1298,11 +1338,13 @@ sub generate_lambda_control_commands {
 		die "programming error! how did we get here with no sfile and no lfile????";
 	}
 	
+	$name2done->{ $self->{lambda_bdg} } = 1;
 	return [$command, $self->{lambda_bdg}, $log];
 }
 
 sub convert_bw_to_bdg {
 	my $self = shift;
+	my $name2done = shift;
 	die "no bigWigToBedGraph application in path!\n" unless $opts{bw2bdg} =~ /\w+/;
 	my @commands;
 	if ($self->{chip_bw} and -e $self->{chip_bw}) {
@@ -1312,12 +1354,15 @@ sub convert_bw_to_bdg {
 			$self->{chip_bdg});
 		push @commands, [$command, $self->{chip_bdg}, $log]
 	}
-	if ($self->{lambda_bw} and -e $self->{lambda_bw}) {
+	if ($self->{lambda_bw} and -e $self->{lambda_bw} and 
+		not exists $name2done->{$self->{lambda_bdg}}
+	) {
 		my $log = $self->{lambda_bdg};
 		$log =~ s/bdg$/out.txt/;
 		my $command = sprintf("%s %s %s 2>> $log", $opts{bw2bdg}, $self->{lambda_bw}, 
 			$self->{lambda_bdg});
 		push @commands, [$command, $self->{lambda_bdg}, $log];
+		$name2done->{$self->{lambda_bdg}} = 1; # mark as done
 	}
 	return @commands;
 }
@@ -1362,6 +1407,8 @@ sub generate_peakcall_commands {
 sub generate_bdg2bw_commands {
 	my $self = shift;
 	my $chromofile = shift;
+	my $name2done = shift;
+	
 	my @commands;
 	if ($self->{chip_bdg} and $self->{chip_bw}) {
 		# we should have both files here
@@ -1370,10 +1417,13 @@ sub generate_bdg2bw_commands {
 			push @commands, [sprintf("rm %s",$self->{chip_bdg}), '', ''];
 		}
 	}
-	if ($self->{lambda_bdg} and $self->{lambda_bw}) {
-		if (-e $self->{lambda_bw}) {
+	if ($self->{lambda_bdg} and $self->{lambda_bw} and 
+		not exists $name2done->{$self->{lambda_bdg}}
+	) {
+		if (-e $self->{lambda_bw} ) {
 			# we must have started with a lambda bigWig so remove the bedGraph
 			push @commands, [sprintf("rm %s", $self->{lambda_bdg}), '', ''];
+			$name2done->{$self->{lambda_bdg}} = 1;
 		}
 		else {
 			my $command = sprintf("%s %s %s %s && rm %s", 
@@ -1385,6 +1435,7 @@ sub generate_bdg2bw_commands {
 			);
 			push @commands, [$command, $self->{lambda_bw}, '']
 		}
+		$name2done->{$self->{lambda_bdg}} = 1; # remember it's done
 	}
 	if ($self->{qvalue_bdg} and $self->{qvalue_bw}) {
 		die "no wigToBigWig application in path!\n" unless $opts{wig2bw} =~ /\w+/;
