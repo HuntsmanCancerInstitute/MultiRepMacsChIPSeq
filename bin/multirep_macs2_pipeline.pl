@@ -743,10 +743,11 @@ sub new {
 		}
 		# count bw files
 		foreach my $bam (@bams) {
-			$bam =~ s/\.bam$//i;
-			my (undef, undef, $bamname) = File::Spec->splitpath($bam);
+			my $bamname = $bam; # $bam is aliased, so must make a copy
+			$bamname =~ s/\.bam$//i;
+			my (undef, undef, $fname) = File::Spec->splitpath($bamname);
 			push @{ $self->{chip_count_bw} }, sprintf("%s.count.bw",
-				File::Spec->catfile($opts{dir}, $bamname));
+				File::Spec->catfile($opts{dir}, $fname));
 		}
 	}
 	else {
@@ -792,10 +793,11 @@ sub new {
 		}
 		# count bw files
 		foreach my $bam (@bams) {
-			$bam =~ s/\.bam$//i;
-			my (undef, undef, $bamname) = File::Spec->splitpath($bam);
+			my $bamname = $bam; # $bam is aliased, so must make a copy
+			$bamname =~ s/\.bam$//i;
+			my (undef, undef, $fname) = File::Spec->splitpath($bamname);
 			push @{ $self->{control_count_bw} }, sprintf("%s.count.bw",
-				File::Spec->catfile($opts{dir}, $bamname));
+				File::Spec->catfile($opts{dir}, $fname));
 		}
 	}
 	else {
