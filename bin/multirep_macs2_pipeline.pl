@@ -772,7 +772,8 @@ sub new {
 	if ($control eq 'universal') {
 		# this is just a ChIP Job using a common universal control lambda
 		$self->{lambda_bdg} = File::Spec->catfile($opts{dir}, 
-			$opts{out} . "_control");
+			$opts{out} . "_control"); 
+			# we make the same name as was generated in generate_job_file_structure()
 		$self->{lambda_bdg} .= $opts{use_lambda} ? '.lambda_control.bdg' : '.bdg';
 	}
 	elsif ($control =~ /\.(?:bw|bigwig)$/i) {
@@ -795,8 +796,8 @@ sub new {
 			$self->{sld_control_bdg} = "$namepath.sldlocal.bdg";
 		}
 		else {
-			$self->{lambda_bdg} = "$namepath.bdg";
-			$self->{lambda_bw} = "$namepath.bw";
+			$self->{lambda_bdg} = "$namepath" . "_control.bdg";
+			$self->{lambda_bw} = "$namepath" . "_control.bw";
 		}
 		if ($control_scale) {
 			$self->{control_scale} = [split(',', $control_scale)];
@@ -1384,7 +1385,7 @@ sub generate_enrichment_commands {
 		$command .= "-p 1 "; # add a pseudo count of 1 when doing explicit comparisons
 	}
 	my $log = $self->{qvalue_bdg};
-	$log =~ s/bdg$/out.txt/;
+	$log =~ s/qvalue\.bdg$/bdgcmp.out.txt/;
 	$command .= " 2> $log ";
 	return [$command, $self->{qvalue_bdg}, $log];
 }
