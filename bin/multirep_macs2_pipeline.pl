@@ -587,13 +587,13 @@ sub run_rescore {
 			# get the sample name just as it would appear in get_datasets output... a hack
 			my (undef, undef, $name) = File::Spec->splitpath($b);
 			$name =~ s/^([\w\d\-\_]+)\..+$/$1/i; # take everything up to first .
-			push @conditions, sprintf("%s\t%s\n", $Job->{name}, $name)
+			push @conditions, sprintf("%s\t%s\n", $name, $Job->{name})
 		}
 		foreach my $b ( @{ $Job->{control_count_bw} } ) {
 			$command3 .=  "--data $b ";
 			my (undef, undef, $name) = File::Spec->splitpath($b);
 			$name =~ s/^([\w\d\-\_]+)\..+$/$1/i; # take everything up to first .
-			push @conditions, sprintf("Input\t$name\n");
+			push @conditions, "$name\tInput\n";
 		}
 	}
 	
