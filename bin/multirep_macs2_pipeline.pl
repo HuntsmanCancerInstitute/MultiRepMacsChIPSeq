@@ -435,6 +435,11 @@ sub check_command_finished {
 			print "=== Job: $command_app presumed finished, have $command_log file only\n";
 			return 1;
 		}
+		elsif (-e $command_out and not -e $command_log) {
+			# we have a output file but not a log file
+			print "=== Job: $command_app presumed finished, have $command_out file only, no log\n";
+			return 1;
+		}
 	}
 	elsif (length($command_out)) {
 		if (-e $command_out) {
