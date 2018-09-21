@@ -6,8 +6,9 @@ A multi-threaded wrapper for processing multi-replicate, multi-condition ChIPSeq
 
 ChIPSeq and related methods, such as ATACSeq, is increasingly being used not just as 
 a means of discovery ("where is my factor binding?") but also as an assay for experimental 
-conditions ("how does my mutant affect factor X occupancy?"). Many ChIPSeq programs are 
-not necessarily well equipped to handle multiple replicates and/or sample conditions.
+conditions ("how does my mutant affect factor X occupancy?"). Many traditional ChIPSeq 
+programs are not necessarily well equipped to handle multiple replicates and/or sample 
+conditions.
 
 This is a wrapper application for processing ChIPSeq samples 
 comprised of multiple biological replicas and/or multiple conditions in a manner to 
@@ -81,6 +82,58 @@ Below are some of the methods used for normalizing samples prior to peak calling
     the rest of genome or even other samples. Even targets on sex chromosomes could have 
     different enrichment levels. This wrapper allows for chromosome-specific normalization 
     factors to be applied on a per sample basis.
+
+## Overview
+
+Below is a general overview of the pipeline
+
+- Deduplicate
+
+    If indicated, the duplicates are downsampled in all samples to the same fraction 
+    using `bam_partial_dedup`.
+
+- Generate fragment coverage files
+
+    Generate fragment coverage for the ChIP samples using `bam2wig`, combining 
+    depth-normalized replicates and applying other normalization factors, if indicated.
+
+- Generate lambda control files
+
+    Generate lambda control fragment coverage files using `bam2wig` and Macs2 based on the 
+    maximum coverage of local (fragment size), small, and large lambda sizes . 
+
+- Generate count files
+
+    To facilitate generating count matrices later, point data count bigWig files are 
+    generated using `bam2wig` for each sample and replicate, taking into account any 
+    special normalization factors. Replicates are depth-normalized and scaled to the 
+    target depth. Only single base pairs (shifted start positions or paired midpoints) 
+    are recorded.
+
+- Generate enrichment files
+
+    Use Macs2 to generate q-value and Fold Enrichment tracks from the ChIP fragment 
+    coverage and lambda control files for each ChIP condition separately.
+    
+- Call peaks
+
+    Use Macs2 to call peaks from the q-value tracks for each ChIP condition separately 
+    using the indicated threshold, minimum peak size, and peak gap size for merging.
+
+- Intersect peaks
+
+    Use BedTools to intersect the peaks from each ChIP condition into a master list of 
+    peaks across all ChIP conditions, as well as generate statistics of the amount of 
+    overlap between peaks. These can be plotted with `plot_peak_figures.R`.
+
+- Rescore peaks
+
+	Use `get_datasets` to generate matrices of log2 Fold Enrichment scores, 
+	q-value scores, and count data for the master list of peaks. The log2FE and q-value 
+	scores can be plotted as heat maps with `plot_peak_figures.R`. The peaks may be 
+	evaluated for differential significance using the count data and an R package such as 
+	[DESeq2](https://www.bioconductor.org/packages/release/bioc/html/DESeq2.html).
+    
 
 # Reference guide
 
@@ -160,7 +213,9 @@ command-line options, for example duplication level (`--dupfrac`), fragment size
 
 When multiple conditions are being tested and compared for differential binding, then 
 simply add additional `--chip` and `--name` arguments. If each condition has a separate 
-reference, then `--control` can be repeated for each as well.
+reference, then `--control` can be repeated for each as well. If there are multiple 
+controls, and some are shared between more than one ChIP but not all, that's ok; list 
+each control for each ChIP and duplicate entries will be smartly handled.
 
     $ multirep_macs2_pipeline.pl \
     --chip file1.bam,file2.bam,file3.bam \
