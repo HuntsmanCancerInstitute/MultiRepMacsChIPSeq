@@ -791,19 +791,23 @@ sub new {
 		# we have control bams to process
 		my @bams = split(',', $control);
 		$self->{control_bams} = \@bams;
+		my $lambdabase = $name =~ /_control$/ ? $namepath : $namepath . "_control";
+			# make sure we get _control in the name
+			# universal controls will get it, but individual controls will not
 		if ($opts{use_lambda}) {
-			$self->{lambda_bdg} = "$namepath.lambda_control.bdg";
-			$self->{lambda_bw} = "$namepath.lambda_control.bw";
-			$self->{d_control_bdg} = "$namepath.dlocal.bdg";
-			$self->{s_control_bdg} = "$namepath.slocal.bdg" if $opts{slocal};
-			$self->{l_control_bdg} = "$namepath.llocal.bdg" if $opts{llocal};
-			$self->{sl_control_bdg} = "$namepath.sllocal.bdg";
-			$self->{sld_control_bdg} = "$namepath.sldlocal.bdg";
+			$self->{lambda_bdg} = "$lambdabase.lambda_control.bdg";
+			$self->{lambda_bw} = "$lambdabase.lambda_control.bw";
+			$self->{d_control_bdg} = "$lambdabase.dlocal.bdg";
+			$self->{s_control_bdg} = "$lambdabase.slocal.bdg" if $opts{slocal};
+			$self->{l_control_bdg} = "$lambdabase.llocal.bdg" if $opts{llocal};
+			$self->{sl_control_bdg} = "$lambdabase.sllocal.bdg";
+			$self->{sld_control_bdg} = "$lambdabase.sldlocal.bdg";
 		}
 		else {
-			$self->{lambda_bdg} = "$namepath" . "_control.bdg";
-			$self->{lambda_bw} = "$namepath" . "_control.bw";
+			$self->{lambda_bdg} = $lambdabase . ".bdg";
+			$self->{lambda_bw} = $lambdabase . ".bw";
 		}
+		
 		if ($control_scale) {
 			$self->{control_scale} = [split(',', $control_scale)];
 			die "unequal scale factors and bam files!\n" if 
@@ -821,8 +825,8 @@ sub new {
 	else {
 		# must be just a chip without corresponding control
 		$self->{control_bams} = [];
-		$self->{lambda_bdg} = "$namepath.expected_mean.bdg";
-		$self->{lambda_bw} = "$namepath.expected_mean.bw";
+		$self->{lambda_bdg} = "$namepath\_control.expected_mean.bdg";
+		$self->{lambda_bw} = "$namepath\_control.expected_mean.bw";
 	}
 	
 	return bless $self, $class;
