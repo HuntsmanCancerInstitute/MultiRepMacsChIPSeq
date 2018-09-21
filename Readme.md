@@ -47,7 +47,8 @@ Below are some of the methods used for normalizing samples prior to peak calling
 
     Instead of simply adding replicates together, which can lead to sample bias towards 
     samples with greater sequencing depth, each sample replicate is depth-normalized 
-    first and then averaged prior to generating the fragment pileups.
+    first and then averaged prior to generating the fragment pileups. This necessitates 
+    setting a target depth for peak calling.
 
 - Duplicate read normalization
 
@@ -183,8 +184,8 @@ usually derive similar values, and then evaluate and take the most reasonable on
 ## Duplication level determination
 
 It's best to determine the level of alignment duplication in all samples, and set the 
-target level to the lowest observed. Typically 5-20% duplication rates is not uncommon in 
-many ChIPSeq samples. If all samples have 1-2% duplication or less, then de-duplication 
+target level to the lowest observed. A 5-20% duplication rates is not uncommon in 
+many ChIPSeq samples. If all samples have 1% duplication or less, then de-duplication 
 could be skipped, as it likely won't significantly alter levels. 
 
     $ bam_partial_dedup.pl -i file1.bam 
@@ -247,6 +248,13 @@ the `--out` name you provided to the wrapper:
 
 ## Pipeline options
 
+- Genome size
+
+    The effective size of the genome in bp is required by Macs2 when calculating 
+    enrichment. This is the size of mappable space in the genome, i.e. not counting 
+    repetitive and `N` spacers. Default values can be provided for common species using 
+    the `--species` option.
+
 - Duplication levels
 
     You can set the maximum allowed level of duplication, for example to 5%.
@@ -259,8 +267,9 @@ the `--out` name you provided to the wrapper:
         --maxdup 10 \
     
     Or you may completely turn off de-duplication by using the `--nodup` flag. Use 
-    this option if you have already marked duplicates, perhaps by unique molecular 
-    indexes (UMIs) or barcodes.
+    this option if you have already marked duplicates, perhaps by using unique molecular 
+    indexes (UMIs) or barcodes (see [UMIScripts](https://github.com/HuntsmanCancerInstitute/UMIScripts), 
+    for example).
     
 - Read filtering
 
@@ -336,7 +345,7 @@ the `--out` name you provided to the wrapper:
     This pipeline uses the local lambda-control background of Macs2 to account for chromatin 
     bias in the region. It uses the maximum signal derived from the reference control track 
     based on three size ranges: d or the fragment size (`--size`), small local lambda 
-    (`--slocal`), and large local lambda (`--llocal`). Either small or local lambda may 
+    (`--slocal`), and large local lambda (`--llocal`). Either small or large lambda may 
     be turned off by setting the value to 0. Local lambda can be completely turned off 
     by using `--nolambda`. If a reference control bam file is not provided (NOT recommended), 
     then a chromosomal mean is calculated from the ChIP fragment coverage track.
@@ -385,7 +394,7 @@ the `--out` name you provided to the wrapper:
 	multi-threaded and many of the applications can be run concurrently. The `--job` 
 	option indicates the number of simultaneous jobs that can be run concurrently. The `--cpu` 
 	option indicates the number of threads available to each job. The product of the two 
-	should not exceed the total number of CPUs for your machine. 
+	should not exceed the total number of cores or threads allowed for your machine. 
 
 ## Variation with ATAC-seq
 
