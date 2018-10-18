@@ -6,7 +6,7 @@ use File::Spec;
 use File::Which;
 use Getopt::Long;
 
-my $VERSION = 7;
+my $VERSION = 8;
 
 my $parallel;
 eval {
@@ -583,11 +583,11 @@ sub run_rescore {
 	my @conditions = ("Sample\tCondition\n");
 	
 	# generate three get_dataset commands
-	my $command1 = sprintf("%s --method mean --cpu %s --in %s --out %s ",
+	my $command1 = sprintf("%s --method mean --cpu %s --in %s --out %s --format 3 ",
 		$opts{getdata}, $opts{cpu}, $input, $output1);
-	my $command2 = sprintf("%s --method mean --cpu %s --in %s --out %s ",
+	my $command2 = sprintf("%s --method mean --cpu %s --in %s --out %s --format 3 ",
 		$opts{getdata}, $opts{cpu}, $input, $output2);
-	my $command3 = sprintf("%s --method sum --cpu %s --in %s --out %s ",
+	my $command3 = sprintf("%s --method sum --cpu %s --in %s --out %s --format 0 ",
 		$opts{getdata}, $opts{cpu}, $input, $output3);
 	foreach my $Job (@Jobs) {
 		if ($Job->{qvalue_bw}) {
@@ -970,7 +970,7 @@ sub generate_bam2wig_commands {
 		
 		# base count command
 		my $count_command = sprintf(
-			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --rpm --format 0 --bw --bwapp %s ", 
+			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --rpm --format 3 --bw --bwapp %s ", 
 			$opts{bam2wig}, 
 			$opts{mapq},
 			$opts{cpu},
@@ -1064,7 +1064,7 @@ sub generate_bam2wig_commands {
 		);
 		# base count command
 		my $count_command = sprintf(
-			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --rpm --mean --format 0 --bw --bwapp %s ", 
+			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --rpm --mean --format 3 --bw --bwapp %s ", 
 			$opts{bam2wig}, 
 			$opts{mapq},
 			$opts{cpu},
