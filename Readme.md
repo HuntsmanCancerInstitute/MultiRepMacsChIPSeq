@@ -105,11 +105,11 @@ Below is a general overview of the pipeline
 
 - Generate count files
 
-    To facilitate generating count matrices later, point data count bigWig files are 
-    generated using `bam2wig` for each sample and replicate, taking into account any 
-    special normalization factors. Replicates are depth-normalized and scaled to the 
-    target depth. Only single base pairs (shifted start positions or paired midpoints) 
-    are recorded.
+    To facilitate generating count matrices later, point data (shifted start positions or 
+    paired fragment midpoints) count bigWig files are generated using `bam2wig` for each 
+    sample replicate. By default, replicates are depth-normalized and scaled to the 
+    target depth, taking into account any special normalization factors, or counts may 
+    be left "raw" (no scaling whatsoever).
 
 - Generate enrichment files
 
@@ -130,7 +130,7 @@ Below is a general overview of the pipeline
 - Rescore peaks
 
 	Use `get_datasets` to generate matrices of log2 Fold Enrichment scores, 
-	q-value scores, and count data for the master list of peaks. The log2FE and q-value 
+	q-value scores, and count (integer only) data for the master list of peaks. The log2FE and q-value 
 	scores can be plotted as heat maps with `plot_peak_figures.R`. The peaks may be 
 	evaluated for differential significance using the count data and an R package such as 
 	[DESeq2](https://www.bioconductor.org/packages/release/bioc/html/DESeq2.html).
@@ -269,7 +269,7 @@ the `--out` name you provided to the wrapper:
     Or you may completely turn off de-duplication by using the `--nodup` flag. Use 
     this option if you have already marked duplicates, perhaps by using unique molecular 
     indexes (UMIs) or barcodes (see [UMIScripts](https://github.com/HuntsmanCancerInstitute/UMIScripts), 
-    for example).
+    for example). Marked duplicate reads are always skipped.
     
 - Read filtering
 
@@ -362,6 +362,9 @@ the `--out` name you provided to the wrapper:
     example, if the minimum depth is 16,768,123 reads, set target depth as
     
         --tdep 17
+
+    Note that the target depth greatly affects the q-value calculation used by Macs2. 
+    In general, higher target depths require higher q-value thresholds. 
 
 - Peak detection
 
