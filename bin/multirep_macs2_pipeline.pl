@@ -50,6 +50,7 @@ my %opts = (
 	slocalbin   => 50,
 	llocalbin   => 100,
 	chrapply    => undef,
+	rawcounts   => 0,
 	bam2wig     => sprintf("%s", which 'bam2wig.pl'),
 	bamdedup    => sprintf("%s", which 'bam_partial_dedup.pl'),
 	macs        => sprintf("%s", which 'macs2'),
@@ -61,7 +62,7 @@ my %opts = (
 	printchr    => sprintf("%s", which 'print_chromosome_lengths.pl'),
 	meanbdg     => sprintf("%s", which 'generate_mean_bedGraph.pl'),
 	intersect   => sprintf("%s", which 'intersect_peaks.pl'),
-) or die " unrecognized parameter!\n";
+);
 $opts{job} = $parallel ? 2 : 1;
 my @names;
 my @chips;
@@ -169,6 +170,7 @@ Options:
   --peaksize  integer           Minimum peak size to call ($opts{peaksize} bp)
   --peakgap   integer           Maximum gap between peaks before merging ($opts{peakgap} bp)
   --nolambda                    Skip lambda control, compare ChIP directly with control
+  --rawcounts                   Use unscaled raw counts for re-scoring peaks
   
  Job control
   --cpu       integer           Number of CPUs to use per job ($opts{cpu})
@@ -970,7 +972,7 @@ sub generate_bam2wig_commands {
 		
 		# base count command
 		my $count_command = sprintf(
-			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --rpm --format 3 --bw --bwapp %s ", 
+			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --bw --bwapp %s ", 
 			$opts{bam2wig}, 
 			$opts{mapq},
 			$opts{cpu},
@@ -1008,8 +1010,7 @@ sub generate_bam2wig_commands {
 		if ($self->{chrnorm}) {
 			$frag_command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
 				$opts{chrapply});
-			$count_command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
-				$opts{chrapply});
+			# count command gets scaled below
 		}
 		# finish fragment command
 		my $log = $self->{chip_bw};
@@ -1022,14 +1023,22 @@ sub generate_bam2wig_commands {
 			# add filenames
 			my $command = $count_command . sprintf("--in %s --out %s ", 	
 				$self->{chip_use_bams}->[$i], $self->{chip_count_bw}->[$i]);
-			# add scaling
-			if ($self->{chip_scale}) {
-				$command .= sprintf("--scale %.4f ", 
-					$opts{targetdep} * $self->{chip_scale}->[$i] );
-			}
-			else {
-				# we always scale the count by the target depth
-				$command .= sprintf("--scale %d ", $opts{targetdep})
+			# add scaling as necessary
+			unless ($opts{rawcounts}) {
+				$command .= "--rpm --format 3 ";
+				if ($self->{chrnorm}) {
+					# chromosome-specific scaling
+					$count_command .= sprintf("--chrnorm %s --chrapply %s ", 
+						$self->{chrnorm}, $opts{chrapply});
+				}
+				if ($self->{chip_scale}) {
+					$command .= sprintf("--scale %.4f ", 
+						$opts{targetdep} * $self->{chip_scale}->[$i] );
+				}
+				else {
+					# we always scale the count by the target depth
+					$command .= sprintf("--scale %d ", $opts{targetdep})
+				}
 			}
 			my $log = $self->{chip_count_bw}->[$i];
 			$log =~ s/bw$/out.txt/;
@@ -1064,7 +1073,7 @@ sub generate_bam2wig_commands {
 		);
 		# base count command
 		my $count_command = sprintf(
-			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --rpm --mean --format 3 --bw --bwapp %s ", 
+			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --bw --bwapp %s ", 
 			$opts{bam2wig}, 
 			$opts{mapq},
 			$opts{cpu},
@@ -1096,8 +1105,7 @@ sub generate_bam2wig_commands {
 		if ($self->{chrnorm}) {
 			$frag_command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
 				$opts{chrapply});
-			$count_command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
-				$opts{chrapply});
+			# count command gets scaled below
 		}
 		
 		# add count commands
@@ -1105,14 +1113,22 @@ sub generate_bam2wig_commands {
 			# add filenames
 			my $command = $count_command . sprintf("--in %s --out %s ", 	
 				$self->{control_use_bams}->[$i], $self->{control_count_bw}->[$i]);
-			# add scaling
-			if ($self->{control_scale}) {
-				$command .= sprintf("--scale %.4f ", 
-					$opts{targetdep} * $self->{control_scale}->[$i] );
-			}
-			else {
-				# we always scale the count by the target depth
-				$command .= sprintf("--scale %d ", $opts{targetdep})
+			# add scaling as necessary
+			unless ($opts{rawcounts}) {
+				$command .= "--rpm --format 3 ";
+				if ($self->{chrnorm}) {
+					# chromosome-specific scaling
+					$count_command .= sprintf("--chrnorm %s --chrapply %s ", 
+						$self->{chrnorm}, $opts{chrapply});
+				}
+				if ($self->{control_scale}) {
+					$command .= sprintf("--scale %.4f ", 
+						$opts{targetdep} * $self->{control_scale}->[$i] );
+				}
+				else {
+					# we always scale the count by the target depth
+					$command .= sprintf("--scale %d ", $opts{targetdep})
+				}
 			}
 			my $log = $self->{control_count_bw}->[$i];
 			$log =~ s/bw$/out.txt/;
@@ -1198,7 +1214,7 @@ sub generate_bam2wig_commands {
 		
 		# count command
 		my $count_command = sprintf(
-			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --rpm --mean --format 0 --bw --bwapp %s ", 
+			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --bw --bwapp %s ", 
 			$opts{bam2wig}, 
 			$opts{mapq},
 			$opts{cpu},
@@ -1232,8 +1248,7 @@ sub generate_bam2wig_commands {
 		if ($self->{chrnorm}) {
 			$frag_command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
 				$opts{chrapply});
-			$count_command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
-				$opts{chrapply});
+			# count command gets scaled below
 		}
 		# scaling for the fragment command only, count below
 		if ($self->{control_scale}) {
@@ -1251,14 +1266,22 @@ sub generate_bam2wig_commands {
 			# add filenames
 			my $command = $count_command . sprintf("--in %s --out %s ", 	
 				$self->{control_use_bams}->[$i], $self->{control_count_bw}->[$i]);
-			# add scaling
-			if ($self->{control_scale}) {
-				$command .= sprintf("--scale %.4f ", 
-					$opts{targetdep} * $self->{control_scale}->[$i] );
-			}
-			else {
-				# we always scale the count by the target depth
-				$command .= sprintf("--scale %d ", $opts{targetdep})
+			# add scaling as necessary
+			unless ($opts{rawcounts}) {
+				$command .= "--rpm --format 3 ";
+				if ($self->{chrnorm}) {
+					# chromosome-specific scaling
+					$count_command .= sprintf("--chrnorm %s --chrapply %s ", 
+						$self->{chrnorm}, $opts{chrapply});
+				}
+				if ($self->{control_scale}) {
+					$command .= sprintf("--scale %.4f ", 
+						$opts{targetdep} * $self->{control_scale}->[$i] );
+				}
+				else {
+					# we always scale the count by the target depth
+					$command .= sprintf("--scale %d ", $opts{targetdep})
+				}
 			}
 			my $log = $self->{control_count_bw}->[$i];
 			$log =~ s/bw$/out.txt/;
