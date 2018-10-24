@@ -19,8 +19,8 @@ my $build = Module::Build->new(
 	configure_requires => {
 		'Module::Build'           => 0,
 	},
-	requires          => {
-		'Bio::ToolBox'              => 1.61,
+	requires           => {
+		'Bio::ToolBox'              => 1.63,
 		'Parallel::ForkManager'     => 0,
 		'Bio::DB::HTS'              => 0,
 		'Bio::DB::Big'              => 0,
