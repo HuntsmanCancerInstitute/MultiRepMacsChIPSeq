@@ -6,7 +6,7 @@ use File::Spec;
 use File::Which;
 use Getopt::Long;
 
-my $VERSION = 8;
+my $VERSION = 9;
 
 my $parallel;
 eval {
@@ -878,7 +878,11 @@ sub generate_dedup_commands {
 	if (defined $self->{control_bams}) {
 		for (my $i = 0; $i < scalar @{$self->{control_bams}}; $i++) {
 			my $in = $self->{control_bams}->[$i];
-			next if exists $name2done->{$in};
+			if (exists $name2done->{$in}) {
+				# this file has already been done, but we need to update the name
+				$self->{control_dedup_bams}->[$i] = $name2done->{$in};
+				next;
+			}
 			my (undef,undef,$out) = File::Spec->splitpath($in);
 			$out = File::Spec->catfile($opts{dir}, $out);
 			$out =~ s/\.bam$/.dedup.bam/i;
@@ -907,7 +911,7 @@ sub generate_dedup_commands {
 			$log =~ s/\.bam$/.out.txt/i;
 			$command .= " 2>&1 > $log";
 			push @commands, [$command, $out, $log];
-			$name2done->{$in} = 1; # remember that this has been done
+			$name2done->{$in} = $out; # remember that this has been done
 		}
 	}
 	return @commands;
