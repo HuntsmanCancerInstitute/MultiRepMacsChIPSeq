@@ -51,6 +51,7 @@ my %opts = (
 	llocalbin   => 100,
 	chrapply    => undef,
 	rawcounts   => 0,
+	savebdg     => 0,
 	bam2wig     => sprintf("%s", which 'bam2wig.pl'),
 	bamdedup    => sprintf("%s", which 'bam_partial_dedup.pl'),
 	macs        => sprintf("%s", which 'macs2'),
@@ -171,6 +172,7 @@ Options:
   --peakgap   integer           Maximum gap between peaks before merging ($opts{peakgap} bp)
   --nolambda                    Skip lambda control, compare ChIP directly with control
   --rawcounts                   Use unscaled raw counts for re-scoring peaks
+  --savebdg                     Save q-value bdg files for further custom calling
   
  Job control
   --cpu       integer           Number of CPUs to use per job ($opts{cpu})
@@ -231,6 +233,7 @@ GetOptions(
 	'peaksize=i'            => \$opts{peaksize},
 	'peakgap=i'             => \$opts{peakgap},
 	'lambda!'               => \$opts{use_lambda},
+	'savebdg!'              => \$opts{savebdg},
 	'cpu=i'                 => \$opts{cpu},
 	'job=i'                 => \$opts{job},
 	'bam2wig=s'             => \$opts{bam2wig},
@@ -1473,13 +1476,15 @@ sub generate_bdg2bw_commands {
 	}
 	if ($self->{qvalue_bdg} and $self->{qvalue_bw}) {
 		die "no wigToBigWig application in path!\n" unless $opts{wig2bw} =~ /\w+/;
-		my $command = sprintf("%s %s %s %s && rm %s", 
+		my $command = sprintf("%s %s %s %s ", 
 			$opts{wig2bw},
 			$self->{qvalue_bdg},
 			$chromofile,
-			$self->{qvalue_bw},
-			$self->{qvalue_bdg},
+			$self->{qvalue_bw}
 		);
+		unless ($opts{savebdg}) {
+			$command .= sprintf("&& rm %s", $self->{qvalue_bdg});
+		}
 		push @commands, [$command, $self->{qvalue_bw}, ''];
 	}
 	if ($self->{fe_bdg}) {
