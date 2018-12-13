@@ -34,13 +34,16 @@ my %opts = (
 	maxdup      => undef,
 	dupfrac     => 0.1,
 	savebam     => 0,
-	fragsize    => 300,
+	fragsize    => 250,
 	shiftsize   => 0,
 	slocal      => 1000,
 	llocal      => 10000,
 	qvalue      => 2,
-	peaksize    => 300,
-	peakgap     => 200,
+	peaksize    => undef,
+	peakgap     => undef,
+	broad       => 0,
+	linkqv      => 1,
+	gaplink     => undef,
 	targetdep   => 25,
 	use_lambda  => 1,
 	chrskip     => "chrM|MT|lambda|Adapter|PhiX",
@@ -168,8 +171,11 @@ Options:
   --cutoff    number            Threshold q-value for calling peaks ($opts{qvalue}) 
                                  Higher numbers are more significant, -1*log10(q)
   --tdep      integer           Average sequence depth of bam files in millions ($opts{targetdep})
-  --peaksize  integer           Minimum peak size to call ($opts{peaksize} bp)
-  --peakgap   integer           Maximum gap between peaks before merging ($opts{peakgap} bp)
+  --peaksize  integer           Minimum peak size to call (2 x size)
+  --peakgap   integer           Maximum gap between peaks before merging (1 x size)
+  --broad                       Also perform broad (gapped) peak calling
+  --broadcut  number            Q-value cutoff for linking broad regions ($opts{linkqv})
+  --broadgap  integer           Maximum link size between peaks in broad calls (4 x size bp)
   --nolambda                    Skip lambda control, compare ChIP directly with control
   --rawcounts                   Use unscaled raw counts for re-scoring peaks
   --savebdg                     Save q-value bdg files for further custom calling
@@ -232,6 +238,9 @@ GetOptions(
 	'tdep=f'                => \$opts{targetdep},
 	'peaksize=i'            => \$opts{peaksize},
 	'peakgap=i'             => \$opts{peakgap},
+	'broad!'                => \$opts{broad},
+	'broadcut=f'            => \$opts{linkqv},
+	'broadgap=i'            => \$opts{gaplink},
 	'lambda!'               => \$opts{use_lambda},
 	'savebdg!'              => \$opts{savebdg},
 	'cpu=i'                 => \$opts{cpu},
@@ -336,6 +345,15 @@ sub check_inputs {
 	}
 	unless (-w $opts{dir}) {
 		die sprintf("target directory %s is not writable!\n", $opts{dir});
+	}
+	unless (defined $opts{peaksize}) {
+		$opts{peaksize} = 2 * $opts{fragsize};
+	}
+	unless (defined $opts{peakgap}) {
+		$opts{peakgap} = $opts{fragsize};
+	}
+	unless (defined $opts{gaplink}) {
+		$opts{gaplink} = 4 * $opts{fragsize};
 	}
 	# add parameters to option hash for printing configuration
 	$opts{chipscale} = join(", ", @chip_scales);
@@ -550,19 +568,39 @@ sub generate_chr_file {
 
 sub run_peak_merge {
 	return if scalar(@Jobs) == 1; # no sense merging one job!
-	print "\n\n======= Merging called narrowPeak files\n";
+	print "\n\n======= Merging called Peak files\n";
 	die "no bedtools application in path!\n" unless $opts{bedtools} =~ /\w+/;
 	die "no intersect_peaks.pl application in path!\n" unless $opts{intersect} =~ /\w+/;
+	my @commands;
+	
+	# narrowPeaks
 	my $merge_file = File::Spec->catfile($opts{dir}, $opts{out});
 	my $command = sprintf("%s --bed %s --out %s ", $opts{intersect}, $opts{bedtools}, 
 		 $merge_file);
-	
 	foreach my $Job (@Jobs) {
 		if ($Job->{peak}) {
 			$command .= sprintf("%s ", $Job->{peak});
 		}
 	}
-	execute_commands([[$command, $merge_file, '']]);
+	push @commands, [$command, $merge_file, ''];
+	
+	# broadPeaks
+	if ($opts{broad}) {
+		my $merge2_file = File::Spec->catfile($opts{dir}, $opts{out} . "_broad");
+		my $command2 = sprintf("%s --bed %s --out %s ", $opts{intersect}, $opts{bedtools}, 
+			 $merge2_file);
+	
+		foreach my $Job (@Jobs) {
+			if ($Job->{peak}) {
+				my $bf = $Job->{peak};
+				$bf =~ s/narrow/gapped/;
+				$command2 .= sprintf("%s ", $bf);
+			}
+		}
+		push @commands, [$command2, $merge2_file, ''];
+	}
+	
+	execute_commands(\@commands);
 }
 
 sub run_rescore {
@@ -633,9 +671,67 @@ sub run_rescore {
 	$command3 .= " 2>&1 > $log";
 	push @commands, [$command3, $output3, $log];
 	
+	# broad peak rescore
+	if ($opts{broad}) {
+		# generate broad file names
+		my $input2;
+		if (scalar(@Jobs) > 1) {
+			$input2 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad.bed');
+			die "unable to find merged bed file '$input2'!\n" unless -e $input2;
+		}
+		else {
+			$input2 = $Jobs[0]->{peak};
+			$input2 =~ s/narrow/gapped/;
+			die "unable to find merged bed file '$input2'!\n" unless -e $input2;
+		}
+		my $output4 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_qvalue.txt');
+		my $output5 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_log2FE.txt');
+		my $output6 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_counts.txt');
+		
+		# generate three get_dataset commands
+		my $command4 = sprintf("%s --method mean --cpu %s --in %s --out %s --format 3 ",
+			$opts{getdata}, $opts{cpu}, $input2, $output4);
+		my $command5 = sprintf("%s --method mean --cpu %s --in %s --out %s --format 3 ",
+			$opts{getdata}, $opts{cpu}, $input2, $output5);
+		my $command6 = sprintf("%s --method sum --cpu %s --in %s --out %s --format 0 ",
+			$opts{getdata}, $opts{cpu}, $input2, $output6);
+		%name2done = ();
+		foreach my $Job (@Jobs) {
+			if ($Job->{qvalue_bw}) {
+				$command4 .= sprintf("--data %s ", $Job->{qvalue_bw});
+			}
+			if ($Job->{logfe_bw}) {
+				$command5 .= sprintf("--data %s ", $Job->{logfe_bw});
+			}
+			foreach my $b ( @{ $Job->{chip_count_bw} } ) {
+				$command6 .=  "--data $b ";
+			}
+			foreach my $b ( @{ $Job->{control_count_bw} } ) {
+				next if exists $name2done{$b};
+				$command6 .=  "--data $b ";
+				$name2done{$b} = 1; # remember it's done
+			}
+		}
+	
+		# add log outputs to commands
+		my @commands;
+		my $log = $output4;
+		$log =~ s/txt$/log.txt/;
+		$command4 .= " 2>&1 > $log";
+		push @commands, [$command4, $output4, $log];
+		$log = $output5;
+		$log =~ s/txt$/log.txt/;
+		$command5 .= " 2>&1 > $log";
+		push @commands, [$command5, $output5, $log];
+		$log = $output6;
+		$log =~ s/txt$/log.txt/;
+		$command6 .= " 2>&1 > $log";
+		push @commands, [$command6, $output6, $log];
+	}
+	
 	# write conditions file
-	my $output4 = File::Spec->catfile($opts{dir}, $opts{out} . '_conditions.txt');
-	my $fh = IO::File->new($output4, "w");
+	my $output7 = File::Spec->catfile($opts{dir}, $opts{out} . '_conditions.txt');
+	my $fh = IO::File->new($output7, "w");
 	foreach (@conditions) {
 		$fh->print($_);
 	}
@@ -787,7 +883,7 @@ sub new {
 		$self->{lambda_bdg} .= $opts{use_lambda} ? '.lambda_control.bdg' : '.bdg';
 	}
 	elsif ($control =~ /\.(?:bw|bigwig)$/i) {
-		die "only one control biwWig file is allowed per experiment!\n" if $chip =~ /,/;
+		die "only one control bigWig file is allowed per experiment!\n" if $chip =~ /,/;
 		$self->{lambda_bw} = $control;
 		$self->{lambda_bdg} = $control;
 		$self->{lambda_bdg} =~ s/(?:bw|bigwig)$/bdg/i;
@@ -1442,6 +1538,19 @@ sub generate_peakcall_commands {
 	my $log = $self->{peak};
 	$log =~ s/narrowPeak$/peakcall.out.txt/;
 	$command .= " 2> $log";
+	if ($opts{broad}) {
+		# sneak this in as an extra command
+		my $bpeak = $self->{peak};
+		$bpeak =~ s/narrow/gapped/;
+		my $command2 = sprintf("%s bdgbroadcall -i %s -c %s -C %s -l %s -g %s -G %s -o %s ",
+			$opts{macs}, $qtrack, $opts{qvalue}, $opts{linkqv}, $opts{peaksize}, 
+			$opts{peakgap}, $opts{gaplink}, $bpeak
+		);
+		my $log2 = $self->{peak};
+		$log2 =~ s/narrowPeak$/broadcall.out.txt/;
+		$command2 .= " 2> $log2";
+		return ( [$command, $self->{peak}, $log], [$command2, $bpeak, $log2] );
+	}
 	return [$command, $self->{peak}, $log];
 }
 
