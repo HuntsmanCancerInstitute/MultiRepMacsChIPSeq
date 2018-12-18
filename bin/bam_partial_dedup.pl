@@ -14,7 +14,7 @@
 use strict;
 use Getopt::Long;
 use File::Which;
-use List::Util qw(sum max);
+use List::Util qw(sum min max);
 use Bio::ToolBox::db_helper 1.50 qw(
 	open_db_connection 
 	low_level_bam_fetch
@@ -29,7 +29,7 @@ eval {
 	$parallel = 1;
 };
 
-my $VERSION = 1.9;
+my $VERSION = 2.0;
 
 unless (@ARGV) {
 	print <<END;
@@ -67,55 +67,78 @@ the numbers may be slightly different than calculated by traditional duplicate
 removers.
 
 Paired-end alignments are treated as fragments. Only properly paired 
-alignments are considered; everything else is silently skipped. Fragments 
+alignments are considered; singletons are skipped. Fragments 
 are checked for start position and fragment length (paired insertion size) 
 for duplicates. Random subsampling should not result in broken pairs.
 
-Alignment duplicate marks (bit flag 0x400) are ignored. 
+Optical duplicates, arising from neighboring clusters on a sequencing flow 
+cell with identical sequence, may now be checked. When random subsampling 
+duplicates, optical duplicates should critically be ignored. This is highly 
+recommended for patterned flow cells from Illumina NovaSeq or NextSeq. Set a 
+distance of 100 pixels for unpatterned (Illumina HiSeq) or 2500 for patterned 
+(NovaSeq). By default, optical duplicate alignments are not written to output. 
+To ONLY filter for optical duplicates, set --max to a very high number.
+
+Existing alignment duplicate marks (bit flag 0x400) are ignored. 
 
 Since repetitive and high copy genomic regions are a big source of duplicate 
-alignments, these regions can be entirely skipped by providing a file with 
-recognizable coordinates. Any alignments overlapping these intervals are skipped 
-in both counting and writing. 
+alignments, these regions can and should be entirely skipped by providing a 
+file with recognizable coordinates. Any alignments overlapping these intervals 
+are skipped in both counting and writing. 
 
 USAGE:  bam_partial_dedup.pl --in in.bam
         bam_partial_dedup.pl --frac 0.xx --rand --in in.bam --out out.bam
         bam_partial_dedup.pl --m X -i in.bam -o out.bam
        
 OPTIONS:
-    --in <file>    The input bam file, should be sorted and indexed
-    --out <file>   The output bam file containing unique and retained 
+  --in <file>      The input bam file, should be sorted and indexed
+  --out <file>     The output bam file containing unique and retained 
                    duplicates; optional if you're just checking the 
                    duplication rate.
-    --mark         Write all alignments to output and mark duplicates 
-                   with flag bit 0x400.
-    --random       Randomly subsamples duplicate alignments so that the  
-                   final duplication rate will match target duplication 
-                   rate. Must set --frac option. 
-    --frac <float> Decimal fraction representing the target 
-                   duplication rate in the final file. 
-    --max <int>    Integer representing the maximum number of duplicates 
-                   at each position
-    --pe           Bam files contain paired-end alignments and only 
+  --pe             Bam files contain paired-end alignments and only 
                    properly paired duplicate fragments will be checked for 
                    duplication. 
-    --blacklist <file> Provide a bed/gff/text file of repeat regions to skip
-    --chrskip <regex>  
-    --seed <int>   Provide an integer to set the random seed generator to 
+  --mark           Write non-optical alignments to output and mark as 
+                   duplicates with flag bit 0x400.
+  --random         Randomly subsamples duplicate alignments so that the  
+                   final duplication rate will match target duplication 
+                   rate. Must set --frac option. 
+  --frac <float>   Decimal fraction representing the target duplication 
+                   rate in the final file. 
+  --max <int>      Integer representing the maximum number of duplicates 
+                   at each position
+  --optical        Enable optical duplicate checking
+  --distance       Set optical duplicate distance threshold.
+                   Use 100 for unpatterned flowcell (HiSeq) or 
+                   2500 for patterned flowcell (NovaSeq). Default 100.
+                   Setting this value automatically sets --optical.
+  --keepoptical    Keep optical duplicates in output as marked 
+                   duplicates with flag bit 0x400. Optical duplicates 
+                   are not differentiated from non-optical duplicates.
+  --coord <string> Provide the tile:X:Y integer 1-base positions in the 
+                   read name for optical checking. For Illumina CASAVA 1.8 
+                   7-element names, this is 5:6:7 (default)
+  --blacklist <file> Provide a bed/gff/text file of repeat regions to skip
+  --chrskip <regex> Provide a regex for skipping certain chromosomes
+  --seed <int>     Provide an integer to set the random seed generator to 
                    make the subsampling consistent (non-random).
-    --cpu <int>    Specify the number of threads to use (4) 
+  --cpu <int>      Specify the number of threads to use (4) 
 
 END
 	exit;
 }
 
 ### Get Options
-my ($fraction, $max, $infile, $outfile, $mark, $random, $paired, $chr_exclude, 
-	$black_list, $seed, $cpu, $no_sam);
+my ($fraction, $max, $infile, $outfile, $do_optical, $optical_thresh, $keep_optical, 
+	$mark, $random, $paired, $chr_exclude, $black_list, $seed, $cpu, $tilepos, $xpos, $ypos, 
+	$name_coordinates, $no_sam);
 my @program_options = @ARGV;
 GetOptions( 
 	'in=s'       => \$infile, # the input bam file path
-	'out=s'      => \$outfile, # name of output file 
+	'o|out=s'    => \$outfile, # name of output file 
+	'optical!'   => \$do_optical, # check for optical duplicates
+	'distance=i' => \$optical_thresh, # optical threshold distance
+	'keepoptical!' => \$keep_optical, # include optical duplicates in output
 	'mark!'      => \$mark, # mark the duplicates
 	'random!'    => \$random, # flag to random downsample duplicates
 	'frac=f'     => \$fraction, # target fraction of duplicates
@@ -125,18 +148,43 @@ GetOptions(
 	'blacklist=s' => \$black_list, # file of high copy repeat regions to avoid
 	'seed=i'     => \$seed, # seed for non-random random subsampling
 	'cpu=i'      => \$cpu, # number of cpu cores to use
+	'coord=s'    => \$name_coordinates, # tile:X:Y name positions
 	'bam=s'      => \$BAM_ADAPTER, # specifically set the bam adapter, advanced!
 	'nosam!'     => \$no_sam, # avoid using external sam adapter, advanced!
 ) or die " unrecognized option(s)!! please refer to the help documentation\n\n";
 
+unless ($infile) {
+	die "no input file provided!\n";
+}
 if ($max and $fraction and not $random) {
 	die "max and frac options are mutually exclusive without random. Pick one.\n";
 }
 if ($fraction and $fraction !~ /^0\.\d+$/) {
 	die "unrecognized fraction '$fraction'. Should be decimal (0.x)\n";
 }
-unless ($infile) {
-	die "no input file provided!\n";
+if ($optical_thresh) {
+	$do_optical = 1;
+}
+if ($do_optical) {
+	# default for HiSeq non-patterned flow cells, perhaps we should use 2500 for NovaSeq
+	$optical_thresh ||= 100; 
+}
+if ($name_coordinates) {
+	if ($name_coordinates =~ /(\d):(\d):(\d)/) {
+		# coordinates must be converted to 0-based indices
+		$tilepos = $1 - 1;
+		$xpos = $2 - 1;
+		$ypos = $3 - 1;
+	}
+	else {
+		die "name coordinate must be integers as tile:X:Y, such as 5:6:7\n";
+	}
+}
+else {
+	# these defaults are for Illumina CASAVA 1.8+ Fastq data in 0-based coordinates
+	$tilepos = 4;
+	$xpos = 5;
+	$ypos = 6;
 }
 if ($parallel and not defined $cpu) {
 	$cpu = 4;
@@ -204,15 +252,16 @@ my ($counts, $outbam) = deduplicate();
 
 
 ### Print results and finish
-printf "  Total mapped: %22d 
-  Non-duplicate count: %15d
-  Retained duplicate count: %10d 
-  Removed duplicate count: %11d
-  Current duplication rate: %10.4f\n",
-	$counts->{total}, $counts->{nondup}, $counts->{duplicate}, $counts->{toss}, 
-	$counts->{duplicate}/($counts->{duplicate} + $counts->{nondup});
+printf "  Total mapped: %34d 
+  Optical duplicate count: %23d
+  Non-duplicate count: %27d
+  Retained non-optical duplicate count: %10d 
+  Removed non-optical duplicate count: %11d
+  Current duplication rate: %22.4f\n",
+	$counts->{total}, $counts->{optical}, $counts->{nondup}, $counts->{duplicate}, 
+	$counts->{toss}, $counts->{duplicate}/($counts->{duplicate} + $counts->{nondup});
 if ($paired and $counts->{unpaired}) {
-	printf "  Unpaired count: %20d\n", $counts->{unpaired};
+	printf "  Unpaired count: %32d\n", $counts->{unpaired};
 }
 printf " Wrote %d alignments to $outfile\n", $paired ? 
 	($counts->{nondup} + $counts->{duplicate}) * 2 : 
@@ -261,11 +310,11 @@ sub count_alignments {
 	}
 	
 	# count the alignments in single or multi-thread
-	my ($totalCount, $depth2count);
+	my ($totalCount, $opticalCount, $depth2count);
 	if ($parallel and $cpu > 1) {
-		($totalCount, $depth2count) = count_alignments_multithread();
+		($totalCount, $opticalCount, $depth2count) = count_alignments_multithread();
 	} else {
-		($totalCount, $depth2count) = count_alignments_singlethread();
+		($totalCount, $opticalCount, $depth2count) = count_alignments_singlethread();
 	}
 	
 	# report duplication statistics
@@ -273,19 +322,23 @@ sub count_alignments {
 		# not the number of alignments
 		# to get total alignments sum( map {$_ * $depth2count{$_}} keys %depth2count )
 	my @depths = sort {$a <=> $b} keys %$depth2count;
+	my $workingCount = $totalCount - $opticalCount; # non-optical dup count
 	my $nondupCount = sum(values %$depth2count);# assumes one unique at every single position
-	my $dupCount = $totalCount - $nondupCount; # essentially count of positions with 2+ alignments
-	my $dupRate = $dupCount / $totalCount;
+	my $dupCount = $workingCount - $nondupCount; # essentially count of positions with 2+ alignments
+	my $dupRate = $dupCount / $workingCount;
 	my $maxObserved = max(keys %$depth2count);
 	# right justify the numbers in the printf to make it look pretty
-	printf "  Total mapped: %22d
-  Non-duplicate count: %15d
-  Duplicate count: %19d
-  Duplication rate: %18.4f
-  Maximum position depth: %12d
-  Mean position depth: %15.4f\n", 
-		$totalCount, $nondupCount, $dupCount, $dupRate, 
-		$maxObserved, $totalCount / $nondupCount;
+	printf "  Total mapped: %24d
+  Optical duplicate count: %13d
+  Optical duplicate rate: %14.4f
+  Non-optical working count: %11d
+  Non-optical duplicate count: %9d
+  Non-optical duplication rate: %8.4f
+  Non-duplicate count: %17d
+  Maximum position depth: %14d
+  Mean position depth: %17.4f\n", 
+		$totalCount, $opticalCount, $opticalCount / $totalCount, $workingCount, 
+		$dupCount, $dupRate, $nondupCount, $maxObserved, $workingCount / $nondupCount;
 	
 	# check if we need to continue
 	if ($fraction and $dupRate <= $fraction) {
@@ -362,6 +415,7 @@ sub count_alignments {
 
 sub count_alignments_singlethread {
 	my $totalCount = 0;
+	my $opticalCount = 0;
 	my %depth2count; # for generating a histogram of duplicate numbers
 				   # key=depth, value=number of bases with this depth
 	
@@ -372,6 +426,7 @@ sub count_alignments_singlethread {
 		my $data = {
 			position    => -1, # a non-coordinate
 			totalCount  => 0,  # total count of reads
+			optCount    => 0, # optical count
 			black_list  => undef,
 			depth2count => {}, # depth to count hash
 			reads       => [], # temp buffer for collecting reads
@@ -406,12 +461,13 @@ sub count_alignments_singlethread {
 			$depth2count{$d} += $data->{depth2count}{$d};
 		}
 	}
-	return ($totalCount, \%depth2count);
+	return ($totalCount, $opticalCount, \%depth2count);
 }
 
 
 sub count_alignments_multithread {
 	my $totalCount = 0;
+	my $opticalCount = 0;
 	my %depth2count; # for generating a histogram of duplicate numbers
 				   # key=depth, value=number of bases with this depth
 	
@@ -421,6 +477,7 @@ sub count_alignments_multithread {
 		my ($pid, $exit_code, $ident, $exit_signal, $core_dump, $data) = @_;
 		# add child counts to global values
 		$totalCount += $data->{totalCount};
+		$opticalCount += $data->{optCount};
 		foreach my $d (keys %{$data->{depth2count}}) {
 			$depth2count{$d} += $data->{depth2count}{$d};
 		}
@@ -439,6 +496,7 @@ sub count_alignments_multithread {
 		my $data = {
 			position    => -1, # a non-coordinate
 			totalCount  => 0,  # total count of reads
+			optCount    => 0, # optical count
 			black_list  => undef,
 			depth2count => {}, # depth to count hash
 			reads       => [], # temp buffer for collecting reads
@@ -473,7 +531,7 @@ sub count_alignments_multithread {
 		$pm->finish(0, $data); 
 	}
 	$pm->wait_all_children;
-	return ($totalCount, \%depth2count);
+	return ($totalCount, $opticalCount, \%depth2count);
 }
 
 
@@ -562,10 +620,28 @@ sub count_up_se_alignments {
 	
 	# assign count for each depth
 	foreach my $pos (keys %fends) {
-		$data->{depth2count}{scalar @{ $fends{$pos} }} += 1;
+		# count up based on optical test
+		if ($do_optical) {
+			my ($nondup, $dup) = identify_optical_duplicates($fends{$pos});
+			$data->{depth2count}{scalar @$nondup} += 1;
+			$data->{optCount} += scalar @$dup;
+		}
+		else {
+			# blindly take everything
+			$data->{depth2count}{ scalar @{$fends{$pos}} } += 1;
+		}
 	}
 	foreach my $pos (keys %rends) {
-		$data->{depth2count}{scalar @{ $rends{$pos} }} += 1;
+		# count up based on optical test
+		if ($do_optical) {
+			my ($nondup, $dup) = identify_optical_duplicates($rends{$pos});
+			$data->{depth2count}{scalar @$nondup} += 1;
+			$data->{optCount} += scalar @$dup;
+		}
+		else {
+			# blindly take everything
+			$data->{depth2count}{ scalar @{$rends{$pos}} } += 1;
+		}
 	}
 }
 
@@ -584,8 +660,149 @@ sub count_up_pe_alignments {
 	
 	# assign count for each depth
 	foreach my $s (keys %sizes) {
-		$data->{depth2count}{scalar @{$sizes{$s}}} += 1;
+		# count up based on optical test
+		if ($do_optical) {
+			my ($nondup, $dup) = identify_optical_duplicates($sizes{$s});
+			$data->{depth2count}{scalar @$nondup} += 1;
+			$data->{optCount} += scalar @$dup;
+		}
+		else {
+			# blindly take everything
+			$data->{depth2count}{ scalar @{$sizes{$s}} } += 1;
+		}
 	}
+}
+
+
+
+### Identify optical duplicates
+sub identify_optical_duplicates {
+	my $alignments = shift;
+	
+	# check for only one alignment and quickly return
+	if (scalar @$alignments == 1) {
+		return ($alignments, []);
+	}
+	
+	# extract tile and coordinates from each alignment given and sort 
+	my %tile2alignment;
+	my @dups;
+	my @nondups;
+	foreach my $a (@$alignments) {
+		my @bits = split(':', $a->qname);
+		$tile2alignment{$bits[$tilepos]} ||= [];
+		# each item in the array is another array of [x, y, $a]
+		push @{$tile2alignment{$bits[$tilepos]}}, [$bits[$xpos], $bits[$ypos], $a];
+	}
+	
+	# walk through each tile
+	foreach my $tile (keys %tile2alignment) {
+		# check the number of alignments
+		if (scalar @{ $tile2alignment{$tile} } == 1) {
+			# we only have one, so it's a nondup
+			push @nondups, $tile2alignment{$tile}->[0][2];
+		}
+		else {
+			# we have more than one so must sort through
+			
+			# sort by increasing X coordinate
+			my @spots = sort {$a->[0] <=> $b->[0]} @{$tile2alignment{$tile}};
+			# collect the deltas from one spot to the next on the X axis
+			my @xdiffs = map { $spots[$_]->[0] - $spots[$_-1]->[0] } (1..$#spots);
+			
+			# check 
+			if (min(@xdiffs) > $optical_thresh) {
+				# everything is ok
+				foreach (@spots) {
+					push @nondups, $_->[2];
+				}
+			}
+			else {
+				# two or more spots are too close on X axis, must check out
+				my $first = shift @spots;
+				while (@spots) {
+					if ($spots[0]->[0] - $first->[0] < $optical_thresh) {
+						# second is too close to first
+						# keep taking spots until they're no longer close
+						my @closest;
+						push @closest, $first, shift @spots;
+						# continue comparing the next one with the previous one
+						while (
+							scalar @spots and 
+							$spots[0]->[0] - $closest[-1]->[0] < $optical_thresh
+						) {
+							push @closest, shift @spots;
+						}
+						
+						## Now must process this X cluster
+						# check Y coordinates by sorting and calculating deltas
+						@closest = sort {$a->[1] <=> $b->[1]} @closest;
+						my @ydiffs = map { $closest[$_]->[1] - $closest[$_-1]->[1] } (1..$#closest);
+						
+						# check the Y deltas in this X cluster
+						if (min(@ydiffs) > $optical_thresh) {
+							# they're all good
+							foreach (@closest) {
+								push @nondups, $_->[2];
+							}
+						}
+						else {
+							# we definitely have some XY clusters within threshold
+							my $xyfirst = shift @closest;
+							while (@closest) {
+								if ($closest[0]->[1] - $xyfirst->[1] < $optical_thresh) {
+									# these two are close
+									my @clustered;
+									push @clustered, $xyfirst, shift @closest;
+									# continue compareing the next one with the previous one
+									while (
+										scalar @closest and 
+										$closest[0]->[1] - $clustered[-1]->[1] < $optical_thresh
+									) {
+										push @clustered, shift @closest;
+									}
+									# done, no more
+									
+									# take the first one as pseudo random chosen one
+									push @nondups, $clustered[0]->[2];
+									# remainder are optical duplicates
+									for my $i (1..$#clustered) {
+										push @dups, $clustered[$i]->[2];
+									}
+									
+									## prepare for next round
+									$xyfirst = shift @closest || undef;
+								}
+								else {
+									# this one is ok
+									push @nondups, $xyfirst->[2];
+									$xyfirst = shift @closest;
+								}
+							}
+							
+							# check for last remaining alignment
+							push @nondups, $xyfirst->[2] if defined $xyfirst;
+						}
+						
+						## Prepare for next round
+						$first = shift(@spots) || undef;
+					}
+					else {
+						# first is ok
+						push @nondups, $first->[2];
+						$first = shift @spots;
+					}
+					# continue
+				}
+				
+				# check for last remaining alignment
+				push @nondups, $first->[2] if defined $first;
+			}
+		}
+	}
+	
+	# finished
+	return (\@nondups, \@dups);
 }
 
 
@@ -626,6 +843,7 @@ sub deduplicate_singlethread {
 	# set up counters
 	my %counts = (
 		total      => 0,
+		optical    => 0,
 		nondup     => 0,
 		duplicate  => 0,
 		toss       => 0,
@@ -652,6 +870,7 @@ sub deduplicate_singlethread {
 		# prepare callback data structure
 		my $data = {
 			total      => 0,
+			optical    => 0,
 			nondup     => 0,
 			duplicate  => 0,
 			toss       => 0,
@@ -705,6 +924,7 @@ sub deduplicate_multithread {
 	# set up counters
 	my %counts = (
 		total      => 0,
+		optical    => 0,
 		nondup     => 0,
 		duplicate  => 0,
 		toss       => 0,
@@ -716,7 +936,7 @@ sub deduplicate_multithread {
 	$pm->run_on_finish( sub {
 		my ($pid, $exit_code, $ident, $exit_signal, $core_dump, $data) = @_;
 		# add child counts to global values
-		foreach my $k (qw(total nondup duplicate toss unpaired)) {
+		foreach my $k (qw(total optical nondup duplicate toss unpaired)) {
 			$counts{$k} += $data->{$k};
 		}
 	});
@@ -747,6 +967,7 @@ sub deduplicate_multithread {
 		# prepare callback data structure
 		my $data = {
 			total      => 0,
+			optical    => 0,
 			nondup     => 0,
 			duplicate  => 0,
 			toss       => 0,
@@ -934,6 +1155,7 @@ sub write_pe_callback {
 sub write_out_max_se_alignments {
 	my $data = shift;
 	
+	
 	# split up based on end point and strand
 	my %fends; # forward ends
 	my %rends; # reverse ends
@@ -951,22 +1173,41 @@ sub write_out_max_se_alignments {
 	
 	# write forward reads
 	foreach my $pos (keys %fends) {
-		$data->{nondup}++;
+		
+		# collect the non-optical duplicate reads
+		my $reads;
+		if ($do_optical) {
+			my ($nondup, $dup) = identify_optical_duplicates($fends{$pos});
+			$reads = $nondup;
+			$data->{optical} += scalar @$dup;
+			if ($keep_optical and scalar(@$dup)) {
+				# go ahead and write out optical duplicates now
+				foreach my $a (@$dup) {
+					mark_alignment($a);
+					&$write_alignment($data->{outbam}, $a);
+				}
+			}
+		}
+		else {
+			# blindly take everything
+			$reads = $fends{$pos};
+		}
 		
 		# always write one alignment
-		my $a1 = shift @{ $fends{$pos} };
+		$data->{nondup}++;
+		my $a1 = shift @$reads;
 		&$write_alignment($data->{outbam}, $a1);
 		
 		# write remaining alignments up to max
 		for (my $i = 1; $i < $max; $i++) {
-			my $a = shift @{ $fends{$pos} };
+			my $a = shift @$reads;
 			last unless $a;
 			&$write_alignment($data->{outbam}, $a);
 			$data->{duplicate}++;
 		}
-		$data->{toss} += scalar @{ $fends{$pos} };
-		if ($mark and scalar @{ $fends{$pos} }) {
-			while (my $a = shift @{ $fends{$pos} }) {
+		$data->{toss} += scalar @$reads;
+		if ($mark and scalar @$reads) {
+			while (my $a = shift @$reads) {
 				mark_alignment($a);
 				&$write_alignment($data->{outbam}, $a);
 			}
@@ -975,22 +1216,41 @@ sub write_out_max_se_alignments {
 	
 	# write reverse reads
 	foreach my $pos (keys %rends) {
-		$data->{nondup}++;
+		
+		# collect the non-optical duplicate reads
+		my $reads;
+		if ($do_optical) {
+			my ($nondup, $dup) = identify_optical_duplicates($rends{$pos});
+			$reads = $nondup;
+			$data->{optical} += scalar @$dup;
+			if ($keep_optical and scalar(@$dup)) {
+				# go ahead and write out optical duplicates now
+				foreach my $a (@$dup) {
+					mark_alignment($a);
+					&$write_alignment($data->{outbam}, $a);
+				}
+			}
+		}
+		else {
+			# blindly take everything
+			$reads = $rends{$pos};
+		}
 		
 		# always write one alignment
-		my $a1 = shift @{ $rends{$pos} };
+		$data->{nondup}++;
+		my $a1 = shift @$reads;
 		&$write_alignment($data->{outbam}, $a1);
 		
 		# write remaining alignments up to max
 		for (my $i = 1; $i < $max; $i++) {
-			my $a = shift @{ $rends{$pos} };
+			my $a = shift @$reads;
 			last unless $a;
 			&$write_alignment($data->{outbam}, $a);
 			$data->{duplicate}++;
 		}
-		$data->{toss} += scalar @{ $rends{$pos} };
-		if ($mark and scalar @{ $rends{$pos} }) {
-			while (my $a = shift @{ $rends{$pos} }) {
+		$data->{toss} += scalar @$reads;
+		if ($mark and scalar @$reads) {
+			while (my $a = shift @$reads) {
 				mark_alignment($a);
 				&$write_alignment($data->{outbam}, $a);
 			}
@@ -1020,24 +1280,44 @@ sub write_out_max_pe_alignments {
 	
 	# write out forward alignments
 	foreach my $s (sort {$a <=> $b} keys %f_sizes) {
-		$data->{nondup}++;
+		
+		# collect the non-optical duplicate reads
+		my @reads;
+		if ($do_optical) {
+			my ($nondup, $dup) = identify_optical_duplicates($f_sizes{$s});
+			@reads = @$nondup;
+			$data->{optical} += scalar @$dup;
+			if ($keep_optical and scalar(@$dup)) {
+				# go ahead and write out optical duplicates now
+				foreach my $a (@$dup) {
+					mark_alignment($a);
+					&$write_alignment($data->{outbam}, $a);
+					$data->{dupkeepers}{$a->qname} = 1; # remember name for rev
+				}
+			}
+		}
+		else {
+			# blindly take everything
+			@reads = @{$f_sizes{$s}};
+		}
 		
 		# always write one alignment
-		my $a1 = shift @{ $f_sizes{$s} };
+		$data->{nondup}++;
+		my $a1 = shift @reads;
 		&$write_alignment($data->{outbam}, $a1);
 		$data->{keepers}{$a1->qname} = 1; # remember name for reverse read
 		
 		# write remaining up to max
 		for (my $i = 1; $i < $max; $i++) {
-			my $a = shift @{ $f_sizes{$s} };
+			my $a = shift @reads;
 			last unless $a;
 			&$write_alignment($data->{outbam}, $a);
 			$data->{keepers}{$a->qname} = 1; # remember name for reverse read
 			$data->{duplicate}++;
 		}
-		$data->{toss} += scalar @{ $f_sizes{$s} };
-		if ($mark and scalar @{ $f_sizes{$s} }) {
-			while (my $a = shift @{ $f_sizes{$s} }) {
+		$data->{toss} += scalar @reads;
+		if ($mark and scalar @reads) {
+			while (my $a = shift @reads) {
 				mark_alignment($a);
 				&$write_alignment($data->{outbam}, $a);
 				$data->{dupkeepers}{$a->qname} = 1; # remember name for rev
@@ -1086,25 +1366,67 @@ sub write_out_random_se_alignments {
 	
 	# write forward reads
 	foreach my $pos (keys %fends) {
-		if (scalar @{ $fends{$pos} } == 1) {
-			# there's only one alignment, automatic keep
-			$data->{nondup}++;
-			&$write_alignment($data->{outbam}, $fends{$pos}->[0]);
+		
+		# collect the non-optical duplicate reads
+		my @reads;
+		if ($do_optical) {
+			my ($nondup, $dup) = identify_optical_duplicates($fends{$pos});
+			@reads = @$nondup;
+			$data->{optical} += scalar @$dup;
+			if ($keep_optical and scalar(@$dup)) {
+				# go ahead and write out optical duplicates now
+				foreach my $a (@$dup) {
+					mark_alignment($a);
+					&$write_alignment($data->{outbam}, $a);
+				}
+			}
 		}
 		else {
-			random_se_alignment_writer($data, $fends{$pos});
+			# blindly take everything
+			@reads = @{$fends{$pos}};
+		}
+		
+		
+		if (scalar @reads == 1) {
+			# there's only one alignment, automatic keep
+			$data->{nondup}++;
+			&$write_alignment($data->{outbam}, $reads[0]);
+		}
+		else {
+			random_se_alignment_writer($data, \@reads);
 		}
 	}
 	
 	# write reverse reads
 	foreach my $pos (keys %rends) {
-		if (scalar @{ $rends{$pos} } == 1) {
-			# there's only one alignment, automatic keep
-			$data->{nondup}++;
-			&$write_alignment($data->{outbam}, $rends{$pos}->[0]);
+		
+		# collect the non-optical duplicate reads
+		my @reads;
+		if ($do_optical) {
+			my ($nondup, $dup) = identify_optical_duplicates($rends{$pos});
+			@reads = @$nondup;
+			$data->{optical} += scalar @$dup;
+			if ($keep_optical and scalar(@$dup)) {
+				# go ahead and write out optical duplicates now
+				foreach my $a (@$dup) {
+					mark_alignment($a);
+					&$write_alignment($data->{outbam}, $a);
+				}
+			}
 		}
 		else {
-			random_se_alignment_writer($data, $rends{$pos});
+			# blindly take everything
+			@reads = @{$rends{$pos}};
+		}
+		
+		# write out reads
+		if (scalar @reads == 1) {
+			# there's only one alignment, automatic keep
+			$data->{nondup}++;
+			&$write_alignment($data->{outbam}, $reads[0]);
+		}
+		else {
+			random_se_alignment_writer($data, \@reads);
 		}
 	}
 
@@ -1172,24 +1494,45 @@ sub write_out_random_pe_alignments {
 	
 	# write out forward alignments
 	foreach my $s (sort {$a <=> $b} keys %f_sizes) {
-		if (scalar @{ $f_sizes{$s} } == 1) {
+		
+		# collect the non-optical duplicate reads
+		my @reads;
+		if ($do_optical) {
+			my ($nondup, $dup) = identify_optical_duplicates($f_sizes{$s});
+			@reads = @$nondup;
+			$data->{optical} += scalar @$dup;
+			if ($keep_optical and scalar(@$dup)) {
+				# go ahead and write out optical duplicates now
+				foreach my $a (@$dup) {
+					mark_alignment($a);
+					&$write_alignment($data->{outbam}, $a);
+					$data->{dupkeepers}{$a->qname} = 1; # remember name for rev
+				}
+			}
+		}
+		else {
+			# blindly take everything
+			@reads = @{$f_sizes{$s}};
+		}
+		
+		# write out reads
+		if (scalar @reads == 1) {
 			# there's only one fragment, automatic keep
 			$data->{nondup}++;
-			my $a = $f_sizes{$s}->[0];
-			&$write_alignment($data->{outbam}, $a);
-			$data->{keepers}{$a->qname} = 1; # remember name for reverse read
+			&$write_alignment($data->{outbam}, $reads[0]);
+			$data->{keepers}{$reads[0]->qname} = 1; # remember name for reverse read
 		}
 		else {
 			# always write the first one
 			$data->{nondup}++;
-			my $a = shift @{ $f_sizes{$s} };
+			my $a = shift @reads;
 			&$write_alignment($data->{outbam}, $a);
 			$data->{keepers}{$a->qname} = 1; # remember name for reverse read
 			
 			# duplicates get to roll the dice
 			my @keep;
 			my @toss;
-			while (my $a = shift @{ $f_sizes{$s} }) {
+			while (my $a = shift @reads) {
 				if (rand(1) < $chance) {
 					push @keep, $a;
 				}
