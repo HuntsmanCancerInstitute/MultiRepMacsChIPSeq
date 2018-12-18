@@ -6,7 +6,7 @@ use File::Spec;
 use File::Which;
 use Getopt::Long;
 
-my $VERSION = 9;
+my $VERSION = 10;
 
 my $parallel;
 eval {
@@ -33,6 +33,7 @@ my %opts = (
 	dedup       => 1,
 	maxdup      => undef,
 	dupfrac     => 0.1,
+	optdist     => 0,
 	savebam     => 0,
 	fragsize    => 250,
 	shiftsize   => 0,
@@ -152,6 +153,8 @@ Options:
   --nodup                       Skip deduplication
   --dupfrac   fraction          Minimum allowed fraction of duplicates ($opts{dupfrac})
   --maxdup    integer           Maximum allowed duplication depth ($opts{maxdup})
+  --optdist   integer           Maximum distance for optical duplicates ($opts{optdist})
+                                  use 100 for HiSeq, 2500 for NovaSeq
   --savebam                     Save de-duplicated bam files
 
  Fragment coverage
@@ -224,6 +227,7 @@ GetOptions(
 	'dup!'                  => \$opts{dedup},
 	'dupfrac=f'             => \$opts{dupfrac},
 	'maxdup=i'              => \$opts{maxdup},
+	'optdist=i'             => \$opts{optdist},
 	'savebam!'              => \$opts{savebam},
 	'size=i'                => \$opts{fragsize},
 	'shift=i'               => \$opts{shiftsize},
@@ -956,6 +960,9 @@ sub generate_dedup_commands {
 			if (defined $opts{maxdup}) {
 				$command .= sprintf("--max %s ", $opts{maxdup});
 			}
+			if ($opts{optdist}) {
+				$command .= sprintf("--optical --distance %s ", $opts{optdist});
+			}
 			if ($opts{paired}) {
 				$command .= "--pe ";
 			}
@@ -993,6 +1000,9 @@ sub generate_dedup_commands {
 			}
 			if (defined $opts{maxdup}) {
 				$command .= sprintf("--max %s ", $opts{maxdup});
+			}
+			if ($opts{optdist}) {
+				$command .= sprintf("--optical --distance %s ", $opts{optdist});
 			}
 			if ($opts{paired}) {
 				$command .= "--pe ";
