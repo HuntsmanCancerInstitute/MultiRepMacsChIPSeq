@@ -11,8 +11,10 @@ your reads.
 - Modify the template as necessary
 
     Add your email address, cluster name if so desired, adjust the path to your 
-    organism index file, and set the effective size of your organism genome. This 
-    is customization common to all of your sample alignment jobs.
+    organism index file, and set the effective size of your organism genome. For 
+    optical duplicate size checking, set the distance: 100 pixels for older HiSeq 
+    runs, and 2500 for newer NovaSeq runs. This is customization common to all 
+    of your sample alignment jobs.
     
     If necessary, tweak the commands as appropriate. In general, they probably 
     don't need much changing.

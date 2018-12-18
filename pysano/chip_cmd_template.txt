@@ -9,9 +9,13 @@ NAME=MYNAME
 INDEX=/tomato/dev/data/Human/Hg38/hg38RefSeqNoOddChroms.nov.illumina.nix
 SIZE=2500000000
 
+# optical distance
+# use 100 for HiSeq runs or 2500 for NovaSeq runs
+OPTDISTANCE=100
+
 # application paths
 NOVO_APP=/tomato/dev/app/novoalign/3.08.02/novoalign
-SAM_APP=/tomato/dev/app/samtools/1.5/samtools
+SAM_APP=/tomato/dev/app/samtools/1.8/samtools
 DEDUP_APP=/tomato/dev/app/modulesoftware/bam_partial_dedup
 BAMWIG_APP=/tomato/dev/app/modulesoftware/bam2wig
 MACS_APP=/tomato/dev/app/modulesoftware/macs2
@@ -35,7 +39,7 @@ $SAM_APP idxstats $NAME.bam > $NAME.idxstats.txt
 
 # check duplicate level
 echo "=== duplication levels"
-$DEDUP_APP --in $NAME.bam --cpu $NCPU
+$DEDUP_APP --in $NAME.bam --cpu $NCPU --optical --distance $OPTDISTANCE
 
 # check insert size with macs2
 echo "=== macs2 predictd"
