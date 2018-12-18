@@ -49,8 +49,6 @@ GetOptions(
 ) or die "unrecognized option!\n";
 
 # check options
-die "must provide output base name!\n" unless $outfile;
-die "bedtools not in your PATH!\n" unless $tool;
 if ($help) {
 	print $docs;
 	exit;
@@ -59,6 +57,8 @@ unless (@ARGV) {
 	print $docs;
 	exit;
 }
+die "must provide output base name!\n" unless $outfile;
+die "bedtools not in your PATH!\n" unless $tool;
 $outfile =~ s/\.(?:bed|narrowPeak)$//i; # strip any existing extension if provided
 
 # inputs
