@@ -59,8 +59,10 @@ Below are some of the methods used for normalizing samples prior to peak calling
     (true PCR duplication). The ideal solution (short of Unique Molecular Indexes or 
     barcodes) is between these two extremes: control duplication levels through 
     subsampling so that all samples have the same fraction of duplication relative to the 
-    number of unique alignments. This package includes an application to normalize 
-    duplicate depth.
+    number of unique alignments. Crucial to this subsampling is first discarding optical 
+    duplicates, which can artificially inflate the duplication rate. Patterned Illumina 
+    flow cells, e.g. NovaSeq, has notoriously high optical duplication rates (observed 
+    10-20%). This package includes an application to normalize duplicate depth. 
 
 - Black-list interval and chromosome skipping
 
