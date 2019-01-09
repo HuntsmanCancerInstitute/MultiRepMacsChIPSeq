@@ -29,8 +29,9 @@ while (@ARGV) {
 	$dir =~ s/\/$//; # strip trailing / if present
 	
 	# possible stdout values
-	my ($total_mapped, $nondup, $dup, $duprate, $keepdup, $trimMeanShift, $extension) = 
-		(0, 0, 0, 0, 0, 0, );
+	my ($total_mapped, $nondup, $optdup, $optduprate, $workcount, $dup, $duprate, 
+		$keepdup, $trimMeanShift, $extension) = 
+		(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	
 	# possible stderr values
 	my ($novoReads, $novoUnique, $novoUniquePer, $novoMulti, $novoMultiPer, $novoNoMap, 
@@ -41,6 +42,8 @@ while (@ARGV) {
 	if (-e "$dir/stdout.txt") {
 		my $fh = IO::File->new("$dir/stdout.txt");
 		while (my $line = $fh->getline) {
+			
+			# total
 			if ($line =~  /^  Total mapped:\s+(\d+)$/) {
 				# bam_partial_dedup
 				$total_mapped = $1;
@@ -49,6 +52,8 @@ while (@ARGV) {
 				# bam_umi_dedup
 				$total_mapped = $1;
 			}
+			
+			# non-duplicate
 			elsif ($line =~ /^  Non-duplicate count:\s+(\d+)$/) {
 				# bam_partial_dedup
 				$nondup = $1;
@@ -57,23 +62,54 @@ while (@ARGV) {
 				# bam_umi_dedup
 				$nondup = $1;
 			}
+			
+			# optical duplicate
+			elsif ($line =~ /^  Optical duplicate count:\s+(\d+)$/) {
+				# optical bam_partial_dedup
+				$optdup = $1;
+			}
+			
+			# duplicate
+			elsif ($line =~ /^  Non-optical duplicate count:\s+(\d+)$/) {
+				# non-optical bam_partial_dedup
+				$dup = $1;
+			}
 			elsif ($line =~ /^  Duplicate count:\s+(\d+)$/) {
-				# bam_partial_dedup
+				# old bam_partial_dedup
 				$dup = $1;
 			}
 			elsif ($line =~ /^\s+(\d+) \(\d+\.\d%\) UMI-duplicate .*alignments/) {
 				# bam_umi_dedup
 				$dup = $1;
 			}
-			elsif ($line =~ /^  Duplication rate:\s+(\d\.\d+)$/) {
-				# bam_partial_dedup
+			
+			# rate
+			elsif ($line =~ /^  Non-optical duplication rate:\s+(\d\.\d+)$/) {
+				# non-optical bam_partial_dedup
 				$duprate = $1;
 			}
+			elsif ($line =~ /^  Duplication rate:\s+(\d\.\d+)$/) {
+				# regular bam_partial_dedup
+				$duprate = $1;
+			}
+			elsif ($line =~ /^  Optical duplicate rate:\s+(\d\.\d+)$/) {
+				# optical bam_partial_dedup
+				$optduprate = $1;
+			}
+			
+			# other
 			elsif ($line =~ /^  Retained duplicate count:\s+(\d+)\s*$/) {
 				# bam_partial_dedup
 				# oops, there may be a space at the end
 				$keepdup = $1;
 			}
+			elsif ($line =~ /^  Non-optical working count:\s+(\d+)\s*$/) {
+				# non-optical working count bam_partial_dedup
+				$workcount = $1;
+			}
+			
+			
+			# shift
 			elsif ($line =~ /^  The trimmed mean shift value is (\d+) /) {
 				# bam2wig
 				$trimMeanShift = $1;
@@ -121,11 +157,14 @@ while (@ARGV) {
 		# this occurs if we're parsing from bam_umi_dedup
 		$duprate = sprintf("%.4f", $dup / ($dup + $nondup));
 	}
+	if (not $workcount) {
+		$workcount = $total_mapped;
+	}
 	
 	# store
 	push @output, join("\t", $dir, $novoReads, $novoUnique, $novoMulti, $novoNoMap, 
 		$novoUniquePer, $novoMultiPer, $novoNoMapPer, $novoPEmean, $novoPEstdev, 
-		$total_mapped, $nondup, $dup, 
+		$total_mapped, $optdup, $optduprate, $workcount, $nondup, $dup, 
 		$duprate, $keepdup, $trimMeanShift, $extension, $macsFragLength);
 	
 	# sort order
@@ -147,7 +186,8 @@ my $fh = IO::File->new($outfile, 'w') or die "can't write to $outfile!\n";
 $fh->printf( "%s\n", join("\t", qw(Sample NovoalignTotalReads NovoalignUniqueMapped NovoalignMultiMap 
 	NovoalignUnMapped NovoalignUniqueMappedFrac NovoalignMultiMapFrac NovoalignUnMappedFrac 
 	NovoalignInsertMean NovoalignInsertStdDev 
-	TotalMapped NonDuplicateCount DuplicateCount DuplicateRate RetainedDuplicateCount Bam2WigShift Bam2WigExtension 
+	TotalMapped OpticalDuplicateCount OpticalRate WorkingCount NonDuplicateCount 
+	DuplicateCount DuplicateRate RetainedDuplicateCount Bam2WigShift Bam2WigExtension 
 	Macs2Extension)));
 # sort by experiment ID, requestXsample, e.g. 1234X1
 foreach my $i (sort {$a <=> $b} keys %{$sorter{num}}) {
