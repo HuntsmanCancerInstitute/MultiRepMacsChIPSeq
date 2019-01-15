@@ -97,8 +97,9 @@ Below is a general overview of the pipeline
 
 - Generate fragment coverage files
 
-    Generate fragment coverage for the ChIP samples using `bam2wig`, combining 
-    depth-normalized replicates and applying other normalization factors, if indicated.
+    Generate fragment coverage for the ChIP samples using
+    [bam2wig](https://metacpan.org/pod/bam2wig.pl), combining depth-normalized replicates
+    and applying other normalization factors, if indicated.
 
 - Generate lambda control files
 
@@ -131,10 +132,11 @@ Below is a general overview of the pipeline
 
 - Rescore peaks
 
-	Use `get_datasets` to generate matrices of log2 Fold Enrichment scores, 
-	q-value scores, and count (integer only) data for the master list of peaks. The log2FE and q-value 
-	scores can be plotted as heat maps with `plot_peak_figures.R`. The peaks may be 
-	evaluated for differential significance using the count data and an R package such as 
+	Use [get_datasets](https://metacpan.org/pod/get_datasets.pl) to generate matrices of
+	log2 Fold Enrichment scores, q-value scores, and count (integer only) data for the
+	master list of peaks. The log2FE and q-value scores can be plotted as heat maps with
+	`plot_peak_figures.R`. The peaks may be evaluated for differential significance using
+	the count data and an R package such as
 	[DESeq2](https://www.bioconductor.org/packages/release/bioc/html/DESeq2.html).
     
 
