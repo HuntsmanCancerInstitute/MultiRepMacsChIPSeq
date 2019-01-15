@@ -20,7 +20,7 @@ print <<USAGE;
   Usage: $0 <file1.bw> ...
   
   It will write out a bedgraph file in the same direcotory and same 
-  basename appended with '_mean.bdg'.
+  basename appended with '.global_mean.bdg'.
   
 USAGE
 exit;
@@ -50,7 +50,7 @@ foreach my $file (@ARGV) {
 	} );
 	
 	# write out the file
-	my $out_bdg = $path . $basename . '_mean.bdg';
+	my $out_bdg = $path . $basename . '.global_mean.bdg';
 	my $s = $Data->save($out_bdg);
 	print " wrote file $s\n";
 }

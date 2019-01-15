@@ -6,7 +6,7 @@ use File::Spec;
 use File::Which;
 use Getopt::Long;
 
-my $VERSION = 10;
+my $VERSION = 10.1;
 
 my $parallel;
 eval {
@@ -930,8 +930,8 @@ sub new {
 	else {
 		# must be just a chip without corresponding control
 		$self->{control_bams} = [];
-		$self->{lambda_bdg} = "$namepath\_control.expected_mean.bdg";
-		$self->{lambda_bw} = "$namepath\_control.expected_mean.bw";
+		$self->{lambda_bdg} = "$namepath.fragment.global_mean.bdg";
+		$self->{lambda_bw} = "$namepath.fragment.global_mean.bw";
 	}
 	
 	return bless $self, $class;
@@ -1415,8 +1415,25 @@ sub generate_lambda_control_commands {
 	my $self = shift;
 	my $name2done = shift;
 	return if exists $name2done->{ $self->{lambda_bdg} }; # already done
-	die "no macs2 application in path!\n" unless $opts{macs} =~ /\w+/;
 	
+	# check whether no reference control was provided at all
+	if (not scalar @{$self->{control_use_bams}} and 
+		$self->{lambda_bdg} =~ /global_mean\.bdg$/ and
+		not -e $self->{lambda_bdg}
+	) {
+		# no control bam files at all, need to use expected mean
+		# this has to be done after the ChIP fragment bigWig conversion, since it 
+		# enter a race condition if done with the other bam2wig jobs
+		my $log = $self->{lambda_bdg};
+		$log =~ s/bdg/out.txt/;
+		my $command = sprintf("%s %s %s 2>&1 > $log", $opts{meanbdg}, $self->{chip_bw}, 
+			$self->{lambda_bdg});
+		$name2done->{ $self->{lambda_bdg} } = 1;
+		return [$command, $self->{lambda_bdg}, $log];
+	}
+	
+	# Proceed with generating lambda bedGraph
+	die "no macs2 application in path!\n" unless $opts{macs} =~ /\w+/;
 	my $dfile = $self->{d_control_bdg};
 	my $sfile = $self->{s_control_bdg};
 	my $lfile = $self->{l_control_bdg};
