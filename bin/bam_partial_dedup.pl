@@ -1338,6 +1338,7 @@ sub write_out_max_pe_alignments {
 			elsif (exists $data->{dupkeepers}{$name}) {
 				# we have processed the forward alignment as a duplicate keeper
 				# immediately write the reverse alignment
+				mark_alignment($a);
 				&$write_alignment($data->{outbam}, $a);
 				delete $data->{dupkeepers}{$name};
 			}
@@ -1581,6 +1582,7 @@ sub write_out_random_pe_alignments {
 			elsif (exists $data->{dupkeepers}{$name}) {
 				# we have processed the forward alignment as a duplicate keeper
 				# immediately write the reverse alignment
+				mark_alignment($a);
 				&$write_alignment($data->{outbam}, $a);
 				delete $data->{dupkeepers}{$name};
 			}
