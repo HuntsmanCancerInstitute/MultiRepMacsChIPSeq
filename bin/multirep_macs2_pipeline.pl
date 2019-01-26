@@ -56,6 +56,7 @@ my %opts = (
 	chrapply    => undef,
 	rawcounts   => 0,
 	savebdg     => 0,
+	doplot      => 0,
 	bam2wig     => sprintf("%s", which 'bam2wig.pl'),
 	bamdedup    => sprintf("%s", which 'bam_partial_dedup.pl'),
 	macs        => sprintf("%s", which 'macs2'),
@@ -67,6 +68,7 @@ my %opts = (
 	printchr    => sprintf("%s", which 'print_chromosome_lengths.pl'),
 	meanbdg     => sprintf("%s", which 'generate_mean_bedGraph.pl'),
 	intersect   => sprintf("%s", which 'intersect_peaks.pl'),
+	plotpeak    => sprintf("%s", which 'plot_peak_figures.R'),
 );
 $opts{job} = $parallel ? 2 : 1;
 my @names;
@@ -182,6 +184,7 @@ Options:
   --nolambda                    Skip lambda control, compare ChIP directly with control
   --rawcounts                   Use unscaled raw counts for re-scoring peaks
   --savebdg                     Save q-value bdg files for further custom calling
+  --plot                        Plot figures of results
   
  Job control
   --cpu       integer           Number of CPUs to use per job ($opts{cpu})
@@ -199,6 +202,7 @@ Options:
   --meanbdg   path             ($opts{meanbdg})
   --bedtools  path             ($opts{bedtools})
   --intersect path             ($opts{intersect})
+  --plotpeak  path             ($opts{plotpeak})
 DOC
 
 
@@ -247,6 +251,7 @@ GetOptions(
 	'broadgap=i'            => \$opts{gaplink},
 	'lambda!'               => \$opts{use_lambda},
 	'savebdg!'              => \$opts{savebdg},
+	'plot!'                 => \$opts{doplot},
 	'cpu=i'                 => \$opts{cpu},
 	'job=i'                 => \$opts{job},
 	'bam2wig=s'             => \$opts{bam2wig},
@@ -284,6 +289,7 @@ run_call_peaks();
 run_bdg_conversion();
 run_peak_merge();
 run_rescore();
+run_plot_peaks();
 finish();
 
 
@@ -359,6 +365,10 @@ sub check_inputs {
 	}
 	unless (defined $opts{gaplink}) {
 		$opts{gaplink} = 4 * $opts{fragsize};
+	}
+	if ($opts{doplot} and scalar(@names) == 1) {
+		# no sense plotting figures if we only have one ChIP set
+		$opts{doplot} = 0;
 	}
 	# add parameters to option hash for printing configuration
 	$opts{chipscale} = join(", ", @chip_scales);
@@ -768,6 +778,22 @@ sub run_rescore {
 	
 	execute_commands(\@commands);
 }
+
+
+sub run_plot_peaks {
+	return unless ($opts{doplot} and $opts{plotpeak} =~ /\w+/);
+	print "\n\n======= Plotting Peak figures\n";
+	my @commands;
+	foreach my $Job (@Jobs) {
+		my $command = sprintf("%s --in %s/%s ", $opts{plotpeak}, $opts{dir}, 
+			$Job->{name});
+		my $log = File::Spec->catfile($opts{dir}, $Job->{name} . '_plot_figures.out.txt');
+		$command .= " 2>&1 > $log";
+		push @commands, [$command, '', $log];
+	}
+	execute_commands(\@commands);
+}
+
 
 sub finish {
 	# combine output logs
