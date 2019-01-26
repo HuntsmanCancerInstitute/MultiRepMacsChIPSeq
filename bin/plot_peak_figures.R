@@ -61,7 +61,7 @@ makekmeans <-function(rdata, hm_min, hm_max, k, hm_color, rowColor, outbase) {
   kdata <- kdata[o, ]
   rowAnnot <- data.frame(row.names = rownames(kdata),
                          "Cluster"=as.character(kdata$`kresult$cluster`))
-  pheatmap(kdata[,c(1:n)], cluster_cols = F, color = hm_color, 
+  pheatmap(kdata[,c(1:n)], cluster_cols = T, color = hm_color, 
            border_color = NA, breaks = seq(hm_min,hm_max,length=256), 
            cluster_rows = F, show_rownames = F, 
            show_colnames = T, annotation_row = rowAnnot, 
@@ -76,7 +76,7 @@ makehm <-function(rdata, hm_min, hm_max, hm_color, outbase) {
   rdata <- rdata[order(o, decreasing = T),]
   rdata <- replace(rdata, rdata > hm_max, hm_max)
   rdata <- replace(rdata, rdata < hm_min, hm_min)
-  pheatmap(rdata, cluster_cols = F, color = hm_color, 
+  pheatmap(rdata, cluster_cols = T, color = hm_color, 
            border_color = NA, breaks = seq(hm_min,hm_max,length=256), 
            cluster_rows = F, show_rownames = F, show_colnames = T, 
            filename = paste0(outbase, ".png"), width = 8, height = 10)
