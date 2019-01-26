@@ -6,7 +6,7 @@ use File::Spec;
 use File::Which;
 use Getopt::Long;
 
-my $VERSION = 10.1;
+my $VERSION = 10.2;
 
 my $parallel;
 eval {
@@ -271,6 +271,7 @@ my $start = time;
 my @finished_commands;
 check_inputs();
 print_start();
+check_input_files();
 my $chromofile = generate_chr_file();
 my @Jobs = generate_job_file_structure();
 run_dedup();
@@ -376,6 +377,30 @@ sub print_start {
 		printf "%12s  %s\n", $k, $opts{$k};
 	}
 	print "\n\n";
+}
+
+sub check_input_files {
+	print "\n\n======= Checking input files\n";
+	my $error = 0;
+	foreach my $i (0 .. $#names) {
+		foreach my $f (split ',', $chips[$i]) {
+			unless (-e $f) {
+				printf(" can't find %s ChIP file %s!\n", $names[$i], $f);
+				$error++;
+			}
+		}
+		if ($controls[$i]) {
+			foreach my $f (split ',', $controls[$i]) {
+				unless (-e $f) {
+					printf(" can't find %s control file %s!\n", $names[$i], $f);
+					$error++;
+				}
+			}
+		}
+	}
+	if ($error) {
+		die "ERROR! Missing $error input files!\n";
+	}
 }
 
 sub generate_job_file_structure {
