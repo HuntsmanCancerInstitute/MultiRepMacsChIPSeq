@@ -4,6 +4,7 @@ use strict;
 use IO::File;
 use File::Spec;
 use File::Which;
+use File::Path qw(make_path);
 use Getopt::Long;
 
 my $VERSION = 10.2;
@@ -352,7 +353,7 @@ sub check_inputs {
 		die "unknown species!\n" unless $opts{genome};
 	}
 	unless (-e $opts{dir} and -d _) {
-		mkdir $opts{dir} or die sprintf("unable to make directory %s! $!\n", $opts{dir});
+		make_path($opts{dir}) or die sprintf("unable to make directory %s! $!\n", $opts{dir});
 	}
 	unless (-w $opts{dir}) {
 		die sprintf("target directory %s is not writable!\n", $opts{dir});
