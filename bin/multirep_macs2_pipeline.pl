@@ -663,7 +663,7 @@ sub run_rescore {
 	my $output3 = File::Spec->catfile($opts{dir}, $opts{out} . '_counts.txt');
 	
 	# start list of conditions
-	my @conditions = ("Sample\tCondition\n");
+	my @conditions = ("Sample\tGroup\n");
 	
 	# generate three get_dataset commands
 	my $command1 = sprintf("%s --method mean --cpu %s --in %s --out %s --format 3 ",
@@ -770,7 +770,7 @@ sub run_rescore {
 	}
 	
 	# write conditions file
-	my $output7 = File::Spec->catfile($opts{dir}, $opts{out} . '_conditions.txt');
+	my $output7 = File::Spec->catfile($opts{dir}, $opts{out} . '_samples.txt');
 	my $fh = IO::File->new($output7, "w");
 	foreach (@conditions) {
 		$fh->print($_);
@@ -786,7 +786,7 @@ sub run_plot_peaks {
 	print "\n\n======= Plotting Peak figures\n";
 	my @commands;
 	foreach my $Job (@Jobs) {
-		my $command = sprintf("%s --in %s/%s ", $opts{plotpeak}, $opts{dir}, 
+		my $command = sprintf("%s --input %s/%s ", $opts{plotpeak}, $opts{dir}, 
 			$Job->{name});
 		my $log = File::Spec->catfile($opts{dir}, $Job->{name} . '_plot_figures.out.txt');
 		$command .= " 2>&1 > $log";
