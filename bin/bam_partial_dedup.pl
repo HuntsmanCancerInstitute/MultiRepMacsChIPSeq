@@ -29,7 +29,7 @@ eval {
 	$parallel = 1;
 };
 
-my $VERSION = 2.0;
+my $VERSION = 2.1;
 
 unless (@ARGV) {
 	print <<END;
@@ -152,6 +152,8 @@ GetOptions(
 	'bam=s'      => \$BAM_ADAPTER, # specifically set the bam adapter, advanced!
 	'nosam!'     => \$no_sam, # avoid using external sam adapter, advanced!
 ) or die " unrecognized option(s)!! please refer to the help documentation\n\n";
+
+my $max_optical_rate = 0.01;
 
 unless ($infile) {
 	die "no input file provided!\n";
@@ -322,6 +324,7 @@ sub count_alignments {
 		# not the number of alignments
 		# to get total alignments sum( map {$_ * $depth2count{$_}} keys %depth2count )
 	my @depths = sort {$a <=> $b} keys %$depth2count;
+	my $opticalRate = $opticalCount / $totalCount;
 	my $workingCount = $totalCount - $opticalCount; # non-optical dup count
 	my $nondupCount = sum(values %$depth2count);# assumes one unique at every single position
 	my $dupCount = $workingCount - $nondupCount; # essentially count of positions with 2+ alignments
@@ -337,28 +340,86 @@ sub count_alignments {
   Non-duplicate count: %17d
   Maximum position depth: %14d
   Mean position depth: %17.4f\n", 
-		$totalCount, $opticalCount, $opticalCount / $totalCount, $workingCount, 
+		$totalCount, $opticalCount, $opticalRate, $workingCount, 
 		$dupCount, $dupRate, $nondupCount, $maxObserved, $workingCount / $nondupCount;
 	
 	# check if we need to continue
 	if ($fraction and $dupRate <= $fraction) {
+		# the duplication rate is acceptable, no de-duplication necessary
 		print " Actual duplication rate is less than target fraction. No de-duplication necessary.\n";
-		if ($max and $max >= 1) {
+		
+		# check to see whether max or optical duplication is still necessary
+		if (defined $max and $max >= 1 and $do_optical) {
+			# maximum depth is set plus checking for opticals
+			
 			if ($maxObserved <= $max) {
 				print " Maximum observed depth is less than maximum allowed. No de-duplication necessary.\n";
-				exit 0;
+				if ($opticalRate > $max_optical_rate) {
+					print " Optical duplicate rate is higher than allowed.\n";
+					# proceed with the given max value, de-duplication will proceed
+				}
+				else {
+					# both optical rate and max duplicate is OK
+					# reset the max allowed value, de-duplication will not proceed
+					undef $max;
+				}
 			}
 			else {
 				# we will continue with max cutoff
 				print " Maximum observed depth is above maximum allowed.\n";
 			}
 		}
+		elsif (defined $max and $max >= 1 and not $do_optical) {
+			if ($maxObserved <= $max) {
+				print " Maximum observed depth is less than maximum allowed. No de-duplication necessary.\n";
+				# both optical rate and max duplicate is OK
+				# reset the max allowed value, de-duplication will not proceed
+				undef $max;
+			}
+			else {
+				# we will continue with max cutoff
+				print " Maximum observed depth is above maximum allowed.\n";
+			}
+		
+		}
+		elsif (not $max and $do_optical) {
+			# no maximum was set, duplication is acceptable
+			# check optical rate
+			if ($opticalRate > $max_optical_rate) {
+				print " Optical duplicate rate is higher than allowed.\n";
+				# de-duplication will proceed
+				# artificially set the max value to force the de-duplication routine
+				# without actually removing non-optical duplicates
+				$max = $maxObserved + 1;
+			}
+			else {
+				# optical rate is OK
+				# de-duplication will not proceed
+			}
+		}
 		return;
 	}
-	if ($max and $max >= 1 and $max >= $maxObserved) {
-		print " Maximum observed depth is less than maximum allowed. No maximum cutoff necessary.\n";
-		undef $max;
+	
+	# check maximum
+	if (defined $max and $max >= 1 and $maxObserved <= $max) {
+		print " Maximum observed depth is less than maximum allowed. \n";
+		# check for optical rate
+		if ($do_optical and $opticalRate > $max_optical_rate) {
+			print " Optical duplicate rate is higher than allowed.\n";
+			# de-duplication will proceed
+			# artificially set the max value to force the de-duplication routine
+			# without actually removing non-optical duplicates
+			$max = $maxObserved + 1;
+		}
+		else {
+			# no de-duplication is necessary
+			undef $max;
+		}
+		return;
 	}
+	
+	# otherwise we proceed with calculating the fractions for de-duplication
+	# either by maximum depth or random
 	
 	# calculate fractions
 	if ($fraction and not $random) {
