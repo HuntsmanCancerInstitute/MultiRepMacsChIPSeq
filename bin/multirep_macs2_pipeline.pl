@@ -784,15 +784,11 @@ sub run_rescore {
 sub run_plot_peaks {
 	return unless ($opts{doplot} and $opts{plotpeak} =~ /\w+/);
 	print "\n\n======= Plotting Peak figures\n";
-	my @commands;
-	foreach my $Job (@Jobs) {
-		my $command = sprintf("%s --input %s/%s ", $opts{plotpeak}, $opts{dir}, 
-			$Job->{name});
-		my $log = File::Spec->catfile($opts{dir}, $Job->{name} . '_plot_figures.out.txt');
-		$command .= " 2>&1 > $log";
-		push @commands, [$command, '', $log];
-	}
-	execute_commands(\@commands);
+	my $outbase = File::Spec->catfile($opts{dir}, $opts{out});
+	my $command = sprintf("%s --input %s ", $opts{plotpeak}, $outbase);
+	my $log = $outbase . '_plot_figures.out.txt';
+	$command .= " 2>&1 > $log";
+	execute_commands( [ [$command, '', $log] ] );
 }
 
 
