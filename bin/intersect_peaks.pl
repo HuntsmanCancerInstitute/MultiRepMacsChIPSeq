@@ -3,7 +3,7 @@
 use strict;
 use Getopt::Long;
 use File::Which;
-use Bio::ToolBox::Data;
+use Bio::ToolBox 1.65;
 
 # variables
 my $tool = which('bedtools');
@@ -25,10 +25,16 @@ files and write out a merged table of the results. The Jaccard statistic measure
 the amount of spatial overlap between two peak files (intersection/union) reported 
 as a fraction between 0 and 1.
 
-Three files will be written:
+Finally, it will run bedtools multiinter tool to perform a multi-way intersection 
+and calculate the intervals for each category of overlap. This is parsed into a 
+summary file suitable for drawing a Venn diagram based on spatial overlap.
+
+Five files will be written:
     basename.bed                    the merged peaks
     basename.jaccard.txt            the Jaccard results in a table
     basename.n_intersection.txt     the number of intersections in a table
+    basename.multi.txt              data file from multi-intersection 
+    basename.spatialVenn.txt        summary of spatial overlap for each category
 
 USAGE: intersect_peaks.pl --out <basename> peak1.narrowPeak peak2.narrowPeak ....
 
@@ -65,12 +71,15 @@ $outfile =~ s/\.(?:bed|narrowPeak)$//i; # strip any existing extension if provid
 my @files = @ARGV;
 die "must provide 2 or more files!\n" unless scalar(@files) > 1;
 my @names = @files;
-foreach (@names) {s/\.narrowPeak//} 
+foreach (@names) {s/\.(?:bed|narrowpeak)(?:\.gz)?$//i}
+# print "working on files: @files\n";
+# print "with names: @names\n"; 
 
 
 
 
 ### Merge the peaks
+print " Merging peak files....\n";
 my $command = "cat ";
 foreach my $f (@files) {
 	$command .= sprintf("%s ", $f);
@@ -84,12 +93,9 @@ if (system($command)) {
 
 
 ### Calculate Jaccard statistic
-my $JaccardData = Bio::ToolBox::Data->new(
-	columns => ['File', @names],
-);
-my $IntersectionData = Bio::ToolBox::Data->new(
-	columns => ['File', @names],
-);
+print " Calculating Jaccard overlap....\n";
+my $JaccardData = Bio::ToolBox->new_data('File', @names);
+my $IntersectionData = Bio::ToolBox->new_data('File', @names);
 
 for my $f1 (0..$#names) {
 	my $j = $JaccardData->add_row();
@@ -109,4 +115,43 @@ for my $f1 (0..$#names) {
 
 $JaccardData->save("$outfile\.jaccard.txt");
 $IntersectionData->save("$outfile\.n_intersection.txt");
+
+
+
+
+### Multiple intersection
+print " Calculating multi-way intersection....\n";
+my $multi_file = $outfile . '.multi.txt';
+$command = sprintf("%s multiinter -header -names %s -i %s > %s", 
+	$tool, join(' ', @names), join(' ', @files), $multi_file);
+if (system($command)) {
+	die "something went wrong! command:\n $command\n";
+}
+
+# parse lengths
+my $total = 0;
+my %name2space;
+my $MultiData = Bio::ToolBox->load_file($multi_file) or 
+	die "can't load $multi_file!\n";
+$MultiData->name(1, 'Start0'); # because it's actually 0-based, and this will trigger it
+$MultiData->iterate( sub {
+	my $row = shift;
+	my $length = $row->length;
+	my $key = $row->value(4); # this should the list column
+	$name2space{$key} += $length;
+	$total += $length;
+});
+$MultiData->save; # re-save with the new name.
+undef $MultiData;
+
+# write a spatial Venn file
+my $VennData = Bio::ToolBox->new_data('File', 'BasePairs', 'Fraction');
+foreach my $key (sort {$a cmp $b} keys %name2space) {
+	$VennData->add_row( [$key, $name2space{$key}, 
+		sprintf("%.3f", $name2space{$key} / $total) ]);
+}
+$VennData->add_comment("Coverage in bp for each category and fraction of total");
+$VennData->save("$outfile\.spatialVenn.txt");
+
+
 
