@@ -61,6 +61,7 @@ my %opts = (
 	bedtools    => sprintf("%s", which 'bedtools'),
 	getdata     => sprintf("%s", which 'get_datasets.pl'),
 	printchr    => sprintf("%s", which 'print_chromosome_lengths.pl'),
+	data2wig    => sprintf("%s", which 'data2wig.pl'),
 	meanbdg     => sprintf("%s", which 'generate_mean_bedGraph.pl'),
 	intersect   => sprintf("%s", which 'intersect_peaks.pl'),
 	plotpeak    => sprintf("%s", which 'plot_peak_figures.R'),
@@ -193,6 +194,7 @@ Options:
   --wig2bw    path             ($opts{wig2bw})
   --bw2bdg    path             ($opts{bw2bdg})
   --printchr  path             ($opts{printchr})
+  --data2wig  path             ($opts{data2wig})
   --getdata   path             ($opts{getdata})
   --meanbdg   path             ($opts{meanbdg})
   --bedtools  path             ($opts{bedtools})
@@ -1473,6 +1475,7 @@ sub generate_lambda_control_commands {
 	
 	# Proceed with generating lambda bedGraph
 	die "no macs2 application in path!\n" unless $opts{macs} =~ /\w+/;
+	die "no bedtools application in path!\n" unless $opts{bedtools} =~ /\w+/;
 	my $dfile = $self->{d_control_bdg};
 	my $sfile = $self->{s_control_bdg};
 	my $lfile = $self->{l_control_bdg};
@@ -1482,60 +1485,71 @@ sub generate_lambda_control_commands {
 	die "no small control bedGraph file '$sfile'!\n" if ($sfile and not -e $sfile);
 	die "no large control bedGraph file '$lfile'!\n" if ($lfile and not -e $lfile);
 	
+	# generate background lambda bedgraph
+	# go ahead and do this immediately because it's so simple
+	my $background = sprintf("%.4f", ( 1_000_000 * $opts{fragsize} ) / $opts{genome} );
+	my $background_bdg = $self->{lambda_bdg};
+	$background_bdg =~ s/lambda_control/background/;
+	my $infh = IO::File->new($chromofile); # use the chromosome file as source
+	my $outfh = IO::File->new($background_bdg, "w");
+	while (my $line = $infh->getline) {
+		chomp $line;
+		my ($chr, $end) = split /\s/, $line;
+		$outfh->printf("%s\t0\t%s\t%s\n", $chr, $end, $background);
+	}
+	$infh->close;
+	$outfh->close;
+	
 	my $log = $self->{lambda_bdg};
 	$log =~ s/bdg$/out.txt/;
 	my $command;
 	
+	# generate commands using bedtools and data2wig, which is faster than running 
+	# multiple instances of macs2 bdgcmp and bdgopt
 	if ($sfile and $lfile) {
 		# first step
-		$command = sprintf("%s bdgcmp -m max -t $sfile -c $lfile -o %s ", 
-			$opts{macs}, $self->{sl_control_bdg});
-		$command .= " 2> $log ";
-	
+		$command = sprintf("%s unionbdg -header -i %s %s %s %s > %s 2> $log ", 
+			$opts{bedtools}, $dfile, $sfile, $lfile, $background_bdg, 
+			$self->{sld_control_bdg});
+		
 		# second step
-		$command .= sprintf("&& %s bdgcmp -m max -t %s -c $dfile -o %s ", 
-			$opts{macs}, $self->{sl_control_bdg}, $self->{sld_control_bdg});
-		$command .= " 2>> $log ";
-	
-		# third step
-		my $background = ( 1_000_000 * $opts{fragsize} ) / $opts{genome};
-		$command .= sprintf("&& %s bdgopt -m max -p $background -i %s -o %s ", 
-			$opts{macs}, $self->{sld_control_bdg}, $self->{lambda_bdg});
-		$command .= " 2>> $log ";
-	
+		$command .= sprintf("&& %s --in %s --zero --fast --bdg --notrack --score 3-6 --method max --out %s ",
+			$opts{data2wig}, $self->{sld_control_bdg}, $self->{lambda_bdg});
+		$command .= " 2>&1 >> $log ";
+		
 		# clean up
 		$command .= sprintf("&& rm %s %s %s %s %s ", $dfile, $sfile, $lfile, 
-			$self->{sl_control_bdg}, $self->{sld_control_bdg});
+			$background_bdg, $self->{sld_control_bdg});
 	}
 	elsif ($sfile and not $lfile) {
 		# first step
-		$command = sprintf("%s bdgcmp -m max -t $sfile -c $dfile -o %s ", 
-			$opts{macs}, $self->{sld_control_bdg});
-		$command .= " 2> $log ";
-	
+		$command = sprintf("%s unionbdg -header -i %s %s %s > %s 2> $log ", 
+			$opts{bedtools}, $dfile, $sfile, $background_bdg, 
+			$self->{sld_control_bdg});
+		
 		# second step
-		my $background = ( 1_000_000 * $opts{fragsize} ) / $opts{genome};
-		$command .= sprintf("&& %s bdgopt -m max -p $background -i %s -o %s ", 
-			$opts{macs}, $self->{sld_control_bdg}, $self->{lambda_bdg});
-		$command .= " 2>> $log ";
-	
+		$command .= sprintf("&& %s --in %s --zero --fast --bdg --notrack --score 3-5 --method max --out %s ",
+			$opts{data2wig}, $self->{sld_control_bdg}, $self->{lambda_bdg});
+		$command .= " 2>&1 >> $log ";
+		
 		# clean up
-		$command .= sprintf("&& rm %s %s %s ", $dfile, $sfile, $self->{sld_control_bdg});
+		$command .= sprintf("&& rm %s %s %s %s ", $dfile, $sfile, 
+			$background_bdg, $self->{sld_control_bdg});
 	}
 	elsif (not $sfile and $lfile) {
 		# first step
-		$command = sprintf("%s bdgcmp -m max -t $lfile -c $dfile -o %s ", 
-			$opts{macs}, $self->{sld_control_bdg});
-		$command .= " 2> $log ";
-	
+		$command = sprintf("%s unionbdg -header -i %s %s %s > %s 2> $log ", 
+			$opts{bedtools}, $dfile, $lfile, $background_bdg, 
+			$self->{sld_control_bdg});
+		
 		# second step
-		my $background = ( 1_000_000 * $opts{fragsize} ) / $opts{genome};
-		$command .= sprintf("&& %s bdgopt -m max -p $background -i %s -o %s ", 
-			$opts{macs}, $self->{sld_control_bdg}, $self->{lambda_bdg});
-		$command .= " 2>> $log ";
-	
+		$command .= sprintf("&& %s --in %s --zero --fast --bdg --notrack --score 3-5 --method max --out %s ",
+			$opts{data2wig}, $self->{sld_control_bdg}, $self->{lambda_bdg});
+		$command .= " 2>&1 >> $log ";
+		
 		# clean up
-		$command .= sprintf("&& rm %s %s %s ", $dfile, $lfile, $self->{sld_control_bdg});
+		$command .= sprintf("&& rm %s %s %s %s ", $dfile, $lfile, 
+			$background_bdg, $self->{sld_control_bdg});
 	}
 	else {
 		die "programming error! how did we get here with no sfile and no lfile????";
