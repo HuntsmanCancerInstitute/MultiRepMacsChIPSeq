@@ -7,18 +7,12 @@ use File::Which;
 use File::Path qw(make_path);
 use Getopt::Long;
 
-my $VERSION = 10.2;
+my $VERSION = 11;
 
 my $parallel;
 eval {
 	require Parallel::ForkManager;
 	$parallel = 1;
-};
-my $big_helper;
-eval {
-	require Bio::ToolBox::big_helper;
-	Bio::ToolBox::big_helper->import('generate_chromosome_file');
-	$big_helper = 1;
 };
 
 # parameters
@@ -589,20 +583,17 @@ sub run_bdg_conversion {
 }
 
 sub generate_chr_file {
-	my $chromofile;
 	my @bams = split(',', $chips[0]);
 	my $example = shift @bams;
-	if ($big_helper) {
-		$chromofile = generate_chromosome_file($example, $opts{chrskip});
+		# this will work regardless if example is bam or bigWig
+	
+	unless ($opts{printchr}) {
+		die "no print_chromosome_lengths.pl script in path!\n";
 	}
-	elsif ($opts{printchr}) {
-		$chromofile = File::Spec->catfile($opts{dir},"chrom_sizes.temp.txt");
-		system(sprintf("%s $example > $chromofile", $opts{printchr}));
-		die "no chromosome file $chromofile!\n" unless -e $chromofile;
-	}
-	else {
-		die "unable to generate chromosome file !\n";
-	}
+	my $chromofile = File::Spec->catfile($opts{dir},"chrom_sizes.temp.txt");
+	system(sprintf("%s --db %s --chrskip '%s' --out %s", 
+		$opts{printchr}, $example, $opts{chrskip}, $chromofile));
+	die "no chromosome file $chromofile!\n" unless -e $chromofile;
 	return $chromofile;
 }
 
