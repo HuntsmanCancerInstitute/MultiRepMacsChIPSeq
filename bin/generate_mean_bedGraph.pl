@@ -2,7 +2,7 @@
 
 use strict;
 use File::Basename qw(fileparse);
-use Bio::ToolBox::Data;
+use Bio::ToolBox 1.65;
 use Bio::ToolBox::db_helper qw(get_chromosome_list);
 
 # a script to generate mean coverage bedGraph track 
@@ -33,7 +33,7 @@ foreach my $file (@ARGV) {
 	my ($basename, $path, $extension) = fileparse($file, qq(.bw));
 	
 	# prepare output
-	my $Data = Bio::ToolBox::Data->new(columns => [qw(Chromo Start0 End)]);
+	my $Data = Bio::ToolBox->new_data(qw(Chromo Start0 End));
 	
 	# walk through chromosomes and fill the table with chromosome name and length
 	foreach my $chrsize (get_chromosome_list($file)) {
