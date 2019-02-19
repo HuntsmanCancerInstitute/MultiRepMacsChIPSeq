@@ -1,4 +1,15 @@
-#!/usr/bin/env perl
+#!/usr/bin/perl
+
+# Timothy J. Parnell, PhD
+# Huntsman Cancer Institute
+# University of Utah
+# Salt Lake City, UT 84112
+#  
+# This package is free software; you can redistribute it and/or modify
+# it under the terms of the Artistic License 2.0.  
+# 
+# Updated versions of this file may be found in the repository
+# https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq
 
 use strict;
 use File::Copy;

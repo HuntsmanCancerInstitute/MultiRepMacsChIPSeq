@@ -9,7 +9,7 @@
 # it under the terms of the Artistic License 2.0.  
 # 
 # Updated versions of this file may be found in the repository
-# https://github.com/tjparnell/HCI-Scripts/
+# https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq
 
 use strict;
 use Getopt::Long;
