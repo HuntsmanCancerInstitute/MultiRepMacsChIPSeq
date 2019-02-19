@@ -20,10 +20,11 @@ my $build = Module::Build->new(
 		'Module::Build'           => 0,
 	},
 	requires           => {
-		'Bio::ToolBox'              => 1.63,
-		'Parallel::ForkManager'     => 0,
+		'Bio::ToolBox'              => 1.65,
 		'Bio::DB::HTS'              => 0,
 		'Bio::DB::Big'              => 0,
+		'Parallel::ForkManager'     => 0,
+		'Set::IntervalTree'         => 0,
 	},
 );
 
