@@ -135,10 +135,19 @@ Below is a general overview of the pipeline
 	Use [get_datasets](https://metacpan.org/pod/get_datasets.pl) to generate matrices of
 	log2 Fold Enrichment scores, q-value scores, and count (integer only) data for the
 	master list of peaks. The log2FE and q-value scores can be plotted as heat maps with
-	`plot_peak_figures.R`. The peaks may be evaluated for differential significance using
-	the count data and an R package such as
-	[DESeq2](https://www.bioconductor.org/packages/release/bioc/html/DESeq2.html).
-    
+	`plot_peak_figures.R`. 
+
+- Score genome
+
+	Optionally use get_datasets to score the entire genome in windows for use in other 
+	ChIPSeq analysis software, such as DESeq2 or normR (see next).
+	
+- Differential analysis
+	
+	The peaks may be evaluated for differential significance using count data and an 
+	R package, such as DESeq2 or normR. This isn't part of the main pipeline per se, but 
+	accessory R scripts are included which can aptly perform these functions on a per 
+	sample basis. See below for more details. 
 
 # Reference guide
 
@@ -329,7 +338,7 @@ the `--out` name you provided to the wrapper:
     
         --chip file1.bam,file2.bam,file3.bam \
         --chscale 0.692933,1.820191,0.814981 \
-        --control file4.bam, file5.bam, file6.bam \
+        --control file4.bam,file5.bam,file6.bam \
         --coscale 0.262140,0.301934,0.286234 \
     
     For chromosome-specific normalizations, calculate the sum of alignments on the 
@@ -402,6 +411,13 @@ the `--out` name you provided to the wrapper:
 	option indicates the number of simultaneous jobs that can be run concurrently. The `--cpu` 
 	option indicates the number of threads available to each job. The product of the two 
 	should not exceed the total number of cores or threads allowed for your machine. 
+	
+	When mistakes happen and the pipeline stops early (it happens), it is usually 
+	possible to restart the pipeline after fixing the error. Each child-job is checked for 
+	pre-existing output and log files and skipped appropriately if they exist. 
+	
+	For advanced users, a bigWig file (fragment or lambda_control) may be specified for 
+	the samples instead of bam files to expedite subsequent runs.
 
 ## Variation with ATAC-seq
 
@@ -436,7 +452,89 @@ For ATACSeq, there are two variations of analysis.
         --shift=-25 \
         --extend 50 \
 
+# Interpretation and advanced analysis
+
+Unlike more straightforward types of analyses, ChIPSeq is highly variable, owing to the 
+particular nature and behavior of the protein being analyzed. Some have nice, narrow, 
+tall peaks, while others are broad and diffuse. The best way to interpret ChIPSeq analysis 
+is to not rely on tables of numbers, but rather to view the generated bigWig data tracks 
+in a genome browser, such as [IGV](http://software.broadinstitute.org/software/igv/home). 
+In particular, load the called peak files (`.narrowPeak`), statistical enrichment 
+(`.qvalue.bw` bigWig files), and log2 fold enrichment (`.log2FE.bw`). Refining and
+repeating the Macs2 peak calling application is not uncommon. 
+
+While Macs2 generally identifies typical peaks from single, DNA-binding proteins 
+reasonably well, there are instances where it breaks down. For example, very broad, weak 
+peaks, such as those with histone modifications, chromatin-modifying enzymes, or even 
+elongating RNA polymerase, are difficult to detect. In this case, using a window-based 
+approach with another application may yield better results, as opposed to the base-pair 
+level analysis that Macs2 performs. 
+
+Differences in ChIP peaks between two or more conditions or factors is the end-goal 
+for many modern experimental questions. While a k-means cluster will identify some of 
+these differences in a descriptive manner, using a more rigorous approach will give a 
+numerical p-value and confidence thresholds for identifying the differences.
+
+There are two R packages recommended for these types of analysis, and both use a 
+count-based analysis of intervals (peaks or genomic windows), 
+[DESeq2](https://www.bioconductor.org/packages/release/bioc/html/DESeq2.html) and 
+[normR](https://bioconductor.org/packages/release/bioc/html/normr.html). The DESeq2 
+package uses variance between sample replicates (preferably 3) to test for significance 
+using a negative binomial distribution. Either differential or (ChIP vs ChIP) or 
+enrichment (ChIP vs Input) can be performed. The normR package uses a binomial 
+mixture model with expectation maximization to identify either differential regions 
+(ChIP vs ChIP) or enrichment (ChIP vs Input). Replicates are not used, so replicate 
+counts must be averaged; see the included `combine_replicate_data.pl` script.
+
+## Repeating genomic search for peaks
+
+Both DESeq2 and normR can be used. Collect counts across the genome in windows using 
+BioToolBox `get_datasets` or similar. The size of window is dependent on the nature 
+of the peaks, but 500 bp, 1 or 2 kb may be appropriate.
+
+Use the `run_DESeq2.R` script, specifying the Input as the second ChIP. Use the 
+`run_normR_enrichment.R` script, specifying the ChIP and Input. It's best to set 
+the cutoff for both q-value (or adjusted p-value) as well as a minimum count; Otherwise, 
+even low-enriched regions might get called significant.
+
+	run_normR_enrich.R --input chip_genome_counts.txt.gz --chip chip1 --ref input \
+	--min 100 --threshold 0.001 --output chip_peaks 
+	
+	run_DESeq2.R --count chip_genome_counts.txt.gz --sample chip_samples.txt \
+	--first chip1 --second input \
+	--min 100 --threshold 0.001 --output chip_peaks 
+
+## Differential Peak analysis
+
+Again, both packages may be used here. Use the `run_DESeq2.R` script, specifying both 
+ChIPs. Alternatively, run the `run_normR_difference.R` script. 
+
+	run_normR_enrich.R --input chip_genome_counts.txt.gz --first chip1 --second chip2 \
+	--min 100 --threshold 0.001 --output differential_chip1_chip2
+	
+	run_DESeq2.R --count chip_genome_counts.txt.gz --sample chip_samples.txt \
+	--first chip1 --second chip2 \
+	--min 100 --threshold 0.001 --output differential_chip1_chip2 
+
+Macs2 also has a differential analysis mode. This uses four input files, the fragment 
+pileup and lambda control files for both ChIPs. 
+
+	macs2 bdgdiff -t1 <file1> -t2 <file2> -c1 <file3> -c2 <file4> \
+	--d1 <depth> --d2 <depth> -C <cutoff> --o-prefix <basename>
+
+This uses log likelihood for differential detection. In my experience, the R packages 
+work better.
+
 # Installation
+
+This package includes a number of Perl and R scripts in the `bin` directory and utilizes 
+several external software applications. The required external applications can be usually 
+be found be searching the users' `PATH`; however, they can also be specified by using 
+the appropriate command line option in the script. For convenience, it may 
+be best to install everything in a [modules](https://modules.readthedocs.io/en/latest/) 
+environment, a Docker image, or similar.
+
+### HCI users
 
 HCI users running the pipeline on local servers can simply load the packages into your 
 environment using a module command
@@ -445,15 +543,40 @@ environment using a module command
     $ multirep_macs2_pipeline.pl
     $ module unload multirepchipseq
 
-The package only includes scripts in the `bin` directory. The scripts require additional 
-library requirements of [Bio::ToolBox](https://metacpan.org/pod/Bio::ToolBox),  
-[Bio::DB::HTS](https://metacpan.org/pod/Bio::DB::HTS), and 
-[Bio::DB::Big](https://metacpan.org/pod/Bio::DB::Big), along with additional external 
-applications, including [Macs2](http://github.com/taoliu/MACS/) and 
-[BedTools](https://github.com/arq5x/bedtools2). Installation instructions for 
-BioToolBox can be found at the [Bio::ToolBox repository](https://github.com/tjparnell/biotoolbox).
+### External library packages
+The Perl and R scripts require additional software library packages, including the 
+following:
+
+- Perl [Bio::ToolBox](https://metacpan.org/pod/Bio::ToolBox)
+  
+- Perl [Bio::DB::HTS](https://metacpan.org/pod/Bio::DB::HTS)
+
+- Perl [Bio::DB::Big](https://metacpan.org/pod/Bio::DB::Big)
+
+- Perl [Set::IntervalTree](https://metacpan.org/pod/Set::IntervalTree)
+
+- Perl [Parallel::ForkManager](https://metacpan.org/pod/Parallel::ForkManager)
+
+- R [bioconductor](https://bioconductor.org/install/)
+
+- R [normR](https://bioconductor.org/packages/release/bioc/html/normr.html)
+
+- R [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html)
+
+- R [ggplot2](https://ggplot2.tidyverse.org)
+
+- R [pheatmap](https://cran.r-project.org/web/packages/pheatmap)
+
+- External [Macs2](http://github.com/taoliu/MACS/)
+
+- External [BedTools](https://github.com/arq5x/bedtools2). 
+
+### Package Installation
+
 A standard [Module::Build](https://metacpan.org/pod/Module::Build) script is also 
-provided for semi-automated installation of the Perl scripts.
+provided for semi-automated installation of the Perl and R scripts. Installation 
+instructions for BioToolBox and Perl packages can be found at the 
+[Bio::ToolBox repository](https://github.com/tjparnell/biotoolbox).
 
     $ perl ./Build.PL
     $ ./Build
