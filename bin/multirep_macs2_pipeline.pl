@@ -51,6 +51,9 @@ my %opts = (
 	chrapply    => undef,
 	rawcounts   => 0,
 	savebdg     => 0,
+	genwindow   => 0,
+	discard     => 10,
+	repmean     => 0,
 	doplot      => 0,
 	bam2wig     => sprintf("%s", which 'bam2wig.pl'),
 	bamdedup    => sprintf("%s", which 'bam_partial_dedup.pl'),
@@ -64,6 +67,7 @@ my %opts = (
 	data2wig    => sprintf("%s", which 'data2wig.pl'),
 	meanbdg     => sprintf("%s", which 'generate_mean_bedGraph.pl'),
 	intersect   => sprintf("%s", which 'intersect_peaks.pl'),
+	combrep     => sprintf("%s", which 'combine_replicate_data.pl'),
 	plotpeak    => sprintf("%s", which 'plot_peak_figures.R'),
 );
 $opts{job} = $parallel ? 2 : 1;
@@ -180,6 +184,9 @@ Options:
   --nolambda                    Skip lambda control, compare ChIP directly with control
   --rawcounts                   Use unscaled raw counts for re-scoring peaks
   --savebdg                     Save q-value bdg files for further custom calling
+  --window    integer           Collect counts across genome in given window size
+  --discard   number            Discard genome windows with replicate sum below number ($opts{discard})
+  --repmean                     Combine replicate counts as mean for each sample set
   --plot                        Plot figures of results
   
  Job control
@@ -199,6 +206,7 @@ Options:
   --meanbdg   path             ($opts{meanbdg})
   --bedtools  path             ($opts{bedtools})
   --intersect path             ($opts{intersect})
+  --combrep   path             ($opts{combrep})
   --plotpeak  path             ($opts{plotpeak})
 DOC
 
@@ -248,6 +256,9 @@ GetOptions(
 	'broadgap=i'            => \$opts{gaplink},
 	'lambda!'               => \$opts{use_lambda},
 	'savebdg!'              => \$opts{savebdg},
+	'window=i'              => \$opts{genwindow},
+	'discard=f'             => \$opts{discard},
+	'repmean!'              => \$opts{repmean},
 	'plot!'                 => \$opts{doplot},
 	'cpu=i'                 => \$opts{cpu},
 	'job=i'                 => \$opts{job},
@@ -654,17 +665,21 @@ sub run_rescore {
 	my $output1 = File::Spec->catfile($opts{dir}, $opts{out} . '_qvalue.txt');
 	my $output2 = File::Spec->catfile($opts{dir}, $opts{out} . '_log2FE.txt');
 	my $output3 = File::Spec->catfile($opts{dir}, $opts{out} . '_counts.txt');
+	my $output4 = File::Spec->catfile($opts{dir}, $opts{out} . '_genome_counts.txt.gz');
 	
 	# start list of conditions
 	my @conditions = ("Sample\tGroup\n");
 	
-	# generate three get_dataset commands
+	# generate four get_dataset commands
+	# go ahead and make the fourth genome-wide command, even though we may not use it
 	my $command1 = sprintf("%s --method mean --cpu %s --in %s --out %s --format 3 ",
 		$opts{getdata}, $opts{cpu}, $input, $output1);
 	my $command2 = sprintf("%s --method mean --cpu %s --in %s --out %s --format 3 ",
 		$opts{getdata}, $opts{cpu}, $input, $output2);
 	my $command3 = sprintf("%s --method sum --cpu %s --in %s --out %s --format 0 ",
 		$opts{getdata}, $opts{cpu}, $input, $output3);
+	my $command4 = sprintf("%s --method sum --cpu %s --feature genome --win %d --discard %s --out %s --format 0 ",
+		$opts{getdata}, $opts{cpu}, $opts{genomewin}, $opts{discard}, $output4);
 	foreach my $Job (@Jobs) {
 		if ($Job->{qvalue_bw}) {
 			$command1 .= sprintf("--data %s ", $Job->{qvalue_bw});
@@ -674,6 +689,7 @@ sub run_rescore {
 		}
 		foreach my $b ( @{ $Job->{chip_count_bw} } ) {
 			$command3 .=  "--data $b ";
+			$command4 .=  "--data $b ";
 			# get the sample name just as it would appear in get_datasets output... a hack
 			my (undef, undef, $name) = File::Spec->splitpath($b);
 			$name =~ s/^([\w\d\-\_]+)\..+$/$1/i; # take everything up to first .
@@ -682,6 +698,7 @@ sub run_rescore {
 		foreach my $b ( @{ $Job->{control_count_bw} } ) {
 			next if exists $name2done{$b};
 			$command3 .=  "--data $b ";
+			$command4 .=  "--data $b ";
 			my (undef, undef, $name) = File::Spec->splitpath($b);
 			$name =~ s/^([\w\d\-\_]+)\..+$/$1/i; # take everything up to first .
 			push @conditions, "$name\tInput\n";
@@ -703,8 +720,16 @@ sub run_rescore {
 	$log =~ s/txt$/log.txt/;
 	$command3 .= " 2>&1 > $log";
 	push @commands, [$command3, $output3, $log];
+	if ($opts{genomewin}) {
+		# user has given an actual genome window size, so we'll run this command
+		$log = $output4;
+		$log =~ s/txt\.gz$/log.txt/;
+		$command4 .= " 2>&1 > $log";
+		push @commands, [$command4, $output4, $log];
+	}
 	
 	# broad peak rescore
+	my ($output5, $output6, $output7);
 	if ($opts{broad}) {
 		# generate broad file names
 		my $input2;
@@ -717,42 +742,38 @@ sub run_rescore {
 			$input2 =~ s/narrow/gapped/;
 			die "unable to find merged bed file '$input2'!\n" unless -e $input2;
 		}
-		my $output4 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_qvalue.txt');
-		my $output5 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_log2FE.txt');
-		my $output6 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_counts.txt');
+		$output5 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_qvalue.txt');
+		$output5 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_log2FE.txt');
+		$output7 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_counts.txt');
 		
 		# generate three get_dataset commands
-		my $command4 = sprintf("%s --method mean --cpu %s --in %s --out %s --format 3 ",
-			$opts{getdata}, $opts{cpu}, $input2, $output4);
 		my $command5 = sprintf("%s --method mean --cpu %s --in %s --out %s --format 3 ",
 			$opts{getdata}, $opts{cpu}, $input2, $output5);
-		my $command6 = sprintf("%s --method sum --cpu %s --in %s --out %s --format 0 ",
+		my $command6 = sprintf("%s --method mean --cpu %s --in %s --out %s --format 3 ",
 			$opts{getdata}, $opts{cpu}, $input2, $output6);
+		my $command7 = sprintf("%s --method sum --cpu %s --in %s --out %s --format 0 ",
+			$opts{getdata}, $opts{cpu}, $input2, $output7);
 		%name2done = ();
 		foreach my $Job (@Jobs) {
 			if ($Job->{qvalue_bw}) {
-				$command4 .= sprintf("--data %s ", $Job->{qvalue_bw});
+				$command5 .= sprintf("--data %s ", $Job->{qvalue_bw});
 			}
 			if ($Job->{logfe_bw}) {
-				$command5 .= sprintf("--data %s ", $Job->{logfe_bw});
+				$command6 .= sprintf("--data %s ", $Job->{logfe_bw});
 			}
 			foreach my $b ( @{ $Job->{chip_count_bw} } ) {
-				$command6 .=  "--data $b ";
+				$command7 .=  "--data $b ";
 			}
 			foreach my $b ( @{ $Job->{control_count_bw} } ) {
 				next if exists $name2done{$b};
-				$command6 .=  "--data $b ";
+				$command7 .=  "--data $b ";
 				$name2done{$b} = 1; # remember it's done
 			}
 		}
 	
 		# add log outputs to commands
 		my @commands;
-		my $log = $output4;
-		$log =~ s/txt$/log.txt/;
-		$command4 .= " 2>&1 > $log";
-		push @commands, [$command4, $output4, $log];
-		$log = $output5;
+		my $log = $output5;
 		$log =~ s/txt$/log.txt/;
 		$command5 .= " 2>&1 > $log";
 		push @commands, [$command5, $output5, $log];
@@ -760,17 +781,71 @@ sub run_rescore {
 		$log =~ s/txt$/log.txt/;
 		$command6 .= " 2>&1 > $log";
 		push @commands, [$command6, $output6, $log];
+		$log = $output7;
+		$log =~ s/txt$/log.txt/;
+		$command7 .= " 2>&1 > $log";
+		push @commands, [$command7, $output7, $log];
 	}
 	
 	# write conditions file
-	my $output7 = File::Spec->catfile($opts{dir}, $opts{out} . '_samples.txt');
-	my $fh = IO::File->new($output7, "w");
+	my $output8 = File::Spec->catfile($opts{dir}, $opts{out} . '_samples.txt');
+	my $fh = IO::File->new($output8, "w");
 	foreach (@conditions) {
 		$fh->print($_);
 	}
 	$fh->close;
 	
+	
+	
+	### Execute commands
 	execute_commands(\@commands);
+	
+	
+	### Replicate Merge
+	# do this here so that we still know the output commands
+	# must be done after the data collection anyway, so can't be merged above
+	if ($opts{repmean}) {
+		# we will generate count means of the replicates
+		return unless $opts{combrep} =~ /\w+/;
+		print "\n\n======= Generating sample replicate means\n";
+		my @commands2;
+		
+		# narrowPeak counts
+		my $output3m = File::Spec->catfile($opts{dir}, $opts{out} . '_meanCounts.txt');
+		my $command9 = sprintf("%s --in %s --out %s --sample %s --method mean --format 0 ", 
+			$opts{combrep}, $output3, $output3m, $output8);
+		$log = $output3m;
+		$log =~ s/txt/log.txt/;
+		$command9 .= " 2>&1 > $log";
+		push @commands2, [$command9, $output3m, $log];
+		
+		# genome counts
+		if ($opts{genomewin}) {
+			my $output4m = File::Spec->catfile($opts{dir}, $opts{out} . 
+				'_genome_meanCounts.txt.gz');
+			my $command10 = sprintf("%s --in %s --out %s --sample %s --method mean --format 0 ", 
+				$opts{combrep}, $output4, $output4m, $output8);
+			$log = $output4m;
+			$log =~ s/txt\.gz/log.txt/;
+			$command10 .= " 2>&1 > $log";
+			push @commands2, [$command10, $output4m, $log];
+		}
+		
+		# broadPeak Counts
+		if ($opts{broad}) {
+			my $output6m = File::Spec->catfile($opts{dir}, $opts{out} . 
+				'_broad_meanCounts.txt');
+			my $command11 = sprintf("%s --in %s --out %s --sample %s --method mean --format 0 ", 
+				$opts{combrep}, $output6, $output6m, $output8);
+			$log = $output6m;
+			$log =~ s/txt/log.txt/;
+			$command11 .= " 2>&1 > $log";
+			push @commands2, [$command11, $output6m, $log];
+		}
+		
+		# execute
+		execute_commands(\@commands2);
+	}
 }
 
 
