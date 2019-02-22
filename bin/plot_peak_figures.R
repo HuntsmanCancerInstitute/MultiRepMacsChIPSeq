@@ -109,7 +109,7 @@ makeDist <- function(rdata, cdata, outfile) {
   sampleDistMatrix <- as.matrix( sampleDists )
   colours = colorRampPalette( rev(brewer.pal(9, 'Blues')) )(255)
   pheatmap(sampleDistMatrix, col=colours, annotation_row = cdata,
-           cluster_cols = F, cluster_rows = T,
+           cluster_cols = T, cluster_rows = T,
            main = "Distance Correlation of Sample Counts",
            filename = outfile, width = 10, height = 8)
 }
@@ -119,7 +119,8 @@ makePearCorr <- function(rdata, cdata, outfile) {
   sampleMatrix <- as.matrix( sampleCorr )
   colours = colorRampPalette( brewer.pal(9, 'Blues') )(255)
   pheatmap(sampleMatrix, col=colours, annotation_row = cdata, 
-           cluster_cols = F, cluster_rows = T,
+           breaks = seq(0,1,length=255),
+           cluster_cols = T, cluster_rows = T,
            main = "Pearson Correlation of Sample Counts",
            filename = outfile, width = 10, height = 8)
 }
@@ -129,7 +130,8 @@ makeSpearCorr <- function(rdata, cdata, outfile) {
   sampleMatrix <- as.matrix( sampleCorr )
   colours = colorRampPalette( brewer.pal(9, 'Blues') )(255)
   pheatmap(sampleMatrix, col=colours, annotation_row = cdata,
-           cluster_cols = F, cluster_rows = T,
+           breaks = seq(0,1,length=255),
+           cluster_cols = T, cluster_rows = T,
            main = "Spearman Correlation of Sample Counts",
            filename = outfile, width = 10, height = 8)
 }
