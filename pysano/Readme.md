@@ -1,12 +1,16 @@
 # Pysano Alignment Templates
 
 These are `cmd.txt` alignment templates for users of the HCI 
-[pysano](https://healthcare.utah.edu/huntsmancancerinstitute/research/shared-resources/center-managed/bioinformatics/pysano/) 
+[pysano](https://uofuhealth.utah.edu/huntsman/shared-resources/gba/bioinformatics/infrastructure/pysano.php) 
 system for executing jobs at [CHPC](https://www.chpc.utah.edu). If you are not a HCI 
 user, feel free to use this as a shell script template for aligning and processing 
 your reads.
 
 ## Using the command templates
+
+There are two command templates, for single-end and paired-end sequencing. The primary 
+difference is that the single-end runs additional commands to estimate the average 
+insertion length using two different programs. 
 
 - Modify the template as necessary
 
@@ -50,7 +54,7 @@ your reads.
     alignment, `bam_partial_dedup`, `bam2wig`, and `Macs predictd`. Missing information 
     is recorded as empty columns.
 
-- Plot Macs2 prediction PDFs
+- Plot Macs2 prediction PDFs (single-end only)
 
     Macs2 writes out its prediction as a R script, which can then be executed to 
     generate a 2-page PDF report of the profile and shift correlations. Look at the 
@@ -59,7 +63,7 @@ your reads.
     
         $ Rscript 1234X1/sample1.predictd
     
-- Plot bam2wig shift models
+- Plot bam2wig shift models (single-end only)
 
     The [bam2wig.pl](https://metacpan.org/pod/bam2wig.pl) script will write out two 
     text files: `$NAME_model.txt` shows the forward, reverse, and shifted mean coverage 

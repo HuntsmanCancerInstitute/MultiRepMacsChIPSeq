@@ -1,17 +1,16 @@
 #e your.name@hci.utah.edu
 
-# single-end ChIPSeq
+# paired-end ChIPSeq, including paired-end ATACSeq
 
-# set the base name of the output
 NAME=MYNAME
 
-# organism index
+# organism Novoalign index
 INDEX=/tomato/dev/data/Human/Hg38/hg38RefSeqNoOddChroms.nov.illumina.nix
-SIZE=2500000000
 
 # optical distance
 # use 100 for HiSeq runs or 2500 for NovaSeq runs
 OPTDISTANCE=100
+
 
 # application paths
 NOVO_APP=/tomato/dev/app/novoalign/3.08.02/novoalign
@@ -24,8 +23,8 @@ MACS_APP=/tomato/dev/app/modulesoftware/macs2
 echo "=== aligning"
 $NOVO_APP --NonC -d $INDEX \
 -o SAM -r Random \
--a AGATCGGAAGAGCACACGTCTGAACTCCAGTCA \
--f *.txt.gz | \
+-a CTGTCTCTTATACACATCT CTGTCTCTTATACACATCT \
+-f *.gz | \
 $SAM_APP view -b -o $NAME.raw.bam -
 
 # sort and index
@@ -39,18 +38,7 @@ $SAM_APP idxstats $NAME.bam > $NAME.idxstats.txt
 
 # check duplicate level
 echo "=== duplication levels"
-$DEDUP_APP --in $NAME.bam --cpu $NCPU --optical --distance $OPTDISTANCE
-
-# check insert size with macs2
-echo "=== macs2 predictd"
-$MACS_APP predictd -i $NAME.bam -g $SIZE --rfile $NAME.predictd
-
-
-# raw coverage and size prediction with bam2wig
-echo "=== bam2wig shift prediction"
-$BAMWIG_APP --in $NAME.bam --cpu $NCPU \
---shift --model --chrom 20 \
---out $NAME
+$DEDUP_APP --pe --cpu $NCPU --in $NAME.bam --optical --distance $OPTDISTANCE
 
 
 
