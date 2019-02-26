@@ -7,7 +7,7 @@ bin/multirep_macs2_pipeline.pl
 bin/plot_shift_models.R
 bin/plot_peak_figures.R
 bin/print_chromosome_lengths.pl
-bin/run_DEeq2.R
+bin/run_DESeq2.R
 bin/run_normR_difference.R
 bin/run_normR_enrichment.R
 Build.PL
