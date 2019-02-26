@@ -145,7 +145,7 @@ idx <- which(getQvalues(d1) <= opt$threshold &
 if (length(idx)) {
   class1.gr <- reduce(getRanges(d1)[idx])
   write.table(data.frame(seqnames(class1.gr),start(class1.gr),end(class1.gr)), 
-              file=paste0(opt$output,'_',opt$first,'Only.bed'),
+              file=paste0(opt$output,'_',opt$second,'Enriched.bed'),
               sep = "\t", row.names = F, quote = F, col.names = F)
 }
 
@@ -157,7 +157,7 @@ idx <- which(getQvalues(d1) <= opt$threshold &
 if (length(idx)) {
   class2.gr <- reduce(getRanges(d1)[idx])
   write.table(data.frame(seqnames(class2.gr),start(class2.gr),end(class2.gr)), 
-              file=paste0(opt$output,'_',opt$second,'Only.bed'),
+              file=paste0(opt$output,'_',opt$first,'Enriched.bed'),
               sep = "\t", row.names = F, quote = F, col.names = F)
 }
 
