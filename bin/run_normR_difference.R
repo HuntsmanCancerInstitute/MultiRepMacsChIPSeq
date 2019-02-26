@@ -43,8 +43,8 @@ parser <- OptionParser(option_list=opts, description = "
  A bedGraph file of standardized, log difference between 
  ChIP1 and ChIP2 is written for converting into a bigWig 
  for visualization. Merged significant intervals for 
- differential enrichment of ChIP1 (class 1) and ChIP2 
- (class 2) are written as bed files.
+ differential enrichment of ChIP1 (class 2) and ChIP2 
+ (class 1) are written as bed files.
 ")
 
 opt <- parse_args(parser)
