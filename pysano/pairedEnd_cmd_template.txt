@@ -11,6 +11,15 @@ INDEX=/tomato/dev/data/Human/Hg38/hg38RefSeqNoOddChroms.nov.illumina.nix
 # use 100 for HiSeq runs or 2500 for NovaSeq runs
 OPTDISTANCE=100
 
+## Select the appropriate adaptors
+
+# adapters for standard compatible Illumina TruSeq
+ADAPTF=AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+ADATPR=AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT
+
+# # adapters for Tn5 ATACSeq
+# ADAPTF=CTGTCTCTTATACACATCT
+# ADATPR=CTGTCTCTTATACACATCT
 
 # application paths
 NOVO_APP=/tomato/dev/app/novoalign/3.08.02/novoalign
@@ -23,7 +32,7 @@ MACS_APP=/tomato/dev/app/modulesoftware/macs2
 echo "=== aligning"
 $NOVO_APP --NonC -d $INDEX \
 -o SAM -r Random \
--a CTGTCTCTTATACACATCT CTGTCTCTTATACACATCT \
+-a $ADAPTF $ADAPTR \
 -f *.gz | \
 $SAM_APP view -b -o $NAME.raw.bam -
 
