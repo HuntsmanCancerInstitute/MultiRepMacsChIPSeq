@@ -19,7 +19,7 @@ use File::Which;
 use File::Path qw(make_path);
 use Getopt::Long;
 
-my $VERSION = 11;
+my $VERSION = 11.1;
 
 my $parallel;
 eval {
@@ -953,7 +953,7 @@ sub new {
 	    s_control_bdg => undef,
 	    l_control_bdg => undef,
 	    sl_control_bdg => undef,
-	    sld_control_bdg => undef,
+	    sld_control_file => undef,
 	    lambda_bdg => undef,
 	    lambda_bw => undef,
 	    qvalue_bdg => undef,
@@ -1034,7 +1034,7 @@ sub new {
 			$self->{s_control_bdg} = "$lambdabase.slocal.bdg" if $opts{slocal};
 			$self->{l_control_bdg} = "$lambdabase.llocal.bdg" if $opts{llocal};
 			$self->{sl_control_bdg} = "$lambdabase.sllocal.bdg";
-			$self->{sld_control_bdg} = "$lambdabase.sldlocal.bdg";
+			$self->{sld_control_file} = "$lambdabase.sldlocal.txt";
 		}
 		else {
 			$self->{lambda_bdg} = $lambdabase . ".bdg";
@@ -1595,48 +1595,48 @@ sub generate_lambda_control_commands {
 	# multiple instances of macs2 bdgcmp and bdgopt
 	if ($sfile and $lfile) {
 		# first step
-		$command = sprintf("%s unionbdg -header -i %s %s %s %s > %s 2> $log ", 
+		$command = sprintf("%s unionbedg -header -names dlocal slocal llocal background -i %s %s %s %s > %s 2> $log ", 
 			$opts{bedtools}, $dfile, $sfile, $lfile, $background_bdg, 
-			$self->{sld_control_bdg});
+			$self->{sld_control_file});
 		
 		# second step
 		$command .= sprintf("&& %s --in %s --zero --fast --bdg --notrack --score 3-6 --method max --out %s ",
-			$opts{data2wig}, $self->{sld_control_bdg}, $self->{lambda_bdg});
+			$opts{data2wig}, $self->{sld_control_file}, $self->{lambda_bdg});
 		$command .= " 2>&1 >> $log ";
 		
 		# clean up
 		$command .= sprintf("&& rm %s %s %s %s %s ", $dfile, $sfile, $lfile, 
-			$background_bdg, $self->{sld_control_bdg});
+			$background_bdg, $self->{sld_control_file});
 	}
 	elsif ($sfile and not $lfile) {
 		# first step
-		$command = sprintf("%s unionbdg -header -i %s %s %s > %s 2> $log ", 
+		$command = sprintf("%s unionbdg -header -names dlocal slocal background -i %s %s %s > %s 2> $log ", 
 			$opts{bedtools}, $dfile, $sfile, $background_bdg, 
-			$self->{sld_control_bdg});
+			$self->{sld_control_file});
 		
 		# second step
 		$command .= sprintf("&& %s --in %s --zero --fast --bdg --notrack --score 3-5 --method max --out %s ",
-			$opts{data2wig}, $self->{sld_control_bdg}, $self->{lambda_bdg});
+			$opts{data2wig}, $self->{sld_control_file}, $self->{lambda_bdg});
 		$command .= " 2>&1 >> $log ";
 		
 		# clean up
 		$command .= sprintf("&& rm %s %s %s %s ", $dfile, $sfile, 
-			$background_bdg, $self->{sld_control_bdg});
+			$background_bdg, $self->{sld_control_file});
 	}
 	elsif (not $sfile and $lfile) {
 		# first step
-		$command = sprintf("%s unionbdg -header -i %s %s %s > %s 2> $log ", 
+		$command = sprintf("%s unionbdg -header -names dlocal llocal background -i %s %s %s > %s 2> $log ", 
 			$opts{bedtools}, $dfile, $lfile, $background_bdg, 
-			$self->{sld_control_bdg});
+			$self->{sld_control_file});
 		
 		# second step
 		$command .= sprintf("&& %s --in %s --zero --fast --bdg --notrack --score 3-5 --method max --out %s ",
-			$opts{data2wig}, $self->{sld_control_bdg}, $self->{lambda_bdg});
+			$opts{data2wig}, $self->{sld_control_file}, $self->{lambda_bdg});
 		$command .= " 2>&1 >> $log ";
 		
 		# clean up
 		$command .= sprintf("&& rm %s %s %s %s ", $dfile, $lfile, 
-			$background_bdg, $self->{sld_control_bdg});
+			$background_bdg, $self->{sld_control_file});
 	}
 	else {
 		die "programming error! how did we get here with no sfile and no lfile????";
