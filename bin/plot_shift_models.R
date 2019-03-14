@@ -18,7 +18,7 @@ suppressPackageStartupMessages(library("optparse"))
 
 opts <-  list(
     make_option(c("-i", "--input"), default="NA",
-         help="Path and basename to the bam2wig *_model.txt and *_correlations.txt files"),
+         help="Path and basename to the bam2wig *_model.txt and *_correlations.txt files")
 )
 
 parser <- OptionParser(option_list=opts, description = "

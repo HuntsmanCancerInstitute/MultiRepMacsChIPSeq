@@ -883,7 +883,7 @@ sub finish {
 			if (-z _) {
 				# an empty file
 				push @combined_output, "\n";
-				unlink $log
+				unlink $log;
 			}
 			else {
 				# push log contents to combined output
