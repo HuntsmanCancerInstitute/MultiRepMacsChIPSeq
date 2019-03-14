@@ -27,6 +27,7 @@ SAM_APP=/tomato/dev/app/samtools/1.8/samtools
 DEDUP_APP=/tomato/dev/app/modulesoftware/bam_partial_dedup
 BAMWIG_APP=/tomato/dev/app/modulesoftware/bam2wig
 MACS_APP=/tomato/dev/app/modulesoftware/macs2
+PICARD_APP=/tomato/dev/app/picard/2.18.26/picard.jar
 
 # align
 echo "=== aligning"
@@ -50,4 +51,11 @@ echo "=== duplication levels"
 $DEDUP_APP --pe --cpu $NCPU --in $NAME.bam --optical --distance $OPTDISTANCE
 
 
+# check insertion sizes
+echo "=== insertion sizes"
+java $PICARD_APP CollectInsertSizeMetrics \
+I=$NAME.bam \
+O=$NAME.insertSizeMetrics.txt \
+H=$NAME.insertSizes.pdf \
+M=0.5 VALIDATION_STRINGENCY=SILENT VERBOSITY=WARNING 
 
