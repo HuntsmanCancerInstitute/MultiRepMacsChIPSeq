@@ -223,6 +223,11 @@ of reads in each peak. Many of these functions can be controlled through additio
 command-line options, for example duplication level (`--dupfrac`), fragment size 
 (`--size`), and peak threshold (`--cutoff`).
 
+The pipeline script runs a number of other applications as "jobs". The exact command 
+is printed to standard output for those following at home, with the output sent to an 
+output log file. At the end of the pipeline, the log files are combined into a single 
+file. 
+
 ## Differential peak calls
 
 When multiple conditions are being tested and compared for differential binding, then 
@@ -247,6 +252,8 @@ enrichment and q-value scored, which can be used for making heat maps for a visu
 comparison. Furthermore, read counts from each of the replicates are also collected 
 for evaluating differential peaks through additional software such as 
 [DESeq2](http://www.bioconductor.org/packages/release/bioc/html/DESeq2.html).
+
+### Plotting results
 
 To prepare some clustered heat maps of the intersections and the scores across the 
 peaks, run the included `plot_figures.R` R script. It will generate a distance heat map 
@@ -524,6 +531,33 @@ pileup and lambda control files for both ChIPs.
 
 This uses log likelihood for differential detection. In my experience, the R packages 
 work better.
+
+## Manual intersection and scoring of peaks
+
+Sometimes you want to intersect a subset of the peaks, perhaps filtering the peak
+files themselves or not including a sample. To regenerate a new combined list of
+peaks and re-score them for making new plots, you can follow the steps below. This is
+essentially what was run automatically by the pipeline script (compare with the output 
+of the pipeline). Adjust accordingly for your situation.
+
+	$ intersect_peaks.pl --out new_list sample1.narrowPeak sample2.narrowPeak ...
+	
+	$ get_datasets.pl --method mean --in new_list.bed --out new_list_qvalue.txt \
+	--format 3 *.qvalue.bw
+
+	$ get_datasets.pl --method mean --in new_list.bed --out new_list_log2FE.txt \
+	--format 3 *.log2FE.bw
+	
+	$ get_datasets.pl --method sum --in new_list.bed --out new_list_counts.txt \
+	--format 0 *.count.bw
+	
+	$ cp *_samples.txt new_list_samples.txt
+	
+	$ plot_figures.R -i new_list
+
+In the above example, be sure to edit the `_samples.txt` file to reflect the new 
+samples, if necessary. Also, 
+
 
 # Installation
 
