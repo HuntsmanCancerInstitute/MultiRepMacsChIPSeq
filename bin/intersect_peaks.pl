@@ -14,6 +14,7 @@
 
 use strict;
 use Getopt::Long;
+use File::Spec;
 use File::Which;
 use Bio::ToolBox 1.65;
 
@@ -82,10 +83,13 @@ $outfile =~ s/\.(?:bed|narrowPeak)$//i; # strip any existing extension if provid
 # inputs
 my @files = @ARGV;
 die "must provide 2 or more files!\n" unless scalar(@files) > 1;
-my @names = @files;
-foreach (@names) {s/\.(?:bed|narrowpeak)(?:\.gz)?$//i}
-# print "working on files: @files\n";
-# print "with names: @names\n"; 
+my @names;
+foreach my $f (@files) {
+	# strip path and extension
+	my (undef, $dir, $name) = File::Spec->splitpath($f);
+	$name =~ s/\.(?:bed|narrowpeak|gappedpeak|broadpeak)(?:\.gz)?$//i;
+	push @names, $name;
+}
 
 
 
