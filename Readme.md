@@ -281,7 +281,9 @@ the `--out` name you provided to the wrapper:
     
         --dupfrac 0.05 \
     
-    Alternatively you can set a maximum number of allowed reads at any position.
+    Alternatively you can set a maximum number of allowed reads at any position. Set 
+    `--maxdup` to 1 for traditional approach to remove all duplicates. This option might 
+    help with hotspots (but black lists are a better approach). 
     
         --dupfrac 0 \
         --maxdup 10 \
@@ -289,7 +291,11 @@ the `--out` name you provided to the wrapper:
     Or you may completely turn off de-duplication by using the `--nodup` flag. Use 
     this option if you have already marked duplicates, perhaps by using unique molecular 
     indexes (UMIs) or barcodes (see [UMIScripts](https://github.com/HuntsmanCancerInstitute/UMIScripts), 
-    for example). Marked duplicate reads are always skipped.
+    for example). Marked duplicate reads are B<always> skipped regardless of these settings.
+    
+    In general, random subsampling is preferred over setting an arbitrary maximum depth, 
+    which is analogous to cutting off all peaks at a certain height, effectively making 
+    all peaks the same.
     
 - Read filtering
 
