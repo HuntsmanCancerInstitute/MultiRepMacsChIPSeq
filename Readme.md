@@ -196,14 +196,29 @@ usually derive similar values, and then evaluate and take the most reasonable on
 
 ## Duplication level determination
 
-It's best to determine the level of alignment duplication in all samples, and set the 
-target level to the lowest observed. A 5-20% duplication rates is not uncommon in 
-many ChIPSeq samples. If all samples have 1% duplication or less, then de-duplication 
-could be skipped, as it likely won't significantly alter levels. 
+Calculate the duplication level using the `bam_partial_dedup` application for each 
+sample.
 
     $ bam_partial_dedup.pl -i file1.bam 
 
-## Sample Peak call
+It's best to determine the level of alignment duplication in all samples, and set the
+target level to the lowest observed, which is frequently the Input sample. A 5-20%
+duplication rates is not uncommon in many ChIPSeq samples. If all samples have 1%
+duplication or less, then de-duplication could be skipped, as it likely won't
+significantly alter levels. 
+
+Subsampling duplicate reads works best with tall, narrow ChIP enrichment, such as 
+site-specific DNA-binding factors. For very broad, weak enrichment, such as certain 
+broad histone marks or certain chromatin factors, turning off duplication sub-sampling 
+may give better results.
+
+*Note* that if duplicate subsampling is used (default), then it's best to avoid sources 
+of artificial duplicates, such as mitochondrial chromosome, rDNA loci, repetitive 
+elements, known hot spots, etc. These can artificially inflate duplication rates. If 
+necessary, call peaks on the Input or reference sample alone, and use the egregious peaks 
+as a blacklist.
+    
+## Simple Peak call
 
 To call peaks on a single ChIPSeq sample with multiple replicates, call the 
 `multirep_macs2_pipeline.pl` script, giving the bam files as a comma-delimited list 
@@ -230,11 +245,12 @@ file.
 
 ## Differential peak calls
 
-When multiple conditions are being tested and compared for differential binding, then 
-simply add additional `--chip` and `--name` arguments. If each condition has a separate 
-reference, then `--control` can be repeated for each as well. If there are multiple 
-controls, and some are shared between more than one ChIP but not all, that's ok; list 
-each control for each ChIP and duplicate entries will be smartly handled.
+When multiple conditions are being tested and compared for differential binding, then
+simply add additional `--chip` and `--name` arguments. *NOTE* the order is kept the
+same for each condition. If each condition has a separate reference, then `--control`
+can be repeated for each as well. If there are multiple controls, and some are shared
+between more than one ChIP but not all, that's ok; list each control for each ChIP
+and duplicate entries will be smartly handled.
 
     $ multirep_macs2_pipeline.pl \
     --chip file1.bam,file2.bam,file3.bam \
@@ -282,11 +298,15 @@ the `--out` name you provided to the wrapper:
         --dupfrac 0.05 \
     
     Alternatively you can set a maximum number of allowed reads at any position. This
-    option might help with hotspots (but black lists are a better approach). Set
-    `--maxdup` to 1 for traditional approach to remove all duplicates. 
+    option might help with hotspots (but black lists are a better approach). 
     
         --dupfrac 0 \
         --maxdup 10 \
+    
+    For traditional approach and remove *all* duplicates, use the following settings:
+    
+        --dupfrac 0 \
+        --maxdup 1 \
     
     Or you may completely turn off de-duplication by using the `--nodup` flag. Use 
     this option if you have already marked duplicates, perhaps by using unique molecular 
