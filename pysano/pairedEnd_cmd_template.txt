@@ -53,7 +53,7 @@ $DEDUP_APP --pe --cpu $NCPU --in $NAME.bam --optical --distance $OPTDISTANCE
 
 # check insertion sizes
 echo "=== insertion sizes"
-java $PICARD_APP CollectInsertSizeMetrics \
+java -jar $PICARD_APP CollectInsertSizeMetrics \
 I=$NAME.bam \
 O=$NAME.insertSizeMetrics.txt \
 H=$NAME.insertSizes.pdf \
