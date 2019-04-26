@@ -197,10 +197,30 @@ usually derive similar values, and then evaluate and take the most reasonable on
 ## Duplication level determination
 
 Calculate the duplication level using the `bam_partial_dedup` application for each 
-sample.
+sample. If desired, capture the standard output to file, which can then be combined into 
+a single file with `combine_std_chipstats`. Be sure to specify paired-end alignments 
+with `--pe` option.
 
-    $ bam_partial_dedup.pl -i file1.bam 
+    $ bam_partial_dedup.pl -i file1.bam > file1.dup.txt
+    
+    $ combine_std_chipstats.pl dup_stats.txt file*.dup.txt
 
+*Note* that if duplicate subsampling is used (default), then it's best to avoid
+sources of artificial duplicates, which can artificially inflate duplication rates.
+These include the mitochondrial chromosome, rDNA and other high-copy number genes,
+repetitive elements, and other known sites of artificial enrichment. If a [black
+list](https://sites.google.com/site/anshulkundaje/projects/blacklists) isn't
+published for your genome, you can generate one by calling peaks on the Input or
+reference sample alone, and use the egregious peaks as a blacklist. You can provide
+this blacklist to the `bam_partial_dedup` program.
+
+    $ bam_partial_dedup.pl -i file1.bam --chrskip chrM --blacklist blacklist.bed > file1.dedup.txt
+
+*NOTE* that if your sample has high optical duplicates, e.g. sequence from a
+patterned Illumina flowcell like NovaSeq, please add the `--optical` and `--distance`
+options to remove these. Optical duplicates are entirely artificial sequencing
+artifacts and should not be considered.
+    
 It's best to determine the level of alignment duplication in all samples, and set the
 target level to the lowest observed, which is frequently the Input sample. A 5-20%
 duplication rates is not uncommon in many ChIPSeq samples. If all samples have 1%
@@ -208,16 +228,10 @@ duplication or less, then de-duplication could be skipped, as it likely won't
 significantly alter levels. 
 
 Subsampling duplicate reads works best with tall, narrow ChIP enrichment, such as 
-site-specific DNA-binding factors. For very broad, weak enrichment, such as certain 
+site-specific DNA-binding factors. For very broad enrichment, such as certain 
 broad histone marks or certain chromatin factors, turning off duplication sub-sampling 
 may give better results.
 
-*Note* that if duplicate subsampling is used (default), then it's best to avoid sources 
-of artificial duplicates, such as mitochondrial chromosome, rDNA loci, repetitive 
-elements, known hot spots, etc. These can artificially inflate duplication rates. If 
-necessary, call peaks on the Input or reference sample alone, and use the egregious peaks 
-as a blacklist.
-    
 ## Simple Peak call
 
 To call peaks on a single ChIPSeq sample with multiple replicates, call the 
@@ -384,7 +398,7 @@ the `--out` name you provided to the wrapper:
         --control file4.bam \
         --control file5.bam \
         --chrnorm 1,0.5678 \
-        --chrapply "EBV"
+        --chrapply "EBV" \
 
 - Lambda-control
 
@@ -407,7 +421,7 @@ the `--out` name you provided to the wrapper:
     low sequence depths. Express this as a rounded number of millions of reads. For 
     example, if the minimum depth is 16,768,123 reads, set target depth as
     
-        --tdep 17
+        --tdep 17 \
 
     Note that the target depth greatly affects the q-value calculation used by Macs2. 
     In general, higher target depths require higher q-value thresholds. 
