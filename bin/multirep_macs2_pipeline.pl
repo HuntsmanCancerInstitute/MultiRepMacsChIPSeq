@@ -612,14 +612,16 @@ sub generate_chr_file {
 	my @bams = split(',', $chips[0]);
 	my $example = shift @bams;
 		# this will work regardless if example is bam or bigWig
-	
+	my $chromofile = File::Spec->catfile($opts{dir},"chrom_sizes.temp.txt");
+	if (-e $chromofile) {
+		return $chromofile;
+	}
 	unless ($opts{printchr}) {
 		die "no print_chromosome_lengths.pl script in path!\n";
 	}
-	my $chromofile = File::Spec->catfile($opts{dir},"chrom_sizes.temp.txt");
 	system(sprintf("%s --db %s --chrskip '%s' --out %s", 
 		$opts{printchr}, $example, $opts{chrskip}, $chromofile));
-	die "no chromosome file $chromofile!\n" unless -e $chromofile;
+	die "chromosome file $chromofile could not be generated!\n" unless -e $chromofile;
 	return $chromofile;
 }
 
