@@ -19,7 +19,7 @@ use File::Which;
 use File::Path qw(make_path);
 use Getopt::Long;
 
-my $VERSION = 11.1;
+my $VERSION = 11.2;
 
 my $parallel;
 eval {
@@ -334,6 +334,7 @@ sub check_inputs {
 		# no controls, turn off lambda
 		$opts{slocal} = 0;
 		$opts{llocal} = 0;
+		$opts{use_lambda} = 0;
 	}
 	if (scalar(@chip_scales) and scalar(@chip_scales) != scalar(@chips)) {
 		die "unequal ChIP samples and ChIP scale factors!\n";
@@ -555,11 +556,11 @@ sub run_bam_conversion {
 }
 
 sub check_control {
-	return unless ($opts{use_lambda});
 	my @commands;
 	my %name2done;
-	print "\n\n======= Generate control lambda files\n";
+	print "\n\n======= Generating control files\n";
 	foreach my $Job (@Jobs) {
+		# this handles either lambda_control or global mean files
 		push @commands, $Job->generate_lambda_control_commands(\%name2done);
 	}
 	if (@commands) {
