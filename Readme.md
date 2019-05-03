@@ -493,11 +493,11 @@ For ATACSeq, there are two variations of analysis.
     examine potential transcription factor binding sites that frequently occur at HS sites.
     Here, paired-end information is not required and can be treated as single-end. To 
     get a pileup of signal directly over the cut site, we provide a negative shift value 
-    (to shift the alignment start in the 3' direction instead) and then extend only a 
-    small distance. For example
+    (to shift the alignment start in the 5' direction or upstream) and then extend twice 
+    the absolute shift value. For example
     
-        --shift=-25 \
-        --extend 50 \
+        --shift -25 \
+        --size 50 \
 
 # Interpretation and advanced analysis
 
