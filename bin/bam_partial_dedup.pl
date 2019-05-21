@@ -75,9 +75,9 @@ Optical duplicates, arising from neighboring clusters on a sequencing flow
 cell with identical sequence, may now be checked. When random subsampling 
 duplicates, optical duplicates should critically be ignored. This is highly 
 recommended for patterned flow cells from Illumina NovaSeq or NextSeq. Set a 
-distance of 100 pixels for unpatterned (Illumina HiSeq) or 2500 for patterned 
-(NovaSeq). By default, optical duplicate alignments are not written to output. 
-To ONLY filter for optical duplicates, set --max to a very high number.
+distance of 100 pixels for unpatterned (Illumina HiSeq) or at least 10000 for  
+patterned (NovaSeq). By default, optical duplicate alignments are not written 
+to output. To ONLY filter for optical duplicates, set --max to a very high number.
 
 Existing alignment duplicate marks (bit flag 0x400) are ignored. 
 
@@ -98,8 +98,8 @@ OPTIONS:
   --pe             Bam files contain paired-end alignments and only 
                    properly paired duplicate fragments will be checked for 
                    duplication. 
-  --mark           Write non-optical alignments to output and mark as 
-                   duplicates with flag bit 0x400.
+  --mark           Write non-optical duplicate alignments to output marked 
+                   with flag bit 0x400.
   --random         Randomly subsamples duplicate alignments so that the  
                    final duplication rate will match target duplication 
                    rate. Must set --frac option. 
@@ -110,7 +110,7 @@ OPTIONS:
   --optical        Enable optical duplicate checking
   --distance       Set optical duplicate distance threshold.
                    Use 100 for unpatterned flowcell (HiSeq) or 
-                   2500 for patterned flowcell (NovaSeq). Default 100.
+                   10000 for patterned flowcell (NovaSeq). Default 100.
                    Setting this value automatically sets --optical.
   --keepoptical    Keep optical duplicates in output as marked 
                    duplicates with flag bit 0x400. Optical duplicates 
