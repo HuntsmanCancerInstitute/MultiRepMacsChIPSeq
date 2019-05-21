@@ -72,8 +72,8 @@ while (@ARGV) {
 			push @files, $stderr;
 		}
 	}
-	elsif (-f $path) {
-		# a file
+	else {
+		# assume a readable file
 		push @files, $path;
 	}
 	
@@ -239,12 +239,13 @@ my @headers = qw(Sample NovoalignTotalReads NovoalignUniqueMapped NovoalignMulti
 	Macs2Extension);
 
 # check for empty columns
+	# we skip the sample identifier column, but check everything else
 my @columns;
-for my $i (0..$#headers) {
+for my $i (1..$#headers) {
 	my $check = sum0( map {$output[$_]->[$i]} (0..$#output) );
 	push @columns, $i if $check != 0;
 }
-
+unshift @columns, 0; # always keep the sample identifier column at beginning
 
 # write final
 my $fh = IO::File->new($outfile, 'w') or die "can't write to $outfile!\n";
