@@ -81,12 +81,14 @@ alignments, these regions can and should be entirely skipped by providing a
 file with recognizable coordinates. Any alignments overlapping these intervals 
 are skipped in both counting and writing. 
 
-USAGE: 
+Usage:
+ 
 	bam_partial_dedup.pl --in in.bam
 	bam_partial_dedup.pl --frac 0.xx --rand --in in.bam --out out.bam
 	bam_partial_dedup.pl --m X -i in.bam -o out.bam
 
-OPTIONS:
+Options:
+
 	--in <file>      The input bam file, should be sorted and indexed
 	--out <file>     The output bam file containing unique and retained 
 				     duplicates; optional if you're just checking the 
@@ -132,9 +134,11 @@ identifiers must match the column name in the input replicate file.
 File compression is natively handled.
 
 Usage: 
+
 	combine_replicate_data.pl -i counts.txt -s samples.txt -o count_means.txt
 
 Options:
+
 	-i --in <file>          Input file of replicate counts
 	-s --sample <file>      File of replicate samples and groups
 	-m --method <text>      Method of combining: sum mean median max
@@ -156,6 +160,7 @@ directories. It will write out a single tab-delimited with the numbers. Sample
 names are the given input file names or directory names.
 
 Usage: 
+
 	Pysano directories:
 		combine_std_chipstats.pl <outputfile> 1234X1/ 1234X2/ ...
 
@@ -199,9 +204,12 @@ Five files will be written:
     basename.multi.txt              data file from multi-intersection 
     basename.spatialVenn.txt        summary of spatial overlap for each category
 
-	USAGE: intersect_peaks.pl --out <basename> peak1.narrowPeak peak2.narrowPeak ....
+Usage:
 
-	OPTIONS:
+	intersect_peaks.pl --out <basename> peak1.narrowPeak peak2.narrowPeak ....
+
+Options:
+
 		--out basename          Provide the output basename
 		--bed path              Path to bedtools (bedtools)
 		--help                  Print documentation
@@ -251,6 +259,7 @@ de-duplication levels may affect these ratios; if possible, de-duplicate first.
 Advanced users may provide one processed bigWig file per ChIP or control sample. 
 
 Options:
+
 	 Input files
 	  --chip      file1,file2...    Repeat for each sample set
 	  --name      text              Repeat for each sample
@@ -347,9 +356,12 @@ including the following:
 - pairwise Pearson, Spearman, and Euclidean distance between all sample replicates with heat map and cluster
 - PCA plot between all sample replicates
 
-Usage: `plot_peak_figures.R [options]`
+Usage: 
+
+	plot_peak_figures.R [options]
 	
-	Options:
+Options:
+
 		-i INPUT, --input=INPUT
 			Path and basename to the multirep_macs2_pipeline combined output
 
@@ -375,9 +387,12 @@ This script will plot the predicted shift models from the BioToolBox bam2wig
 application. Two plots are prepared: the mean stranded coverage around peaks, 
 and the mean correlation for different shift values.
 
-Usage: `plot_shift_models.R [options]`
+Usage: 
+
+	plot_shift_models.R [options]
 
 Options:
+
 	-i INPUT, --input=INPUT
 		Path and basename to the bam2wig *_model.txt and *_correlations.txt files
 	
@@ -392,9 +407,12 @@ A database can be Bio::DB::SeqFeature::Store database, Bam file (`.bam`),
 bigWig (`.bw`) file, bigBed (`.bb`) file, fasta (`.fa` or `.fasta`) file, or 
 a directory of individual fasta files. 
 
-Usage: `print_chromosome_lengths.pl <database>`
+Usage: 
+
+	print_chromosome_lengths.pl <database>
 
 Options:
+
 	-d --db "file"               Indexed database file
 	-K --chrskip "text"          Chromosome skip regex
 	-o --out "file"              Optional file name
@@ -419,9 +437,12 @@ differences between ChIP1 and ChIP2 (or Reference) is written
 for converting into a bigWig for visualization. Merged 
 significant intervals of enrichment are written as a bed file.
 
-Usage: `run_DESeq2.R [options]`
+Usage: 
+
+	run_DESeq2.R [options]
 
 Options:
+
 	-c COUNT, --count=COUNT
 		Input file containing count data
 
@@ -463,9 +484,12 @@ for visualization. Merged significant intervals for
 differential enrichment of ChIP1 (class 2) and ChIP2 
 (class 1) are written as bed files.
 
-Usage: `run_normR_difference.R [options]`
+Usage: 
+
+	run_normR_difference.R [options]
 
 Options:
+
 	-i INPUT, --input=INPUT
 		Input file containing count data
 
@@ -503,9 +527,12 @@ ChIP and Reference is written for converting into a bigWig
 for visualization. Merged significant intervals for 
 enrichment are written as bed files.
 
-Usage: `run_normR_enrichment.R [options]`
+Usage: 
+
+	run_normR_enrichment.R [options]
 
 Options:
+
 	-i INPUT, --input=INPUT
 		Input file containing count data
 
