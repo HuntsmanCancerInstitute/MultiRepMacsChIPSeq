@@ -2,29 +2,29 @@
 
 Documentation for the applications included in this package:
 
-- [bam_partial_dedup.pl](#bam_partial_dedup.pl)
+- [bam_partial_dedup.pl](#bam_partial_deduppl)
 
-- [combine_replicate_data.pl](#combine_replicate_data.pl)
+- [combine_replicate_data.pl](#combine_replicate_datapl)
 
-- [combine_std_chipstats.pl](#combine_std_chipstats.pl)
+- [combine_std_chipstats.pl](#combine_std_chipstatspl)
 
-- [generate_mean_bedGraph.pl](#generate_mean_bedGraph.pl)
+- [generate_mean_bedGraph.pl](#generate_mean_bedgraphpl)
 
-- [intersect_peaks.pl](#intersect_peaks.pl)
+- [intersect_peaks.pl](#intersect_peakspl)
 
-- [multirep_macs2_pipeline.pl](#multirep_macs2_pipeline.pl)
+- [multirep_macs2_pipeline.pl](#multirep_macs2_pipelinepl)
 
-- [plot_peak_figures.R](#plot_peak_figures.R)
+- [plot_peak_figures.R](#plot_peak_figuresr)
 
-- [plot_shift_models.R](#plot_shift_models.R)
+- [plot_shift_models.R](#plot_shift_modelsr)
 
-- [print_chromosome_lengths.pl](#print_chromosome_lengths.pl)
+- [print_chromosome_lengths.pl](#print_chromosome_lengthspl)
 
-- [run_DESeq2.R](#run_DESeq2.R)
+- [run_DESeq2.R](#run_deseq2r)
 
-- [run_normR_difference.R](#run_normR_difference.R)
+- [run_normR_difference.R](#run_normr_differencer)
 
-- [run_normR_enrichment.R](#run_normR_enrichment.R)
+- [run_normR_enrichment.R](#run_normr_enrichmentr)
 
 
 ## bam_partial_dedup.pl

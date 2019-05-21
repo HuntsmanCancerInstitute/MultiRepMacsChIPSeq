@@ -93,7 +93,7 @@ Below is a general overview of the pipeline
 - Deduplicate
 
     If indicated, the duplicates are downsampled in all samples to the same fraction 
-    using [bam_partial_dedup](applications.md#bam_partial_dedup.pl).
+    using [bam_partial_dedup](applications.md#bam_partial_deduppl).
 
 - Generate fragment coverage files
 
@@ -131,14 +131,14 @@ Below is a general overview of the pipeline
     Use BedTools to intersect the peaks from each ChIP condition into a master list
     of peaks across all ChIP conditions, as well as generate statistics of the amount
     of overlap between peaks. These can be plotted with
-    [plot_peak_figures](applications.md#plot_peak_figures.R).
+    [plot_peak_figures](applications.md#plot_peak_figuresr).
 
 - Rescore peaks
 
 	Use [get_datasets](https://metacpan.org/pod/get_datasets.pl) to generate matrices of
 	log2 Fold Enrichment scores, q-value scores, and count (integer only) data for the
 	master list of peaks. The log2FE and q-value scores can be plotted as heat maps with
-	[plot_peak_figures](applications.md#plot_peak_figures.R). 
+	[plot_peak_figures](applications.md#plot_peak_figuresr). 
 
 - Score genome
 
@@ -196,15 +196,15 @@ usually derive similar values, and then evaluate and take the most reasonable on
 	direct it to check more with `--chroms` option. It is multi-threaded with the
 	`--cpu` option. It will generate two text output files, which can be processed
 	into PDFs for visualization using the included
-	[plot_shift_models](applications.md#plot_shift_models.R) script as shown.
+	[plot_shift_models](applications.md#plot_shift_modelsr) script as shown.
 
 ## Duplication level determination
 
 Calculate the duplication level using the
-[bam_partial_dedup](applications.md#bam_partial_dedup.pl) application for each
+[bam_partial_dedup](applications.md#bam_partial_deduppl) application for each
 sample. If desired, capture the standard output to file, which can then be combined
 into a single file with
-[combine_std_chipstats](applications.md#combine_std_chipstats.pl). Be sure to
+[combine_std_chipstats](applications.md#combine_std_chipstatspl). Be sure to
 specify paired-end alignments with `--pe` option as necessary.
 
     $ bam_partial_dedup.pl -i file1.bam > file1.dup.txt
@@ -218,7 +218,7 @@ repetitive elements, and other known sites of artificial enrichment. If a [black
 list](https://sites.google.com/site/anshulkundaje/projects/blacklists) isn't
 published for your genome, you can generate one by calling peaks on the Input or
 reference sample alone, and use the egregious peaks as a blacklist. You can provide
-this blacklist to the [bam_partial_dedup](applications.md#bam_partial_dedup.pl) program.
+this blacklist to the [bam_partial_dedup](applications.md#bam_partial_deduppl) program.
 
     $ bam_partial_dedup.pl -i file1.bam --chrskip chrM --blacklist blacklist.bed > file1.dedup.txt
 
@@ -244,7 +244,7 @@ better results (duplication levels may already be low).
 ## Simple Peak call
 
 To call peaks on a single ChIPSeq sample with multiple replicates, call the
-[multirep_macs2_pipeline](applications.md#multirep_macs2_pipeline.pl) script,
+[multirep_macs2_pipeline](applications.md#multirep_macs2_pipelinepl) script,
 giving the bam files as a comma-delimited list as shown below.
 
     $ multirep_macs2_pipeline.pl \
@@ -295,7 +295,7 @@ for evaluating differential peaks through additional software such as
 ### Plotting results
 
 To prepare some clustered heat maps of the intersections and the scores across the
-peaks, run the included [plot_peak_figures](applications.md#plot_peak_figures.R)
+peaks, run the included [plot_peak_figures](applications.md#plot_peak_figuresr)
 R script. It will generate a distance heat map of the jaccard intersection (spatial
 overlap) between the different peak calls, as well as a heat map of the Q-value
 scores and log2 Fold enrichment scores. Further, it will generate a k-means clustered
@@ -543,7 +543,7 @@ ChIP) or enrichment (ChIP vs Input) can be performed. The normR package uses a
 binomial mixture model with expectation maximization to identify either differential
 regions (ChIP vs ChIP) or enrichment (ChIP vs Input). Replicates are not used, so
 replicate counts must be averaged; see the included
-[combine_replicate_data](applications.md#combine_replicate_data.pl) script.
+[combine_replicate_data](applications.md#combine_replicate_datapl) script.
 
 ## Repeating genomic search for peaks
 
@@ -552,9 +552,9 @@ BioToolBox [get_datasets](https://metacpan.org/pod/get_datasets.pl) or similar.
 The size of window is dependent on the nature of the peaks, but 500 bp, 1 or 2 kb may
 be appropriate.
 
-Use the [run_DESeq2](applications.md#run_DESeq2.R) script, specifying the Input as
+Use the [run_DESeq2](applications.md#run_deseq2r) script, specifying the Input as
 the second ChIP. Use the
-[run_normR_enrichment](applications.md#run_normR_enrichment.R) script, specifying
+[run_normR_enrichment](applications.md#run_normr_enrichmentr) script, specifying
 the ChIP and Input. It's best to set the cutoff for both q-value (or adjusted
 p-value) as well as a minimum count; Otherwise, even low-enriched regions might get
 called significant.
@@ -569,9 +569,9 @@ called significant.
 ## Differential Peak analysis
 
 Again, both packages may be used here. Use the
-[run_DESeq2](applications.md#run_DESeq2.R) script, specifying both ChIPs.
+[run_DESeq2](applications.md#run_deseq2r) script, specifying both ChIPs.
 Alternatively, run the
-[run_normR_difference](applications.md#run_normR_difference.R) script. 
+[run_normR_difference](applications.md#run_normr_differencer) script. 
 
 	run_normR_enrich.R --input chip_genome_counts.txt.gz --first chip1 --second chip2 \
 	--min 100 --threshold 0.001 --output differential_chip1_chip2
