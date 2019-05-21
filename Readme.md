@@ -93,7 +93,7 @@ Below is a general overview of the pipeline
 - Deduplicate
 
     If indicated, the duplicates are downsampled in all samples to the same fraction 
-    using `bam_partial_dedup`.
+    using [bam_partial_dedup](applications.md#bam_partial_dedup.pl).
 
 - Generate fragment coverage files
 
@@ -103,16 +103,18 @@ Below is a general overview of the pipeline
 
 - Generate lambda control files
 
-    Generate lambda control fragment coverage files using `bam2wig` and Macs2 based on the 
-    maximum coverage of local (fragment size), small, and large lambda sizes . 
+    Generate lambda control fragment coverage files using
+    [bam2wig](https://metacpan.org/pod/bam2wig.pl) and Macs2 based on the maximum
+    coverage of local (fragment size), small, and large lambda sizes. 
 
 - Generate count files
 
-    To facilitate generating count matrices later, point data (shifted start positions or 
-    paired fragment midpoints) count bigWig files are generated using `bam2wig` for each 
-    sample replicate. By default, replicates are depth-normalized and scaled to the 
-    target depth, taking into account any special normalization factors, or counts may 
-    be left "raw" (no scaling whatsoever).
+    To facilitate generating count matrices later, point data (shifted start
+    positions or paired fragment midpoints) count bigWig files are generated using
+    [bam2wig](https://metacpan.org/pod/bam2wig.pl) for each sample replicate. By
+    default, replicates are depth-normalized and scaled to the target depth, taking
+    into account any special normalization factors, or counts may be left "raw" (no
+    scaling whatsoever).
 
 - Generate enrichment files
 
@@ -126,16 +128,17 @@ Below is a general overview of the pipeline
 
 - Intersect peaks
 
-    Use BedTools to intersect the peaks from each ChIP condition into a master list of 
-    peaks across all ChIP conditions, as well as generate statistics of the amount of 
-    overlap between peaks. These can be plotted with `plot_peak_figures.R`.
+    Use BedTools to intersect the peaks from each ChIP condition into a master list
+    of peaks across all ChIP conditions, as well as generate statistics of the amount
+    of overlap between peaks. These can be plotted with
+    [plot_peak_figures](applications.md#plot_peak_figures.R).
 
 - Rescore peaks
 
 	Use [get_datasets](https://metacpan.org/pod/get_datasets.pl) to generate matrices of
 	log2 Fold Enrichment scores, q-value scores, and count (integer only) data for the
 	master list of peaks. The log2FE and q-value scores can be plotted as heat maps with
-	`plot_peak_figures.R`. 
+	[plot_peak_figures](applications.md#plot_peak_figures.R). 
 
 - Score genome
 
@@ -189,37 +192,43 @@ usually derive similar values, and then evaluate and take the most reasonable on
     
         $ plot_shift_models.R --input chip_shift
 
-	Note that bam2wig example will only sample a subset of the chromosomes unless you direct 
-	it to check more with `--chroms` option. It is multi-threaded with the `--cpu` option. 
-	It will generate two text output files, which can be processed into PDFs for 
-	visualization using the included `plot_shift_models.R` script as shown.
+	Note that bam2wig example will only sample a subset of the chromosomes unless you
+	direct it to check more with `--chroms` option. It is multi-threaded with the
+	`--cpu` option. It will generate two text output files, which can be processed
+	into PDFs for visualization using the included
+	[plot_shift_models](applications.md#plot_shift_models.R) script as shown.
 
 ## Duplication level determination
 
-Calculate the duplication level using the `bam_partial_dedup` application for each 
-sample. If desired, capture the standard output to file, which can then be combined into 
-a single file with `combine_std_chipstats`. Be sure to specify paired-end alignments 
-with `--pe` option.
+Calculate the duplication level using the
+[bam_partial_dedup](applications.md#bam_partial_dedup.pl) application for each
+sample. If desired, capture the standard output to file, which can then be combined
+into a single file with
+[combine_std_chipstats](applications.md#combine_std_chipstats.pl). Be sure to
+specify paired-end alignments with `--pe` option as necessary.
 
     $ bam_partial_dedup.pl -i file1.bam > file1.dup.txt
     
     $ combine_std_chipstats.pl dup_stats.txt file*.dup.txt
 
-*Note* that if duplicate subsampling is used (default), then it's best to avoid
+**Note** that if duplicate subsampling is used (default), then it's best to avoid
 sources of artificial duplicates, which can artificially inflate duplication rates.
 These include the mitochondrial chromosome, rDNA and other high-copy number genes,
 repetitive elements, and other known sites of artificial enrichment. If a [black
 list](https://sites.google.com/site/anshulkundaje/projects/blacklists) isn't
 published for your genome, you can generate one by calling peaks on the Input or
 reference sample alone, and use the egregious peaks as a blacklist. You can provide
-this blacklist to the `bam_partial_dedup` program.
+this blacklist to the [bam_partial_dedup](applications.md#bam_partial_dedup.pl) program.
 
     $ bam_partial_dedup.pl -i file1.bam --chrskip chrM --blacklist blacklist.bed > file1.dedup.txt
 
-*NOTE* that if your sample has high optical duplicates, e.g. sequence from a
+**NOTE** that if your sample has high optical duplicates, e.g. sequence from a
 patterned Illumina flowcell like NovaSeq, please add the `--optical` and `--distance`
 options to remove these. Optical duplicates are entirely artificial sequencing
-artifacts and should not be considered.
+artifacts and should not be considered. For NovaSeq, set the pixel distance to at least 
+10,000.
+
+	--optical --distance 10000
     
 It's best to determine the level of alignment duplication in all samples, and set the
 target level to the lowest observed, which is frequently the Input sample. A 5-20%
@@ -229,14 +238,14 @@ significantly alter levels.
 
 Subsampling duplicate reads works best with tall, narrow ChIP enrichment, such as 
 site-specific DNA-binding factors. For very broad enrichment, such as certain 
-broad histone marks or certain chromatin factors, turning off duplication sub-sampling 
-may give better results.
+broad histone marks or certain chromatin factors, removing all duplicates may give 
+better results (duplication levels may already be low).
 
 ## Simple Peak call
 
-To call peaks on a single ChIPSeq sample with multiple replicates, call the 
-`multirep_macs2_pipeline.pl` script, giving the bam files as a comma-delimited list 
-as shown below.
+To call peaks on a single ChIPSeq sample with multiple replicates, call the
+[multirep_macs2_pipeline](applications.md#multirep_macs2_pipeline.pl) script,
+giving the bam files as a comma-delimited list as shown below.
 
     $ multirep_macs2_pipeline.pl \
     --chip file1.bam,file2.bam,file3.bam \
@@ -260,7 +269,7 @@ file.
 ## Differential peak calls
 
 When multiple conditions are being tested and compared for differential binding, then
-simply add additional `--chip` and `--name` arguments. *NOTE* the order is kept the
+simply add additional `--chip` and `--name` arguments. **NOTE** the order is kept the
 same for each condition. If each condition has a separate reference, then `--control`
 can be repeated for each as well. If there are multiple controls, and some are shared
 between more than one ChIP but not all, that's ok; list each control for each ChIP
@@ -278,20 +287,21 @@ and duplicate entries will be smartly handled.
 
 At the end of the pipeline, individual peaks from all conditions are merged into a 
 single master list of all peaks identified. These are then re-scored for log2 fold 
-enrichment and q-value scored, which can be used for making heat maps for a visual 
+enrichment and q-value, which can be used for making heat maps for a visual 
 comparison. Furthermore, read counts from each of the replicates are also collected 
 for evaluating differential peaks through additional software such as 
 [DESeq2](http://www.bioconductor.org/packages/release/bioc/html/DESeq2.html).
 
 ### Plotting results
 
-To prepare some clustered heat maps of the intersections and the scores across the 
-peaks, run the included `plot_figures.R` R script. It will generate a distance heat map 
-of the jaccard intersection (spatial overlap) between the different peak calls, as well 
-as a heat map of the Q-value scores and log2 Fold enrichment scores. Further, it will 
-generate a k-means clustered heat map of the log2 fold enrichment to identify possible 
-interesting clusters of differential enrichment between the conditions. Give the script 
-the `--out` name you provided to the wrapper:
+To prepare some clustered heat maps of the intersections and the scores across the
+peaks, run the included [plot_peak_figures](applications.md#plot_peak_figures.R)
+R script. It will generate a distance heat map of the jaccard intersection (spatial
+overlap) between the different peak calls, as well as a heat map of the Q-value
+scores and log2 Fold enrichment scores. Further, it will generate a k-means clustered
+heat map of the log2 fold enrichment to identify possible interesting clusters of
+differential enrichment between the conditions. Give the script the `--out` name you
+provided to the wrapper:
 
     $ plot_peak_figures.R --input all_chips
 
@@ -317,7 +327,7 @@ the `--out` name you provided to the wrapper:
         --dupfrac 0 \
         --maxdup 10 \
     
-    For traditional approach and remove *all* duplicates, use the following settings:
+    For a traditional approach to remove **all** duplicates, use the following settings:
     
         --dupfrac 0 \
         --maxdup 1 \
@@ -325,7 +335,7 @@ the `--out` name you provided to the wrapper:
     Or you may completely turn off de-duplication by using the `--nodup` flag. Use 
     this option if you have already marked duplicates, perhaps by using unique molecular 
     indexes (UMIs) or barcodes (see [UMIScripts](https://github.com/HuntsmanCancerInstitute/UMIScripts), 
-    for example). Marked duplicate reads are *always* skipped regardless of these settings.
+    for example). Marked duplicate reads are **always** skipped regardless of these settings.
     
     In general, random subsampling is preferred over setting an arbitrary maximum depth, 
     which is analogous to cutting off all peaks at a certain height, effectively making 
@@ -336,7 +346,7 @@ the `--out` name you provided to the wrapper:
     You can filter reads based on a minimum mapping quality, overlap with known 
     trouble hot spots (Encode blacklists or repetitive regions), or even skip entire 
     chromosomes using a Perl regular expression. Filtering against known hot spots, repetitive 
-    regions, ribosomal genes, and the mitochondrial chromosome is *highly* recommended, 
+    regions, ribosomal genes, and the mitochondrial chromosome is **highly** recommended, 
     especially when subsampling duplicates, as these can be a large source of duplicate 
     reads.
     
@@ -356,18 +366,19 @@ the `--out` name you provided to the wrapper:
         --size 250 \
     
     For paired-end ChIPSeq, skip the size parameter and set the `--pe` flag instead. 
-    This will record the span of properly-paired fragments only.
+    This will record the span of properly-paired fragments only. Fragment size can be 
+    explicitly restricted to a size range with `--min` and `--max` options.
     
     For special situations where you need to shift the coverage from the actual alignment 
     start position, use the `--shift` parameter. Provide a negative number to shift 
-    "upstream" or in the 3' direction.
+    "upstream" or in the 5' direction.
     
     To expedite coverage track generation, fragment coverage tracks are binned (10 bp 
     by default for ChIP). This greatly reduces computation time while minimally affecting 
     coverage resolution. Lambda track binning is set automatically based on lambda size.
     
-    All tracks are generated as Read Per Million (RPM) depth-normalized values. Multiple 
-    replicates are mean averaged and reported as a single track.
+    All tracks are generated as Read (Fragment) Per Million (or RPM) depth-normalized 
+    values. Multiple replicates are mean averaged and reported as a single track.
 
 - Genome or chromosome normalization
 
@@ -496,8 +507,8 @@ For ATACSeq, there are two variations of analysis.
     (to shift the alignment start in the 5' direction or upstream) and then extend twice 
     the absolute shift value. For example
     
-        --shift -25 \
-        --size 50 \
+        --shift -10 \
+        --size 20 \
 
 # Interpretation and advanced analysis
 
@@ -522,27 +533,31 @@ for many modern experimental questions. While a k-means cluster will identify so
 these differences in a descriptive manner, using a more rigorous approach will give a 
 numerical p-value and confidence thresholds for identifying the differences.
 
-There are two R packages recommended for these types of analysis, and both use a 
-count-based analysis of intervals (peaks or genomic windows), 
-[DESeq2](https://www.bioconductor.org/packages/release/bioc/html/DESeq2.html) and 
-[normR](https://bioconductor.org/packages/release/bioc/html/normr.html). The DESeq2 
-package uses variance between sample replicates (preferably 3) to test for significance 
-using a negative binomial distribution. Either differential or (ChIP vs ChIP) or 
-enrichment (ChIP vs Input) can be performed. The normR package uses a binomial 
-mixture model with expectation maximization to identify either differential regions 
-(ChIP vs ChIP) or enrichment (ChIP vs Input). Replicates are not used, so replicate 
-counts must be averaged; see the included `combine_replicate_data.pl` script.
+There are two R packages recommended for these types of analysis, and both use a
+count-based analysis of intervals (peaks or genomic windows),
+[DESeq2](https://www.bioconductor.org/packages/release/bioc/html/DESeq2.html) and
+[normR](https://bioconductor.org/packages/release/bioc/html/normr.html). The DESeq2
+package uses variance between sample replicates (preferably 3) to test for
+significance using a negative binomial distribution. Either differential or (ChIP vs
+ChIP) or enrichment (ChIP vs Input) can be performed. The normR package uses a
+binomial mixture model with expectation maximization to identify either differential
+regions (ChIP vs ChIP) or enrichment (ChIP vs Input). Replicates are not used, so
+replicate counts must be averaged; see the included
+[combine_replicate_data](applications.md#combine_replicate_data.pl) script.
 
 ## Repeating genomic search for peaks
 
-Both DESeq2 and normR can be used. Collect counts across the genome in windows using 
-BioToolBox `get_datasets` or similar. The size of window is dependent on the nature 
-of the peaks, but 500 bp, 1 or 2 kb may be appropriate.
+Both DESeq2 and normR can be used. Collect counts across the genome in windows using
+BioToolBox [get_datasets](https://metacpan.org/pod/get_datasets.pl) or similar.
+The size of window is dependent on the nature of the peaks, but 500 bp, 1 or 2 kb may
+be appropriate.
 
-Use the `run_DESeq2.R` script, specifying the Input as the second ChIP. Use the 
-`run_normR_enrichment.R` script, specifying the ChIP and Input. It's best to set 
-the cutoff for both q-value (or adjusted p-value) as well as a minimum count; Otherwise, 
-even low-enriched regions might get called significant.
+Use the [run_DESeq2](applications.md#run_DESeq2.R) script, specifying the Input as
+the second ChIP. Use the
+[run_normR_enrichment](applications.md#run_normR_enrichment.R) script, specifying
+the ChIP and Input. It's best to set the cutoff for both q-value (or adjusted
+p-value) as well as a minimum count; Otherwise, even low-enriched regions might get
+called significant.
 
 	run_normR_enrich.R --input chip_genome_counts.txt.gz --chip chip1 --ref input \
 	--min 100 --threshold 0.001 --output chip_peaks 
@@ -553,8 +568,10 @@ even low-enriched regions might get called significant.
 
 ## Differential Peak analysis
 
-Again, both packages may be used here. Use the `run_DESeq2.R` script, specifying both 
-ChIPs. Alternatively, run the `run_normR_difference.R` script. 
+Again, both packages may be used here. Use the
+[run_DESeq2](applications.md#run_DESeq2.R) script, specifying both ChIPs.
+Alternatively, run the
+[run_normR_difference](applications.md#run_normR_difference.R) script. 
 
 	run_normR_enrich.R --input chip_genome_counts.txt.gz --first chip1 --second chip2 \
 	--min 100 --threshold 0.001 --output differential_chip1_chip2
