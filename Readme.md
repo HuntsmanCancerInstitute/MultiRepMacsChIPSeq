@@ -269,11 +269,12 @@ file.
 ## Differential peak calls
 
 When multiple conditions are being tested and compared for differential binding, then
-simply add additional `--chip` and `--name` arguments. **NOTE** the order is kept the
-same for each condition. If each condition has a separate reference, then `--control`
-can be repeated for each as well. If there are multiple controls, and some are shared
-between more than one ChIP but not all, that's ok; list each control for each ChIP
-and duplicate entries will be smartly handled.
+simply add additional `--chip` and `--name` arguments to the
+[multirep_macs2_pipeline](applications.md#multirep_macs2_pipelinepl) script. **NOTE** the
+order is kept the same for each condition. If each condition has a separate reference,
+then `--control` can be repeated for each as well. If there are multiple controls, and
+some are shared between more than one ChIP but not all, that's ok; list each control for
+each ChIP and duplicate entries will be smartly handled.
 
     $ multirep_macs2_pipeline.pl \
     --chip file1.bam,file2.bam,file3.bam \
@@ -307,6 +308,11 @@ provided to the wrapper:
 
 
 ## Pipeline options
+
+These are descriptions and guidance to the variety of options to the main 
+[multirep_macs2_pipeline](applications.md#multirep_macs2_pipelinepl) script. In most 
+cases, you will want to write the command in a shell script for execution due to the 
+complexity.
 
 - Genome size
 
