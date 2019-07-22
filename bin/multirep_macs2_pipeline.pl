@@ -19,7 +19,7 @@ use File::Which;
 use File::Path qw(make_path);
 use Getopt::Long;
 
-my $VERSION = 11.4;
+my $VERSION = 11.5;
 
 my $parallel;
 eval {
@@ -1476,8 +1476,8 @@ sub generate_bam2wig_commands {
 				$opts{minsize}, $opts{maxsize});
 		}
 		else {
-			$frag_command .= sprintf("--extend --extval %s --bin %s ", $opts{fragsize}, 
-				$opts{chipbin});
+			$frag_command .= sprintf("--extend --extval %s --shiftval %0.0f --bin %s ", 
+				$opts{fragsize}, $opts{shiftsize}, $opts{chipbin});
 			$count_command .= sprintf("--start --shiftval %0.0f ", 
 				($opts{fragsize} / 2) + $opts{shiftsize});
 		}
