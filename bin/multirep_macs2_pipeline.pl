@@ -67,7 +67,7 @@ my %opts = (
 	genomewin   => 0,
 	discard     => 10,
 	repmean     => 0,
-	doplot      => 0,
+	plot        => 0,
 	bam2wig     => sprintf("%s", which 'bam2wig.pl'),
 	bamdedup    => sprintf("%s", which 'bam_partial_dedup.pl'),
 	macs        => sprintf("%s", which 'macs2'),
@@ -82,6 +82,7 @@ my %opts = (
 	intersect   => sprintf("%s", which 'intersect_peaks.pl'),
 	combrep     => sprintf("%s", which 'combine_replicate_data.pl'),
 	plotpeak    => sprintf("%s", which 'plot_peak_figures.R'),
+	rscript     => sprintf("%s", which 'Rscript'),
 );
 $opts{job} = $parallel ? 2 : 1;
 my @names;
@@ -226,6 +227,7 @@ Options:
   --intersect path             ($opts{intersect})
   --combrep   path             ($opts{combrep})
   --plotpeak  path             ($opts{plotpeak})
+  --rscript   path             ($opts{rscript})
 DOC
 
 
@@ -872,10 +874,14 @@ sub run_rescore {
 
 
 sub run_plot_peaks {
-	return unless ($opts{plot} and $opts{plotpeak} =~ /\w+/);
+	return unless ($opts{plot});
 	print "\n\n======= Plotting Peak figures\n";
+	if ($opts{rscript} !~ /\w+/ or $opts{plotpeak} !~ /\w+/) {
+		print "Rscript or plot_peak_figures.R script not defined!\n";
+		return;
+	}
 	my $outbase = File::Spec->catfile($opts{dir}, $opts{out});
-	my $command = sprintf("%s --input %s ", $opts{plotpeak}, $outbase);
+	my $command = sprintf("%s %s --input %s ", $opts{rscript}, $opts{plotpeak}, $outbase);
 	my $log = $outbase . '_plot_figures.out.txt';
 	$command .= " 2>&1 > $log";
 	execute_commands( [ [$command, '', $log] ] );
