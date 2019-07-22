@@ -495,7 +495,8 @@ For ATACSeq, there are two variations of analysis.
         --min 30 \
         --max 120 \
     
-    For single-end, you can treat it as you would as ChIP-Seq.
+    For single-end, you can treat it as you would as ChIP-Seq (which would calculate 
+    a mean fragment size to use), or use the cut site analysis below.
     
 - Cut site analysis
 
@@ -509,6 +510,10 @@ For ATACSeq, there are two variations of analysis.
     
         --shift -10 \
         --size 20 \
+
+    If de-duplicating bam files and you have paired-end alignments, use the `--deduppair`
+    option to de-duplicate as paired-end alignments, but the remainder of the pipeline 
+    as single-end.
 
 # Interpretation and advanced analysis
 

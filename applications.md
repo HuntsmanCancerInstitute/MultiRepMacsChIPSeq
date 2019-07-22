@@ -108,7 +108,7 @@ Options:
 	--optical        Enable optical duplicate checking
 	--distance       Set optical duplicate distance threshold.
 				     Use 100 for unpatterned flowcell (HiSeq) or 
-				     2500 for patterned flowcell (NovaSeq). Default 100.
+				     10000 for patterned flowcell (NovaSeq). Default 100.
 				     Setting this value automatically sets --optical.
 	--keepoptical    Keep optical duplicates in output as marked 
 				     duplicates with flag bit 0x400. Optical duplicates 
@@ -291,6 +291,7 @@ Options:
 	  --maxdup    integer           Maximum allowed duplication depth ()
 	  --optdist   integer           Maximum distance for optical duplicates (0)
 									  use 100 for HiSeq, 2500 for NovaSeq
+	  --deduppair                   Run deduplication as paired-end only
 	  --savebam                     Save de-duplicated bam files
 
 	 Fragment coverage
