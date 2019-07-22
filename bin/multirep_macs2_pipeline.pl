@@ -19,7 +19,7 @@ use File::Which;
 use File::Path qw(make_path);
 use Getopt::Long;
 
-my $VERSION = 11.3;
+my $VERSION = 11.4;
 
 my $parallel;
 eval {
@@ -41,6 +41,7 @@ my %opts = (
 	maxdup      => undef,
 	dupfrac     => 0.1,
 	optdist     => 0,
+	deduppair   => 0,
 	savebam     => 0,
 	fragsize    => 250,
 	shiftsize   => 0,
@@ -155,7 +156,7 @@ Options:
   
  Bam options
   --mapq      integer           Minimum mapping quality, ($opts{mapq})
-  --pe                          Bam files are paired-end
+  --pe                          Bam files are paired-end, default treat as single-end
   --min       integer           Minimum paired-end size allowed ($opts{minsize} bp)
   --max       integer           Maximum paired-end size allowed ($opts{maxsize} bp)
  
@@ -168,7 +169,8 @@ Options:
   --dupfrac   fraction          Minimum allowed fraction of duplicates ($opts{dupfrac})
   --maxdup    integer           Maximum allowed duplication depth ($opts{maxdup})
   --optdist   integer           Maximum distance for optical duplicates ($opts{optdist})
-                                  use 100 for HiSeq, 2500 for NovaSeq
+                                  use 100 for HiSeq, 10000 for NovaSeq
+  --deduppair                   Run deduplication as paired-end only
   --savebam                     Save de-duplicated bam files
 
  Fragment coverage
@@ -249,6 +251,7 @@ GetOptions(
 	'dupfrac=f'             => \$opts{dupfrac},
 	'maxdup=i'              => \$opts{maxdup},
 	'optdist=i'             => \$opts{optdist},
+	'deduppair!'            => \$opts{deduppair},
 	'savebam!'              => \$opts{savebam},
 	'size=i'                => \$opts{fragsize},
 	'shift=i'               => \$opts{shiftsize},
@@ -1094,7 +1097,7 @@ sub generate_dedup_commands {
 			if ($opts{optdist}) {
 				$command .= sprintf("--optical --distance %s ", $opts{optdist});
 			}
-			if ($opts{paired}) {
+			if ($opts{paired} or $opts{deduppair}) {
 				$command .= "--pe ";
 			}
 			if ($opts{blacklist}) {
@@ -1135,7 +1138,7 @@ sub generate_dedup_commands {
 			if ($opts{optdist}) {
 				$command .= sprintf("--optical --distance %s ", $opts{optdist});
 			}
-			if ($opts{paired}) {
+			if ($opts{paired} or $opts{deduppair}) {
 				$command .= "--pe ";
 			}
 			if ($opts{blacklist}) {
