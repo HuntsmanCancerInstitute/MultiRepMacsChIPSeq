@@ -137,6 +137,10 @@ de-duplication levels may affect these ratios; if possible, de-duplicate first.
 
 Advanced users may provide one processed bigWig file per ChIP or control sample. 
 
+See https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq for full 
+usage and guide.
+
+Version: $VERSION
 
 Options:
  Input files
