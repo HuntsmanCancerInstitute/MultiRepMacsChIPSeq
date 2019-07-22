@@ -191,13 +191,13 @@ Options:
   --chrapply  "text"            Apply factor to specified chromosomes
  
  Peak calling
-  --cutoff    number            Threshold q-value for calling peaks ($opts{qvalue}) 
+  --cutoff    number            Threshold q-value for calling peaks ($opts{cutoff}) 
                                  Higher numbers are more significant, -1*log10(q)
   --tdep      integer           Average sequence depth of bam files in millions ($opts{targetdep})
   --peaksize  integer           Minimum peak size to call (2 x size)
   --peakgap   integer           Maximum gap between peaks before merging (1 x size)
   --broad                       Also perform broad (gapped) peak calling
-  --broadcut  number            Q-value cutoff for linking broad regions ($opts{linkqv})
+  --broadcut  number            Q-value cutoff for linking broad regions ($opts{broadcut})
   --broadgap  integer           Maximum link size between peaks in broad calls (4 x size bp)
   --nolambda                    Skip lambda control, compare ChIP directly with control
   --rawcounts                   Use unscaled raw counts for re-scoring peaks
@@ -246,12 +246,12 @@ GetOptions(
 	'species=s'             => \$opts{species},
 	'genome=i'              => \$opts{genome},
 	'mapq=i'                => \$opts{mapq},
-	'pe!'                   => \$opts{paired},
+	'paired|pe!'            => \$opts{paired},
 	'min=i'                 => \$opts{minsize},
 	'max=i'                 => \$opts{maxsize},
 	'chrskip=s'             => \$opts{chrskip},
 	'blacklist=s'           => \$opts{blacklist},
-	'dup!'                  => \$opts{dedup},
+	'dup!'                  => \$opts{dup},
 	'dupfrac=f'             => \$opts{dupfrac},
 	'maxdup=i'              => \$opts{maxdup},
 	'optdist=i'             => \$opts{optdist},
@@ -266,19 +266,19 @@ GetOptions(
 	'llbin=i'               => \$opts{llocalbin},
 	'chrnorm=f'             => \@chrnorms,
 	'chrapply=s'            => \$opts{chrapply},
-	'cutoff=f'              => \$opts{qvalue},
+	'cutoff=f'              => \$opts{cutoff},
 	'tdep=f'                => \$opts{targetdep},
 	'peaksize=i'            => \$opts{peaksize},
 	'peakgap=i'             => \$opts{peakgap},
 	'broad!'                => \$opts{broad},
-	'broadcut=f'            => \$opts{linkqv},
-	'broadgap=i'            => \$opts{gaplink},
-	'lambda!'               => \$opts{use_lambda},
+	'broadcut=f'            => \$opts{broadcut},
+	'broadgap=i'            => \$opts{broadgap},
+	'lambda!'               => \$opts{lambda},
 	'savebdg!'              => \$opts{savebdg},
-	'window=i'              => \$opts{genomewin},
+	'window=i'              => \$opts{window},
 	'discard=f'             => \$opts{discard},
 	'repmean!'              => \$opts{repmean},
-	'plot!'                 => \$opts{doplot},
+	'plot!'                 => \$opts{plot},
 	'cpu=i'                 => \$opts{cpu},
 	'job=i'                 => \$opts{job},
 	'bam2wig=s'             => \$opts{bam2wig},
@@ -341,7 +341,7 @@ sub check_inputs {
 		# no controls, turn off lambda
 		$opts{slocal} = 0;
 		$opts{llocal} = 0;
-		$opts{use_lambda} = 0;
+		$opts{lambda} = 0;
 	}
 	if (scalar(@chip_scales) and scalar(@chip_scales) != scalar(@chips)) {
 		die "unequal ChIP samples and ChIP scale factors!\n";
@@ -391,12 +391,12 @@ sub check_inputs {
 	unless (defined $opts{peakgap}) {
 		$opts{peakgap} = $opts{fragsize};
 	}
-	unless (defined $opts{gaplink}) {
-		$opts{gaplink} = 4 * $opts{fragsize};
+	unless (defined $opts{broadgap}) {
+		$opts{broadgap} = 4 * $opts{fragsize};
 	}
-	if ($opts{doplot} and scalar(@names) == 1) {
+	if ($opts{plot} and scalar(@names) == 1) {
 		# no sense plotting figures if we only have one ChIP set
-		$opts{doplot} = 0;
+		$opts{plot} = 0;
 	}
 	# add parameters to option hash for printing configuration
 	$opts{chipscale} = join(", ", @chip_scales);
@@ -466,7 +466,7 @@ sub generate_job_file_structure {
 }
 
 sub run_dedup {
-	return unless ($opts{dedup});
+	return unless ($opts{dup});
 	my @commands;
 	my %name2done;
 	print "\n\n======= De-duplicating bam files\n";
@@ -701,7 +701,7 @@ sub run_rescore {
 	my $command3 = sprintf("%s --method sum --cpu %s --in %s --out %s --format 0 ",
 		$opts{getdata}, $opts{cpu}, $input, $output3);
 	my $command4 = sprintf("%s --method sum --cpu %s --feature genome --win %d --discard %s --out %s --format 0 ",
-		$opts{getdata}, $opts{cpu}, $opts{genomewin}, $opts{discard}, $output4);
+		$opts{getdata}, $opts{cpu}, $opts{window}, $opts{discard}, $output4);
 	foreach my $Job (@Jobs) {
 		if ($Job->{qvalue_bw}) {
 			$command1 .= sprintf("--data %s ", $Job->{qvalue_bw});
@@ -742,7 +742,7 @@ sub run_rescore {
 	$log =~ s/txt$/log.txt/;
 	$command3 .= " 2>&1 > $log";
 	push @commands, [$command3, $output3, $log];
-	if ($opts{genomewin}) {
+	if ($opts{window}) {
 		# user has given an actual genome window size, so we'll run this command
 		$log = $output4;
 		$log =~ s/txt\.gz$/log.txt/;
@@ -842,7 +842,7 @@ sub run_rescore {
 		push @commands2, [$command9, $output3m, $log];
 		
 		# genome counts
-		if ($opts{genomewin}) {
+		if ($opts{window}) {
 			my $output4m = File::Spec->catfile($opts{dir}, $opts{out} . 
 				'_genome_meanCounts.txt.gz');
 			my $command10 = sprintf("%s --in %s --out %s --sample %s --method mean --format 0 ", 
@@ -872,7 +872,7 @@ sub run_rescore {
 
 
 sub run_plot_peaks {
-	return unless ($opts{doplot} and $opts{plotpeak} =~ /\w+/);
+	return unless ($opts{plot} and $opts{plotpeak} =~ /\w+/);
 	print "\n\n======= Plotting Peak figures\n";
 	my $outbase = File::Spec->catfile($opts{dir}, $opts{out});
 	my $command = sprintf("%s --input %s ", $opts{plotpeak}, $outbase);
@@ -1022,7 +1022,7 @@ sub new {
 		$self->{lambda_bdg} = File::Spec->catfile($opts{dir}, 
 			$opts{out} . "_control"); 
 			# we make the same name as was generated in generate_job_file_structure()
-		$self->{lambda_bdg} .= $opts{use_lambda} ? '.lambda_control.bdg' : '.bdg';
+		$self->{lambda_bdg} .= $opts{lambda} ? '.lambda_control.bdg' : '.bdg';
 	}
 	elsif ($control =~ /\.(?:bw|bigwig)$/i) {
 		die "only one control bigWig file is allowed per experiment!\n" if $chip =~ /,/;
@@ -1037,7 +1037,7 @@ sub new {
 		my $lambdabase = $name =~ /_control$/ ? $namepath : $namepath . "_control";
 			# make sure we get _control in the name
 			# universal controls will get it, but individual controls will not
-		if ($opts{use_lambda}) {
+		if ($opts{lambda}) {
 			$self->{lambda_bdg} = "$lambdabase.lambda_control.bdg";
 			$self->{lambda_bw} = "$lambdabase.lambda_control.bw";
 			$self->{d_control_bdg} = "$lambdabase.dlocal.bdg";
@@ -1310,7 +1310,7 @@ sub generate_bam2wig_commands {
 	}
 	
 	# process control bams into a chromatin bias lambda-control track
-	if (scalar @{$self->{control_use_bams}} and $opts{use_lambda} and 
+	if (scalar @{$self->{control_use_bams}} and $opts{lambda} and 
 		not exists $name2done->{$control_bam_string}
 	) {
 		
@@ -1449,7 +1449,7 @@ sub generate_bam2wig_commands {
 	
 	
 	# skipping chromatin-bias lambda control track, use control track as is
-	elsif (scalar @{$self->{control_use_bams}} and not $opts{use_lambda} and 
+	elsif (scalar @{$self->{control_use_bams}} and not $opts{lambda} and 
 			not exists $name2done->{$control_bam_string}
 	) {
 		
@@ -1693,7 +1693,7 @@ sub generate_enrichment_commands {
 	my $command = sprintf("%s bdgcmp -t %s -c %s -S %s -m qpois FE -o %s %s ", 
 		$opts{macs}, $chip, $lambda, $opts{targetdep}, $self->{qvalue_bdg}, 
 		$self->{fe_bdg});
-	if (not $opts{use_lambda}) {
+	if (not $opts{lambda}) {
 		$command .= "-p 1 "; # add a pseudo count of 1 when doing explicit comparisons
 	}
 	my $log = $self->{qvalue_bdg};
@@ -1709,7 +1709,7 @@ sub generate_peakcall_commands {
 	return unless $qtrack;
 	die "no qvalue bedGraph file $qtrack!\n" unless -e $qtrack;
 	my $command = sprintf("%s bdgpeakcall -i %s -c %s -l %s -g %s --no-trackline -o %s ",
-		$opts{macs}, $qtrack, $opts{qvalue}, $opts{peaksize}, $opts{peakgap}, 
+		$opts{macs}, $qtrack, $opts{cutoff}, $opts{peaksize}, $opts{peakgap}, 
 		$self->{peak}
 	);
 	my $log = $self->{peak};
@@ -1720,8 +1720,8 @@ sub generate_peakcall_commands {
 		my $bpeak = $self->{peak};
 		$bpeak =~ s/narrow/gapped/;
 		my $command2 = sprintf("%s bdgbroadcall -i %s -c %s -C %s -l %s -g %s -G %s -o %s ",
-			$opts{macs}, $qtrack, $opts{qvalue}, $opts{linkqv}, $opts{peaksize}, 
-			$opts{peakgap}, $opts{gaplink}, $bpeak
+			$opts{macs}, $qtrack, $opts{cutoff}, $opts{broadcut}, $opts{peaksize}, 
+			$opts{peakgap}, $opts{broadgap}, $bpeak
 		);
 		my $log2 = $self->{peak};
 		$log2 =~ s/narrowPeak$/broadcall.out.txt/;
