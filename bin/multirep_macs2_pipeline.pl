@@ -19,7 +19,7 @@ use File::Which;
 use File::Path qw(make_path);
 use Getopt::Long;
 
-my $VERSION = 11.2;
+my $VERSION = 11.3;
 
 my $parallel;
 eval {
@@ -1613,7 +1613,7 @@ sub generate_lambda_control_commands {
 	}
 	elsif ($sfile and not $lfile) {
 		# first step
-		$command = sprintf("%s unionbdg -header -names dlocal slocal background -i %s %s %s > %s 2> $log ", 
+		$command = sprintf("%s unionbedg -header -names dlocal slocal background -i %s %s %s > %s 2> $log ", 
 			$opts{bedtools}, $dfile, $sfile, $background_bdg, 
 			$self->{sld_control_file});
 		
@@ -1628,7 +1628,7 @@ sub generate_lambda_control_commands {
 	}
 	elsif (not $sfile and $lfile) {
 		# first step
-		$command = sprintf("%s unionbdg -header -names dlocal llocal background -i %s %s %s > %s 2> $log ", 
+		$command = sprintf("%s unionbedg -header -names dlocal llocal background -i %s %s %s > %s 2> $log ", 
 			$opts{bedtools}, $dfile, $lfile, $background_bdg, 
 			$self->{sld_control_file});
 		
