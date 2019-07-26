@@ -677,7 +677,10 @@ sub run_peak_merge {
 			$command .= sprintf("%s ", $Job->{peak});
 		}
 	}
-	push @commands, [$command, $merge_file, ''];
+	my $log = $merge_file . '.merge.out.txt';
+	$command .= sprintf("2>&1 > %s ", $log);
+	push @commands, [$command, $merge_file . '.bed', $log]; 
+		# this will have multiple outputs, but one is just a .bed file
 	
 	# broadPeaks
 	if ($opts{broad}) {
@@ -692,7 +695,10 @@ sub run_peak_merge {
 				$command2 .= sprintf("%s ", $bf);
 			}
 		}
-		push @commands, [$command2, $merge2_file, ''];
+		my $log2 = $merge2_file . '.merge.out.txt';
+		$command2 .= sprintf("2>&1 > %s ", $log2);
+		push @commands, [$command2, $merge2_file . '.bed', $log2];
+			# this will have multiple outputs, but one is just a .bed file
 	}
 	
 	execute_commands(\@commands);
