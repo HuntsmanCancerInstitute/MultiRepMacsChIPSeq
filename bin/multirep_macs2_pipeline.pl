@@ -19,7 +19,7 @@ use File::Which;
 use File::Path qw(make_path);
 use Getopt::Long;
 
-my $VERSION = 11.5;
+my $VERSION = 11.6;
 
 my $parallel;
 eval {
@@ -37,7 +37,7 @@ my %opts = (
 	mapq        => 0,
 	minsize     => 50,
 	maxsize     => 500,
-	dedup       => 1,
+	dup         => 1,
 	maxdup      => undef,
 	dupfrac     => 0.1,
 	optdist     => 0,
