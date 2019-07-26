@@ -19,7 +19,7 @@ use File::Which;
 use File::Path qw(make_path);
 use Getopt::Long;
 
-my $VERSION = 11.6;
+my $VERSION = 12;
 
 my $parallel;
 eval {
@@ -448,22 +448,27 @@ sub generate_job_file_structure {
 	# name, chip files, control files, chip scale factor, control scale factor, 
 	# chromosome normalization factor
 	my @jobs;
-	# check for a unversal control
+	
+	# first check for a unversal control
 	if (scalar(@controls) == 1 and scalar(@chips) > 1) {
 		print "Using only one control for multiple ChIP experiments\n";
 		my $universal_control = shift @controls;
 		my $universal_scale = shift @control_scales || undef;
+		my $universal_name = 'Custom-Universal-' . $universal_control;
 		foreach (@names) {
-			push @controls, 'universal';
+			push @controls, $universal_name;
 		}
 		push @jobs, ChIPjob->new($opts{out} . "_control", '', $universal_control, 
 			undef, $universal_scale, $chrnorms[0] || undef);
 	}
+	
+	# walk through each given job
 	for my $i (0 .. $#names) {
 		push @jobs, ChIPjob->new($names[$i], $chips[$i], $controls[$i] || undef, 
 			$chip_scales[$i] || undef, $control_scales[$i] || undef, 
 			$chrnorms[$i] || undef );
 	}
+	
 	return @jobs;
 }
 
@@ -1023,18 +1028,18 @@ sub new {
 	
 	
 	## check the control files
-	if ($control eq 'universal') {
-		# this is just a ChIP Job using a common universal control lambda
-		$self->{lambda_bdg} = File::Spec->catfile($opts{dir}, 
-			$opts{out} . "_control"); 
-			# we make the same name as was generated in generate_job_file_structure()
-		$self->{lambda_bdg} .= $opts{lambda} ? '.lambda_control.bdg' : '.bdg';
+	if ($control =~ /^Custom\-Universal\-(.+)$/) {
+		# this is just a ChIP Job using a common universal reference file
+		my (undef, undef, $file) = File::Spec->splitpath($1);
+		$file =~ s/(?:bw|bigwig)$/bdg/i;
+		$self->{lambda_bdg} = File::Spec->catfile($opts{dir}, $file); 
 	}
 	elsif ($control =~ /\.(?:bw|bigwig)$/i) {
 		die "only one control bigWig file is allowed per experiment!\n" if $chip =~ /,/;
 		$self->{lambda_bw} = $control;
-		$self->{lambda_bdg} = $control;
-		$self->{lambda_bdg} =~ s/(?:bw|bigwig)$/bdg/i;
+		my (undef, undef, $file) = File::Spec->splitpath($control);
+		$file =~ s/(?:bw|bigwig)$/bdg/i;
+		$self->{lambda_bdg} = File::Spec->catfile($opts{dir}, $file); 
 	}
 	elsif ($control =~ /\.bam$/i) {
 		# we have control bams to process
