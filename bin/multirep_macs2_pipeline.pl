@@ -951,12 +951,14 @@ sub finish {
 ############### ChIPJob Package ########################################################
 
 package ChIPjob;
+use Carp;
+use Data::Dumper;
 
 sub new {
 	# pass name, comma-list of ChIP files, and comma-list of control files
 	my ($class, $name, $chip, $control, $chip_scale, $control_scale, $chrnorm) = @_;
 	my $namepath = File::Spec->catfile($opts{dir}, $name);
-	my $self = {
+	my $self = bless {
 	    name => $name,
 	    chip_bams => undef,
 	    control_bams => undef,
@@ -983,13 +985,14 @@ sub new {
 	    peak => undef,
 	    qvalue_bw => undef,
 	    chrnorm => $chrnorm,
-	};
+	}, $class;
 	
 	
 	## check the ChIP files
 	if ($chip =~ /\.(?:bw|bigwig)$/i) {
-		die "only one ChIP bigWig file is allowed per experiment!\n" if $chip =~ /,/;
 		$self->{chip_bw} = $chip;
+		$self->crash("only one ChIP bigWig file is allowed per experiment!\n") if 
+			$chip =~ /,/;
 		$self->{chip_bdg} = "$namepath.fragment.bdg";
 		$self->{qvalue_bdg} = "$namepath.qvalue.bdg";
 		$self->{qvalue_bw} = "$namepath.qvalue.bw";
@@ -1009,7 +1012,7 @@ sub new {
 		$self->{peak} = "$namepath.narrowPeak";
 		if ($chip_scale) {
 			$self->{chip_scale} = [split(',', $chip_scale)];
-			die "unequal scale factors and bam files!\n" if 
+			$self->crash("unequal scale factors and bam files!\n") if 
 				scalar(@{$self->{chip_bams}}) != scalar(@bams);
 		}
 		# count bw files
@@ -1035,7 +1038,9 @@ sub new {
 		$self->{lambda_bdg} = File::Spec->catfile($opts{dir}, $file); 
 	}
 	elsif ($control =~ /\.(?:bw|bigwig)$/i) {
-		die "only one control bigWig file is allowed per experiment!\n" if $chip =~ /,/;
+		# pre-generated reference bigWig file
+		$self->crash("only one control bigWig file is allowed per experiment!\n") if
+			$chip =~ /,/;
 		$self->{lambda_bw} = $control;
 		my (undef, undef, $file) = File::Spec->splitpath($control);
 		$file =~ s/(?:bw|bigwig)$/bdg/i;
@@ -1064,7 +1069,7 @@ sub new {
 		
 		if ($control_scale) {
 			$self->{control_scale} = [split(',', $control_scale)];
-			die "unequal scale factors and bam files!\n" if 
+			$self->crash("unequal scale factors and bam files!\n") if 
 				scalar(@bams) != scalar(@{$self->{control_scale}});
 		}
 		# count bw files
@@ -1083,13 +1088,20 @@ sub new {
 		$self->{lambda_bw} = "$namepath.fragment.global_mean.bw";
 	}
 	
-	return bless $self, $class;
+	return $self;
 }
+
+sub crash {
+	my ($self, $message) = @_;
+	printf STDERR "ChIP Job object:\n%s\n", Dumper($self);
+	confess $message;
+}
+
 
 sub generate_dedup_commands {
 	my $self = shift;
 	my $name2done = shift;
-	die "no bam_partial_dedup.pl script in path!\n" unless $opts{bamdedup} =~ /\w+/;
+	croak("no bam_partial_dedup.pl script in path!\n") unless $opts{bamdedup} =~ /\w+/;
 	my @commands;
 	if (defined $self->{chip_bams}) {
 		for (my $i = 0; $i < scalar @{$self->{chip_bams}}; $i++) {
@@ -1213,7 +1225,7 @@ sub find_dedup_bams {
 sub generate_bam2wig_commands {
 	my $self = shift;
 	my $name2done = shift;
-	die "no bam2wig.pl script in path!\n" unless $opts{bam2wig} =~ /\w+/;
+	croak("no bam2wig.pl script in path!\n") unless $opts{bam2wig} =~ /\w+/;
 	my @commands;
 	
 	### ChIP bams
@@ -1584,16 +1596,16 @@ sub generate_lambda_control_commands {
 	}
 	
 	# Proceed with generating lambda bedGraph
-	die "no macs2 application in path!\n" unless $opts{macs} =~ /\w+/;
-	die "no bedtools application in path!\n" unless $opts{bedtools} =~ /\w+/;
+	croak("no macs2 application in path!\n") unless $opts{macs} =~ /\w+/;
+	croak("no bedtools application in path!\n") unless $opts{bedtools} =~ /\w+/;
 	my $dfile = $self->{d_control_bdg};
 	my $sfile = $self->{s_control_bdg};
 	my $lfile = $self->{l_control_bdg};
 	return unless ($dfile); # controls with lambda will always have  d_control_bdg
 		# ChIP jobs and non-lambda controls will not
-	die "no d control bedGraph file '$dfile'!\n" unless (-e $dfile);
-	die "no small control bedGraph file '$sfile'!\n" if ($sfile and not -e $sfile);
-	die "no large control bedGraph file '$lfile'!\n" if ($lfile and not -e $lfile);
+	$self->crash("no d control bedGraph file '$dfile'!\n") unless (-e $dfile);
+	$self->crash("no small control bedGraph file '$sfile'!\n") if ($sfile and not -e $sfile);
+	$self->crash("no large control bedGraph file '$lfile'!\n") if ($lfile and not -e $lfile);
 	
 	# generate background lambda bedgraph
 	# go ahead and do this immediately because it's so simple
@@ -1662,7 +1674,7 @@ sub generate_lambda_control_commands {
 			$background_bdg, $self->{sld_control_file});
 	}
 	else {
-		die "programming error! how did we get here with no sfile and no lfile????";
+		$self->crash("programming error! how did we get here with no sfile and no lfile????");
 	}
 	
 	$name2done->{ $self->{lambda_bdg} } = 1;
@@ -1672,7 +1684,7 @@ sub generate_lambda_control_commands {
 sub convert_bw_to_bdg {
 	my $self = shift;
 	my $name2done = shift;
-	die "no bigWigToBedGraph application in path!\n" unless $opts{bw2bdg} =~ /\w+/;
+	croak("no bigWigToBedGraph application in path!\n") unless $opts{bw2bdg} =~ /\w+/;
 	my @commands;
 	if ($self->{chip_bw} and -e $self->{chip_bw}) {
 		my $log = $self->{chip_bdg};
@@ -1696,12 +1708,12 @@ sub convert_bw_to_bdg {
 
 sub generate_enrichment_commands {
 	my $self = shift;
-	die "no macs2 application in path!\n" unless $opts{macs} =~ /\w+/;
+	croak("no macs2 application in path!\n") unless $opts{macs} =~ /\w+/;
 	my $chip = $self->{chip_bdg} || undef;
 	my $lambda = $self->{lambda_bdg} || undef;
 	return unless ($chip and $lambda);
-	die "no ChIP fragment file $chip!\n" unless -e $chip;
-	die "no control lambda fragment file $lambda!\n" unless -e $lambda;
+	$self->crash("no ChIP fragment file $chip!\n") unless -e $chip;
+	$self->crash("no control lambda fragment file $lambda!\n") unless -e $lambda;
 	
 	my $command = sprintf("%s bdgcmp -t %s -c %s -S %s -m qpois FE -o %s %s ", 
 		$opts{macs}, $chip, $lambda, $opts{targetdep}, $self->{qvalue_bdg}, 
@@ -1717,10 +1729,10 @@ sub generate_enrichment_commands {
 
 sub generate_peakcall_commands {
 	my $self = shift;
-	die "no macs2 application in path!\n" unless $opts{macs} =~ /\w+/;
+	croak("no macs2 application in path!\n") unless $opts{macs} =~ /\w+/;
 	my $qtrack = $self->{qvalue_bdg} || undef;
 	return unless $qtrack;
-	die "no qvalue bedGraph file $qtrack!\n" unless -e $qtrack;
+	$self->crash("no qvalue bedGraph file $qtrack!\n") unless -e $qtrack;
 	my $command = sprintf("%s bdgpeakcall -i %s -c %s -l %s -g %s --no-trackline -o %s ",
 		$opts{macs}, $qtrack, $opts{cutoff}, $opts{peaksize}, $opts{peakgap}, 
 		$self->{peak}
@@ -1766,7 +1778,7 @@ sub generate_bdg2bw_commands {
 			$name2done->{$self->{lambda_bdg}} = 1;
 		}
 		else {
-			die "no wigToBigWig application in path!\n" unless $opts{wig2bw} =~ /\w+/;
+			croak("no wigToBigWig application in path!\n") unless $opts{wig2bw} =~ /\w+/;
 			my $log = $self->{lambda_bw};
 			$log =~ s/bw$/out.txt/;
 			my $command = sprintf("%s %s %s %s 2>&1 > $log && rm %s", 
@@ -1781,7 +1793,7 @@ sub generate_bdg2bw_commands {
 		$name2done->{$self->{lambda_bdg}} = 1; # remember it's done
 	}
 	if ($self->{qvalue_bdg} and $self->{qvalue_bw}) {
-		die "no wigToBigWig application in path!\n" unless $opts{wig2bw} =~ /\w+/;
+		croak("no wigToBigWig application in path!\n") unless $opts{wig2bw} =~ /\w+/;
 		my $log = $self->{qvalue_bw};
 		$log =~ s/bw$/out.txt/;
 		my $command = sprintf("%s %s %s %s 2>&1 > $log ", 
@@ -1797,8 +1809,8 @@ sub generate_bdg2bw_commands {
 	}
 	if ($self->{fe_bdg}) {
 		# convert this to log2 Fold Enrichment because I like this better
-		die "no wigToBigWig application in path!\n" unless $opts{wig2bw} =~ /\w+/;
-		die "no manipulate_wig.pl script in path!\n" unless $opts{manwig} =~ /\w+/;
+		croak("no wigToBigWig application in path!\n") unless $opts{wig2bw} =~ /\w+/;
+		croak("no manipulate_wig.pl script in path!\n") unless $opts{manwig} =~ /\w+/;
 		my $log = $self->{logfe_bw};
 		$log =~ s/bw$/out.txt/;
 		my $command = sprintf("%s --in %s --log 2 --place 4 --w2bw %s --chromo %s --out %s 2>&1 > $log ",
