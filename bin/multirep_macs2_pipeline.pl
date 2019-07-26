@@ -491,7 +491,7 @@ sub execute_commands {
 	if ($parallel) {
 		my $pm = Parallel::ForkManager->new($opts{job});
 		foreach my $command (@$commands) {
-			next if check_command_finished($command);
+			next if check_command_finished($command, 1);
 			printf "=== Job: %s\n", $command->[0];
 			$pm->start and next;
 			# in child
@@ -502,25 +502,45 @@ sub execute_commands {
 	}
 	else {
 		foreach my $command (@$commands) {
-			next if check_command_finished($command);
+			next if check_command_finished($command, 1);
 			print "=== Job: $command\n\n";
 			system($command->[0]);
 		}
 	}
+	
+	# check that commands actually produced something
+	my @errors;
+	foreach my $command (@$commands) {
+		# returns a non-zero function if command didn't run
+		push @errors, $command unless check_command_finished($command, 0);
+	}
+	if (@errors) {
+		print "\n\n ======= Errors ======\n";
+		print " The following jobs did not generate expected output\n";
+		foreach (@errors) {
+			printf "=== ERROR: %s\n", $_->[0];
+		}
+		die "\nCheck log files for errors\n";
+	}
+	
 	push @finished_commands, @$commands;
 }
 
 sub check_command_finished {
-	my $command = shift;
+	my ($command, $talk) = @_;
+	
+	# command
 	my ($command_string, $command_out, $command_log) = @$command;
 	my $command_app;
 	if ($command_string =~ m/^([\w\_\.\/]+) /) {
 		$command_app = $1;
 	}
+	
+	# check
 	if (length($command_out) and length($command_log)) {
 		# both 
 		if (-e $command_out and -e $command_log) {
-			print "=== Job: $command_app previously finished, have $command_out and $command_log files\n";
+			print "=== Job: $command_app previously finished, have $command_out and $command_log files\n" if $talk;
 			return 1;
 		}
 		elsif (not -e $command_out and -e $command_log and 
@@ -529,23 +549,25 @@ sub check_command_finished {
 			# the deduplication command will not write out a bam file if the actual 
 			# duplication rate is below the target rate
 			# presume this is good!?
-			print "=== Job: $command_app presumed finished, have $command_log file only\n";
-			return 1;
+			print "=== Job: $command_app presumed finished, have $command_log file only\n" if $talk;
+			return 2;
 		}
 		elsif (-e $command_out and not -e $command_log) {
 			# we have a output file but not a log file
-			print "=== Job: $command_app presumed finished, have $command_out file only, no log\n";
-			return 1;
+			print "=== Job: $command_app presumed finished, have $command_out file only, no log\n" if $talk;
+			return 3;
 		}
 	}
 	elsif (length($command_out)) {
 		if (-e $command_out) {
-			print "=== Job: $command_app previously finished, have $command_out\n";
-			return 1;
+			print "=== Job: $command_app previously finished, have $command_out\n" if $talk;
+			return 4;
 		}
 	}
 	elsif ($command_app eq 'rm') {
-		return; 
+		# remove command doesn't leave an output (duh!) or log file
+		# presume finished?
+		return 5; 
 	}
 	return;
 }
