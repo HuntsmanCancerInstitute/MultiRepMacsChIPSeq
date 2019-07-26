@@ -1761,20 +1761,25 @@ sub generate_bdg2bw_commands {
 			$name2done->{$self->{lambda_bdg}} = 1;
 		}
 		else {
-			my $command = sprintf("%s %s %s %s && rm %s", 
+			die "no wigToBigWig application in path!\n" unless $opts{wig2bw} =~ /\w+/;
+			my $log = $self->{lambda_bw};
+			$log =~ s/bw$/out.txt/;
+			my $command = sprintf("%s %s %s %s 2>&1 > $log && rm %s", 
 				$opts{wig2bw},
 				$self->{lambda_bdg},
 				$chromofile,
 				$self->{lambda_bw},
 				$self->{lambda_bdg},
 			);
-			push @commands, [$command, $self->{lambda_bw}, '']
+			push @commands, [$command, $self->{lambda_bw}, $log]
 		}
 		$name2done->{$self->{lambda_bdg}} = 1; # remember it's done
 	}
 	if ($self->{qvalue_bdg} and $self->{qvalue_bw}) {
 		die "no wigToBigWig application in path!\n" unless $opts{wig2bw} =~ /\w+/;
-		my $command = sprintf("%s %s %s %s ", 
+		my $log = $self->{qvalue_bw};
+		$log =~ s/bw$/out.txt/;
+		my $command = sprintf("%s %s %s %s 2>&1 > $log ", 
 			$opts{wig2bw},
 			$self->{qvalue_bdg},
 			$chromofile,
@@ -1783,7 +1788,7 @@ sub generate_bdg2bw_commands {
 		unless ($opts{savebdg}) {
 			$command .= sprintf("&& rm %s", $self->{qvalue_bdg});
 		}
-		push @commands, [$command, $self->{qvalue_bw}, ''];
+		push @commands, [$command, $self->{qvalue_bw}, $log];
 	}
 	if ($self->{fe_bdg}) {
 		# convert this to log2 Fold Enrichment because I like this better
