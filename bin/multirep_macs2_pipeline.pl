@@ -529,6 +529,15 @@ sub execute_commands {
 		foreach my $command (@$commands) {
 			next if check_command_finished($command, 1);
 			printf "=== Job: %s\n", $command->[0];
+			
+			# check for simple rm commands
+			if ($command->[0] =~ /^rm (.+)$/) {
+				# we don't need to fork a new process just to execute a rm command
+				unlink($1);
+				next;
+			}
+			
+			# fork to execute
 			$pm->start and next;
 			# in child
 			system($command->[0]);
@@ -614,7 +623,7 @@ sub check_command_finished {
 			return 5;
 		}
 	}
-	return;
+	return 0; # command was not finished
 }
 
 sub update_progress_file {
