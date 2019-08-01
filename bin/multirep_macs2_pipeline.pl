@@ -302,12 +302,18 @@ GetOptions(
 print "======== ChIPSeq multi-replicate pipeline ==========\n";
 print "\nversion $VERSION\n";
 my $start = time;
+
+
+
+# steps
 my @finished_commands;
 check_inputs();
 print_start();
 check_input_files();
-my $chromofile = generate_chr_file();
 my @Jobs = generate_job_file_structure();
+my $progress_file = File::Spec->catfile($opts{dir}, $opts{out} . '.progress.txt');
+my %progress = check_progress_file();
+my $chromofile = generate_chr_file();
 run_dedup();
 check_bams();
 run_bam_conversion();
@@ -472,17 +478,47 @@ sub generate_job_file_structure {
 	return @jobs;
 }
 
+sub check_progress_file {
+	my %p = (
+		deduplication => 0,
+		bam2wig       => 0,
+		lambda        => 0,
+		bw2bdg        => 0,
+		bdgcmp        => 0,
+		callpeak      => 0,
+		bdg2bw        => 0,
+		peakmerge     => 0,
+		rescore       => 0
+	);
+	if (-e $progress_file) {
+		my $fh = IO::File->new($progress_file, '<');
+		while ($fh->getline) {
+			chomp;
+			$p{$_} = 1 if exists $p{$_};
+		}
+		$fh->close;
+	}
+	else {
+		return %p;
+	}
+}
+
 sub run_dedup {
 	return unless ($opts{dup});
 	my @commands;
 	my %name2done;
 	print "\n\n======= De-duplicating bam files\n";
+	if ($progress{deduplication}) {
+		print "\nStep is completed\n";
+		return;
+	}
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_dedup_commands(\%name2done);
 	}
 	if (@commands) {
 		execute_commands(\@commands);
 	}
+	update_progress_file('deduplication');
 }
 
 sub execute_commands {
@@ -572,6 +608,16 @@ sub check_command_finished {
 	return;
 }
 
+sub update_progress_file {
+	my $key = shift;
+	$progress{$key} = 1;
+	my $fh = IO::File->new($progress_file, '>>') or 
+		die "can't write to progress file! $!\n";
+	$fh->print("$key\n");
+	$fh->close;
+	return 1;
+}
+
 sub check_bams {
 	print "\n\n======= Checking bam files\n";
 	foreach my $Job (@Jobs) {
@@ -583,18 +629,27 @@ sub run_bam_conversion {
 	my @commands;
 	my %name2done;
 	print "\n\n======= Converting bam files\n";
+	if ($progress{bam2wig}) {
+		print "\nStep is completed\n";
+		return;
+	}
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_bam2wig_commands(\%name2done);
 	}
 	if (@commands) {
 		execute_commands(\@commands);
 	}
+	update_progress_file('bam2wig');
 }
 
 sub check_control {
 	my @commands;
 	my %name2done;
 	print "\n\n======= Generating control files\n";
+	if ($progress{lambda}) {
+		print "\nStep is completed\n";
+		return;
+	}
 	foreach my $Job (@Jobs) {
 		# this handles either lambda_control or global mean files
 		push @commands, $Job->generate_lambda_control_commands(\%name2done);
@@ -602,46 +657,67 @@ sub check_control {
 	if (@commands) {
 		execute_commands(\@commands);
 	}
+	update_progress_file('lambda');
 }
 
 sub run_bw_conversion {
 	my @commands;
 	my %name2done;
 	print "\n\n======= Converting Fragment bigWig files to bedGraph\n";
+	if ($progress{bw2bdg}) {
+		print "\nStep is completed\n";
+		return;
+	}
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->convert_bw_to_bdg(\%name2done);
 	}
 	if (@commands) {
 		execute_commands(\@commands);
 	}
+	update_progress_file('bw2bdg');
 }
 
 sub run_bdgcmp {
 	my @commands;
 	print "\n\n======= Generate enrichment files\n";
+	if ($progress{bdgcmp}) {
+		print "\nStep is completed\n";
+		return;
+	}
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_enrichment_commands();
 	}
 	execute_commands(\@commands);
+	update_progress_file('bdgcmp');
 }
 
 sub run_call_peaks {
 	my @commands;
 	print "\n\n======= Call peaks\n";
+	if ($progress{callpeak}) {
+		print "\nStep is completed\n";
+		return;
+	}
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_peakcall_commands;
 	}
 	execute_commands(\@commands);
+	update_progress_file('callpeak');
 }
 
 sub run_bdg_conversion {
 	my @commands;
 	my %name2done;
 	print "\n\n======= Converting bedGraph files\n";
+	if ($progress{bdg2bw}) {
+		print "\nStep is completed\n";
+		return;
+	}
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_bdg2bw_commands($chromofile, \%name2done);
 	}
 	execute_commands(\@commands);
+	update_progress_file('bdg2bw');
 }
 
 sub generate_chr_file {
@@ -664,6 +740,10 @@ sub generate_chr_file {
 sub run_peak_merge {
 	return if scalar(@Jobs) == 1; # no sense merging one job!
 	print "\n\n======= Merging called Peak files\n";
+	if ($progress{peakmerge}) {
+		print "\nStep is completed\n";
+		return;
+	}
 	die "no bedtools application in path!\n" unless $opts{bedtools} =~ /\w+/;
 	die "no intersect_peaks.pl application in path!\n" unless $opts{intersect} =~ /\w+/;
 	my @commands;
@@ -702,10 +782,15 @@ sub run_peak_merge {
 	}
 	
 	execute_commands(\@commands);
+	update_progress_file('peakmerge');
 }
 
 sub run_rescore {
 	print "\n\n======= Re-scoring all merged peaks\n";
+	if ($progress{rescore}) {
+		print "\nStep is completed\n";
+		return;
+	}
 	die "no get_datasets.pl script in path!\n" unless $opts{getdata} =~ /\w+/;
 	my %name2done;
 	
@@ -903,6 +988,7 @@ sub run_rescore {
 		# execute
 		execute_commands(\@commands2);
 	}
+	update_progress_file('rescore');
 }
 
 
@@ -967,6 +1053,7 @@ sub finish {
 			}
 		}
 	}
+	unlink $progress_file;
 	
 	# final print statements
 	print "\nCombined all job output log files into '$file'\n";
