@@ -564,6 +564,7 @@ sub execute_commands {
 
 sub check_command_finished {
 	my ($command, $talk) = @_;
+	# returns true if command appears finished
 	
 	# command
 	my ($command_string, $command_out, $command_log) = @$command;
@@ -602,8 +603,16 @@ sub check_command_finished {
 	}
 	elsif ($command_app eq 'rm') {
 		# remove command doesn't leave an output (duh!) or log file
-		# presume finished?
-		return 5; 
+		# gotta check each one
+		my $check = 0; 
+		foreach my $item (split $command_string, /\s+/) {
+			next if $item eq 'rm';
+			$check++ if -e $item; # check true if file is present
+		}
+		if ($check == 0) {
+			print "=== Job: $command_app previously finished, target files missing\n" if $talk;
+			return 5;
+		}
 	}
 	return;
 }
