@@ -495,15 +495,13 @@ sub check_progress_file {
 	);
 	if (-e $progress_file) {
 		my $fh = IO::File->new($progress_file, '<');
-		while ($fh->getline) {
-			chomp;
-			$p{$_} = 1 if exists $p{$_};
+		while (my $line = $fh->getline) {
+			chomp $line;
+			$p{$line} = 1 if exists $p{$line};
 		}
 		$fh->close;
 	}
-	else {
-		return %p;
-	}
+	return %p;
 }
 
 sub run_dedup {
