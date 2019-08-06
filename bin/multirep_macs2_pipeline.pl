@@ -615,7 +615,7 @@ sub check_command_finished {
 		# remove command doesn't leave an output (duh!) or log file
 		# gotta check each one
 		my $check = 0; 
-		foreach my $item (split $command_string, /\s+/) {
+		foreach my $item (split /\s+/, $command_string) {
 			next if $item eq 'rm';
 			$check++ if -e $item; # check true if file is present
 		}
