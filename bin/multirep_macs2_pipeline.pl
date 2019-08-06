@@ -19,7 +19,7 @@ use File::Which;
 use File::Path qw(make_path);
 use Getopt::Long;
 
-my $VERSION = 12;
+my $VERSION = 12.1;
 
 my $parallel;
 eval {
@@ -333,6 +333,9 @@ finish();
 ############### Subroutines ########################################################
 
 sub check_inputs {
+	if (@ARGV) {
+		die sprintf("There are unrecognized leftover items on the command line!\n %s\n", join("\n", @ARGV));
+	}
 	unless (@chips) {
 		die "no ChIP file(s) defined!\n";
 	}
