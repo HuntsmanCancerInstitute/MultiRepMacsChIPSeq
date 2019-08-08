@@ -1947,7 +1947,7 @@ sub generate_bdg2bw_commands {
 		croak("no manipulate_wig.pl script in path!\n") unless $opts{manwig} =~ /\w+/;
 		my $log = $self->{logfe_bw};
 		$log =~ s/bw$/out.txt/;
-		my $command = sprintf("%s --in %s --log 2 --place 4 --w2bw %s --chromo %s --out %s 2> $log ",
+		my $command = sprintf("%s --in %s --log 2 --place 4 --w2bw %s --chromo %s --out %s 2>&1 > $log ",
 			$opts{manwig},
 			$self->{fe_bdg},
 			$opts{wig2bw},
