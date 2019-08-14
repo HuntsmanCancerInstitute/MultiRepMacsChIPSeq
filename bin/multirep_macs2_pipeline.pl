@@ -337,16 +337,16 @@ sub check_inputs {
 		die sprintf("There are unrecognized leftover items on the command line!\n %s\n", join("\n", @ARGV));
 	}
 	unless (@chips) {
-		die "no ChIP file(s) defined!\n";
+		die "No ChIP file(s) defined!\n";
 	}
 	unless (@names) {
-		die "no name(s) defined!\n";
+		die "No name(s) defined!\n";
 	}
 	unless (scalar(@chips) == scalar(@names)) {
-		die "unequal ChIP and name quantities!\n";
+		die "Unequal number of ChIP samples and names!\n";
 	}
 	if (scalar(@controls) > 1 and scalar(@controls) != scalar(@chips)) {
-		die "Control and ChIP samples quantity doesn't match!\n";
+		die "Unequal number of control and ChIP samples!\n";
 	}
 	elsif (scalar(@controls) == 0) {
 		# no controls, turn off lambda
@@ -355,32 +355,32 @@ sub check_inputs {
 		$opts{lambda} = 0;
 	}
 	if (scalar(@chip_scales) and scalar(@chip_scales) != scalar(@chips)) {
-		die "unequal ChIP samples and ChIP scale factors!\n";
+		die "Unequal number of ChIP samples and ChIP scale factors!\n";
 	}
 	if (scalar(@control_scales) and scalar(@control_scales) != scalar(@controls)) {
-		die "unequal control samples and control scale factors!\n";
+		die "Unequal number of control samples and control scale factors!\n";
 	}
 	if (scalar(@chrnorms) and not $opts{chrapply}) {
-		die "chromosome normalization factors given but no chromosome specified!\n";
+		die "Chromosome normalization factors given but no chromosome specified!\n";
 	}
 	if (not scalar(@chrnorms) and $opts{chrapply}) {
-		die "chromosome name for normalization specified but no factors given!\n";
+		die "Chromosome name for normalization specified but no factors given!\n";
 	}
 	if (scalar(@chrnorms) and scalar(@chrnorms) != scalar(@chips)) {
 		# apply to all the ChIPs
 		if (scalar @chrnorms == 1) {
-			print "WARNING: using the same chromosome normalization factor for each ChIP sample\n";
+			print "Using the same chromosome normalization factor for each ChIP sample\n";
 			my $n = shift @chrnorms;
 			foreach (@names) {
 				push @chrnorms, $n;
 			}
 		}
 		else {
-			die "ERROR: inequal number of chromosome normalization factors and ChIP samples!\n";
+			die "Unequal number of chromosome normalization factors and ChIP samples!\n";
 		}
 	}
 	if (scalar(@chrnorms) > 1 and scalar(@controls) == 1) {
-		print "WARNING: using first chromosome normalization factor for universal control!\n";
+		print "Using first chromosome normalization factor for universal control!\n";
 	}
 	if (not $opts{genome}) {
 		my $s = $opts{species};
