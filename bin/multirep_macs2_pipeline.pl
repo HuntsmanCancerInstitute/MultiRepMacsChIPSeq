@@ -19,7 +19,7 @@ use File::Which;
 use File::Path qw(make_path);
 use Getopt::Long;
 
-my $VERSION = 12.2;
+my $VERSION = 12.3;
 
 my $parallel;
 eval {
@@ -462,13 +462,35 @@ sub generate_job_file_structure {
 	if (scalar(@controls) == 1 and scalar(@chips) > 1) {
 		print "Using only one control for multiple ChIP experiments\n";
 		my $universal_control = shift @controls;
-		my $universal_scale = shift @control_scales || undef;
-		my $universal_name = 'Custom-Universal-' . $universal_control;
-		foreach (@names) {
-			push @controls, $universal_name;
+		
+		# generate universal name
+		my $universal_name;
+		if ($universal_control =~ /\.bam$/i) {
+			# one bam file
+			$universal_name = $opts{out} . '_control';
+			if ($opts{lambda}) {
+				# add lambda control if we're using that, otherwise leave it be
+				$universal_name .= '.lambda_control';
+			}
 		}
-		push @jobs, ChIPjob->new($opts{out} . "_control", '', $universal_control, 
-			undef, $universal_scale, $chrnorms[0] || undef);
+		elsif ($universal_control =~ /\.(?:bw|bigwig)$/i) {
+			# a pre-processed bigWig file
+			(undef, undef, $universal_name) = File::Spec->splitpath($universal_control);
+			$universal_name =~ s/\.(?:bw|bigwig)$//;
+		}
+		else {
+			die "unrecognized control file '$universal_control'!\n";
+		}
+		my $universal_scale = shift @control_scales || undef;
+		
+		# add back universal control with special prefix for each ChIP job
+		foreach (@names) {
+			push @controls, 'Custom-Universal-' . $universal_name;
+		}
+		
+		# generate job
+		push @jobs, ChIPjob->new($universal_name, '', $universal_control, undef, 
+			$universal_scale, $chrnorms[0] || undef);
 	}
 	
 	# walk through each given job
@@ -1109,7 +1131,6 @@ sub new {
 	    control_count_bw => [],
 	    s_control_bdg => undef,
 	    l_control_bdg => undef,
-	    sl_control_bdg => undef,
 	    sld_control_file => undef,
 	    lambda_bdg => undef,
 	    lambda_bw => undef,
@@ -1167,38 +1188,36 @@ sub new {
 	## check the control files
 	if ($control =~ /^Custom\-Universal\-(.+)$/) {
 		# this is just a ChIP Job using a common universal reference file
-		my (undef, undef, $file) = File::Spec->splitpath($1);
-		$file =~ s/(?:bw|bigwig)$/bdg/i;
-		$self->{lambda_bdg} = File::Spec->catfile($opts{dir}, $file); 
+		# the actual control name is embedded in the name, so extract it
+		# we only need to know the bedgraph file name here
+		$self->{lambda_bdg} = File::Spec->catfile($opts{dir}, $1 . '.bdg'); 
 	}
 	elsif ($control =~ /\.(?:bw|bigwig)$/i) {
 		# pre-generated reference bigWig file
 		$self->crash("only one control bigWig file is allowed per experiment!\n") if
 			$chip =~ /,/;
 		$self->{lambda_bw} = $control;
-		my (undef, undef, $file) = File::Spec->splitpath($control);
-		$file =~ s/(?:bw|bigwig)$/bdg/i;
-		$self->{lambda_bdg} = File::Spec->catfile($opts{dir}, $file); 
+		$self->{lambda_bdg} = $namepath . '.bdg'; 
 	}
 	elsif ($control =~ /\.bam$/i) {
 		# we have control bams to process
 		my @bams = split(',', $control);
 		$self->{control_bams} = \@bams;
-		my $lambdabase = $name =~ /_control$/ ? $namepath : $namepath . "_control";
-			# make sure we get _control in the name
-			# universal controls will get it, but individual controls will not
 		if ($opts{lambda}) {
-			$self->{lambda_bdg} = "$lambdabase.lambda_control.bdg";
-			$self->{lambda_bw} = "$lambdabase.lambda_control.bw";
-			$self->{d_control_bdg} = "$lambdabase.dlocal.bdg";
-			$self->{s_control_bdg} = "$lambdabase.slocal.bdg" if $opts{slocal};
-			$self->{l_control_bdg} = "$lambdabase.llocal.bdg" if $opts{llocal};
-			$self->{sl_control_bdg} = "$lambdabase.sllocal.bdg";
-			$self->{sld_control_file} = "$lambdabase.sldlocal.txt";
+			# the lambda_control should already be appended to the name
+			$self->{lambda_bdg} = $namepath . '.bdg';
+			$self->{lambda_bw} = $namepath . '.bw';
+			# strip the lambda_control bit for the other intermediate files
+			my $control_base = $namepath;
+			$control_base =~ s/\.lambda_control//;
+			$self->{d_control_bdg} = "$control_base.dlocal.bdg";
+			$self->{s_control_bdg} = "$control_base.slocal.bdg" if $opts{slocal};
+			$self->{l_control_bdg} = "$control_base.llocal.bdg" if $opts{llocal};
+			$self->{sld_control_file} = "$control_base.sldlocal.txt";
 		}
 		else {
-			$self->{lambda_bdg} = $lambdabase . ".bdg";
-			$self->{lambda_bw} = $lambdabase . ".bw";
+			$self->{lambda_bdg} = $namepath . '.bdg';
+			$self->{lambda_bw} = $namepath . '.bw';
 		}
 		
 		if ($control_scale) {
