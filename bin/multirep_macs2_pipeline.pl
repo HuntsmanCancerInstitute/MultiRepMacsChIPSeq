@@ -92,6 +92,7 @@ my @chip_scales;
 my @control_scales;
 my @chrnorms;
 
+my $help = 0;
 my $documentation = <<DOC;
 
 ======= ChIP Wrapper ==========
@@ -233,7 +234,22 @@ DOC
 
 ### Inputs
 unless (@ARGV) {
-	print $documentation;
+	print <<HELP;
+
+======= ChIP Wrapper ==========
+
+This is a wrapper for calling and/or comparing peaks in ChIPSeq or ATACSeq with single 
+or multiple replicas using the Macs2 ChIPSeq caller. It uses BioToolBox applications to 
+normalize duplicate levels and read depths between samples and replicates.
+
+See https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq for full 
+usage and guide.
+
+Use --help to display options.
+
+Version: $VERSION
+
+HELP
 	exit 1;
 }
 
@@ -283,6 +299,7 @@ GetOptions(
 	'plot!'                 => \$opts{plot},
 	'cpu=i'                 => \$opts{cpu},
 	'job=i'                 => \$opts{job},
+	'help!'                 => \$help,
 	'bam2wig=s'             => \$opts{bam2wig},
 	'bamdedup=s'            => \$opts{bamdedup},
 	'macs=s'                => \$opts{macs},
@@ -295,6 +312,11 @@ GetOptions(
 	'meanbdg=s'             => \$opts{meanbdg},
 	'intersect=s'           => \$opts{intersect},
 ) or die "unrecognized option(s)!\n";
+
+if ($help) {
+	print $documentation;
+	exit 1;
+}
 
 
 
