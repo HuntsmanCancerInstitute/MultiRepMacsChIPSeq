@@ -19,7 +19,7 @@ use File::Which;
 use File::Path qw(make_path);
 use Getopt::Long;
 
-my $VERSION = 12.3;
+my $VERSION = 12.4;
 
 my $parallel;
 eval {
@@ -1204,12 +1204,20 @@ sub new {
 		my @bams = split(',', $control);
 		$self->{control_bams} = \@bams;
 		if ($opts{lambda}) {
-			# the lambda_control should already be appended to the name
-			$self->{lambda_bdg} = $namepath . '.bdg';
-			$self->{lambda_bw} = $namepath . '.bw';
-			# strip the lambda_control bit for the other intermediate files
 			my $control_base = $namepath;
-			$control_base =~ s/\.lambda_control//;
+			if ($namepath =~ /\.lambda_control/) {
+				# the lambda_control extension is already appended to the name 
+				# as is the case with universal controls
+				$self->{lambda_bdg} = $namepath . '.bdg';
+				$self->{lambda_bw} = $namepath . '.bw';
+				# strip the lambda_control bit for the other intermediate files
+				$control_base =~ s/\.lambda_control//;
+			}
+			else {
+				# append the lambda_control extension
+				$self->{lambda_bdg} = $namepath . '.lambda_control.bdg';
+				$self->{lambda_bw} = $namepath . '.lambda_control.bw';
+			}
 			$self->{d_control_bdg} = "$control_base.dlocal.bdg";
 			$self->{s_control_bdg} = "$control_base.slocal.bdg" if $opts{slocal};
 			$self->{l_control_bdg} = "$control_base.llocal.bdg" if $opts{llocal};
