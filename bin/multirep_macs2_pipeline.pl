@@ -571,7 +571,7 @@ sub execute_commands {
 	else {
 		foreach my $command (@$commands) {
 			next if check_command_finished($command, 1);
-			print "=== Job: $command\n\n";
+			printf "=== Job: %s\n", $command->[0];
 			system($command->[0]);
 		}
 	}
@@ -609,7 +609,7 @@ sub check_command_finished {
 	if (length($command_out) and length($command_log)) {
 		# both 
 		if (-e $command_out and -e $command_log) {
-			print "=== Job: $command_app previously finished, have $command_out and $command_log files\n" if $talk;
+			print "=== Job: $command_string\n    previously finished, have $command_out and $command_log files\n" if $talk;
 			return 1;
 		}
 		elsif (not -e $command_out and -e $command_log and 
@@ -618,18 +618,18 @@ sub check_command_finished {
 			# the deduplication command will not write out a bam file if the actual 
 			# duplication rate is below the target rate
 			# presume this is good!?
-			print "=== Job: $command_app presumed finished, have $command_log file only\n" if $talk;
+			print "=== Job: $command_string\n    presumed finished, have $command_log file only\n" if $talk;
 			return 2;
 		}
 		elsif (-e $command_out and not -e $command_log) {
 			# we have a output file but not a log file
-			print "=== Job: $command_app presumed finished, have $command_out file only, no log\n" if $talk;
+			print "=== Job: $command_string\n    presumed finished, have $command_out file only, no log\n" if $talk;
 			return 3;
 		}
 	}
 	elsif (length($command_out)) {
 		if (-e $command_out) {
-			print "=== Job: $command_app previously finished, have $command_out\n" if $talk;
+			print "=== Job: $command_string\n    previously finished, have $command_out\n" if $talk;
 			return 4;
 		}
 	}
@@ -642,7 +642,7 @@ sub check_command_finished {
 			$check++ if -e $item; # check true if file is present
 		}
 		if ($check == 0) {
-			print "=== Job: $command_app previously finished, target files missing\n" if $talk;
+			print "=== Job: $command_string\n    previously finished, target files missing\n" if $talk;
 			return 5;
 		}
 	}
