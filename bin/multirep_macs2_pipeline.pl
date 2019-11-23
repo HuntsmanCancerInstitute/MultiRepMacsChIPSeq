@@ -32,7 +32,7 @@ my %opts = (
 	mapq        => 0,
 	minsize     => 50,
 	maxsize     => 500,
-	dup         => 1,
+	dedup       => 1,
 	maxdup      => undef,
 	dupfrac     => 0.1,
 	optdist     => 0,
@@ -166,9 +166,10 @@ Options:
   --blacklist file              Bed file of repeats or hotspots to avoid
   
  Duplication filtering
-  --nodup                       Skip deduplication
+  --nodedup                     Skip deduplication and take everything as is
   --dupfrac   fraction          Minimum allowed fraction of duplicates ($opts{dupfrac})
   --maxdup    integer           Maximum allowed duplication depth ($opts{maxdup})
+                                  set to 1 to remove all duplicates
   --optdist   integer           Maximum distance for optical duplicates ($opts{optdist})
                                   use 100 for HiSeq, 10000 for NovaSeq
   --deduppair                   Run deduplication as paired-end only
@@ -264,7 +265,7 @@ GetOptions(
 	'max=i'                 => \$opts{maxsize},
 	'chrskip=s'             => \$opts{chrskip},
 	'blacklist=s'           => \$opts{blacklist},
-	'dup!'                  => \$opts{dup},
+	'dedup!'                => \$opts{dedup},
 	'dupfrac=f'             => \$opts{dupfrac},
 	'maxdup=i'              => \$opts{maxdup},
 	'optdist=i'             => \$opts{optdist},
@@ -544,7 +545,7 @@ sub check_progress_file {
 }
 
 sub run_dedup {
-	return unless ($opts{dup});
+	return unless ($opts{dedup});
 	my @commands;
 	my %name2done;
 	print "\n\n======= De-duplicating bam files\n";
