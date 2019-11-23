@@ -64,6 +64,7 @@ my %opts = (
 	discard     => 10,
 	repmean     => 0,
 	plot        => 0,
+	dryrun      => 0,
 	bam2wig     => sprintf("%s", which 'bam2wig.pl'),
 	bamdedup    => sprintf("%s", which 'bam_partial_dedup.pl'),
 	macs        => sprintf("%s", which 'macs2'),
@@ -208,6 +209,7 @@ Options:
  Job control
   --cpu       integer           Number of CPUs to use per job ($opts{cpu})
   --job       integer           Number of simultaneous jobs ($opts{job})
+  --dryrun                      Just print the commands without execution
 
  Application  Paths
   --bam2wig   path             ($opts{bam2wig})
@@ -295,6 +297,7 @@ GetOptions(
 	'plot!'                 => \$opts{plot},
 	'cpu=i'                 => \$opts{cpu},
 	'job=i'                 => \$opts{job},
+	'dryrun!'               => \$opts{dryrun},
 	'help!'                 => \$help,
 	'bam2wig=s'             => \$opts{bam2wig},
 	'bamdedup=s'            => \$opts{bamdedup},
@@ -344,6 +347,10 @@ run_peak_merge();
 run_rescore();
 run_plot_peaks();
 finish();
+
+# final statement
+printf "Finished in %.1f minutes\n", (time -$start) / 60;
+print "\n======== Finished ChIPSeq multi-replicate pipeline ==========\n\n";
 
 
 
@@ -408,12 +415,16 @@ sub check_inputs {
 			$s eq 'sheep' ? 2587000000 : 0;
 		die "unknown species!\n" unless $opts{genome};
 	}
-	unless (-e $opts{dir} and -d _) {
-		make_path($opts{dir}) or die sprintf("unable to make directory %s! $!\n", $opts{dir});
+	# directory
+	unless ($opts{dryrun}) {
+		unless (-e $opts{dir} and -d _) {
+			make_path($opts{dir}) or die sprintf("unable to make directory %s! $!\n", $opts{dir});
+		}
+		unless (-w $opts{dir}) {
+			die sprintf("target directory %s is not writable!\n", $opts{dir});
+		}
 	}
-	unless (-w $opts{dir}) {
-		die sprintf("target directory %s is not writable!\n", $opts{dir});
-	}
+	# sizes
 	unless (defined $opts{peaksize}) {
 		$opts{peaksize} = 2 * $opts{fragsize};
 	}
@@ -423,6 +434,7 @@ sub check_inputs {
 	unless (defined $opts{broadgap}) {
 		$opts{broadgap} = 4 * $opts{fragsize};
 	}
+	# plotting
 	if ($opts{plot} and scalar(@names) == 1) {
 		# no sense plotting figures if we only have one ChIP set
 		$opts{plot} = 0;
@@ -565,7 +577,19 @@ sub run_dedup {
 sub execute_commands {
 	my $commands = shift;
 	printf "Excecuting %d commands\n", scalar @$commands;
-	if ($parallel) {
+	
+	# dry run
+	if ($opts{dryrun}) {
+		# we just go through the motions here
+		foreach my $command (@$commands) {
+			printf "=== Job: %s\n", $command->[0];
+		}
+		push @finished_commands, @$commands;
+		return;
+	}
+	
+	# execute jobs
+	if ($opts{job} > 1) {
 		my $pm = Parallel::ForkManager->new($opts{job});
 		foreach my $command (@$commands) {
 			next if check_command_finished($command, 1);
@@ -670,6 +694,7 @@ sub check_command_finished {
 sub update_progress_file {
 	my $key = shift;
 	$progress{$key} = 1;
+	return 1 if $opts{dryrun}; # just pretend
 	my $fh = IO::File->new($progress_file, '>>') or 
 		die "can't write to progress file! $!\n";
 	$fh->print("$key\n");
@@ -784,6 +809,7 @@ sub generate_chr_file {
 	my $example = shift @bams;
 		# this will work regardless if example is bam or bigWig
 	my $chromofile = File::Spec->catfile($opts{dir},"chrom_sizes.temp.txt");
+	return $chromofile if $opts{dryrun}; # just pretend
 	if (-e $chromofile) {
 		return $chromofile;
 	}
@@ -857,11 +883,15 @@ sub run_rescore {
 	my $input;
 	if (scalar(@Jobs) > 1) {
 		$input = File::Spec->catfile($opts{dir}, $opts{out} . '.bed');
-		die "unable to find merged bed file '$input'!\n" unless -e $input;
+		if (not $opts{dryrun} and not -e $input) {
+			die "unable to find merged bed file '$input'!\n";
+		}
 	}
 	else {
 		$input = $Jobs[0]->{peak};
-		die "unable to find peak file '$input'!\n" unless -e $input;
+		if (not $opts{dryrun} and not -e $input) {
+			die "unable to find peak file '$input'!\n";
+		}
 	}
 	my $output1 = File::Spec->catfile($opts{dir}, $opts{out} . '_qvalue.txt');
 	my $output2 = File::Spec->catfile($opts{dir}, $opts{out} . '_log2FE.txt');
@@ -936,12 +966,16 @@ sub run_rescore {
 		my $input2;
 		if (scalar(@Jobs) > 1) {
 			$input2 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad.bed');
-			die "unable to find merged bed file '$input2'!\n" unless -e $input2;
+			if (not $opts{dryrun} and not -e $input2) {
+				die "unable to find merged bed file '$input2'!\n";
+			}
 		}
 		else {
 			$input2 = $Jobs[0]->{peak};
 			$input2 =~ s/narrow/gapped/;
-			die "unable to find merged bed file '$input2'!\n" unless -e $input2;
+			if (not $opts{dryrun} and not -e $input2) {
+				die "unable to find merged bed file '$input2'!\n";
+			}
 		}
 		$output5 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_qvalue.txt');
 		$output5 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_log2FE.txt');
@@ -990,11 +1024,13 @@ sub run_rescore {
 	
 	# write conditions file
 	my $output8 = File::Spec->catfile($opts{dir}, $opts{out} . '_samples.txt');
-	my $fh = IO::File->new($output8, "w");
-	foreach (@conditions) {
-		$fh->print($_);
+	unless ($opts{dryrun}) {
+		my $fh = IO::File->new($output8, "w");
+		foreach (@conditions) {
+			$fh->print($_);
+		}
+		$fh->close;
 	}
-	$fh->close;
 	
 	
 	
@@ -1067,6 +1103,8 @@ sub run_plot_peaks {
 
 
 sub finish {
+	return if $opts{dryrun};
+	
 	# combine output logs
 	my @combined_output;
 	foreach my $c (@finished_commands) {
@@ -1116,8 +1154,6 @@ sub finish {
 	
 	# final print statements
 	print "\nCombined all job output log files into '$file'\n";
-	printf "Finished in %.1f minutes\n", (time -$start) / 60;
-	print "\n======== Finished ChIPSeq multi-replicate pipeline ==========\n\n";
 }
 
 
@@ -1782,9 +1818,11 @@ sub generate_lambda_control_commands {
 	my $lfile = $self->{l_control_bdg};
 	return unless ($dfile); # controls with lambda will always have  d_control_bdg
 		# ChIP jobs and non-lambda controls will not
-	$self->crash("no d control bedGraph file '$dfile'!\n") unless (-e $dfile);
-	$self->crash("no small control bedGraph file '$sfile'!\n") if ($sfile and not -e $sfile);
-	$self->crash("no large control bedGraph file '$lfile'!\n") if ($lfile and not -e $lfile);
+	unless ($opts{dryrun}) {
+		$self->crash("no d control bedGraph file '$dfile'!\n") if (not -e $dfile);
+		$self->crash("no small control bedGraph file '$sfile'!\n") if ($sfile and not -e $sfile);
+		$self->crash("no large control bedGraph file '$lfile'!\n") if ($lfile and not -e $lfile);
+	}
 	
 	# generate background lambda bedgraph
 	# go ahead and do this immediately because it's so simple
@@ -1891,8 +1929,10 @@ sub generate_enrichment_commands {
 	my $chip = $self->{chip_bdg} || undef;
 	my $lambda = $self->{lambda_bdg} || undef;
 	return unless ($chip and $lambda);
-	$self->crash("no ChIP fragment file $chip!\n") unless -e $chip;
-	$self->crash("no control lambda fragment file $lambda!\n") unless -e $lambda;
+	unless ($opts{dryrun}) {
+		$self->crash("no ChIP fragment file $chip!\n") if not -e $chip;
+		$self->crash("no control lambda fragment file $lambda!\n") if not -e $lambda;
+	}
 	
 	my $command = sprintf("%s bdgcmp -t %s -c %s -S %s -m qpois FE -o %s %s ", 
 		$opts{macs}, $chip, $lambda, $opts{targetdep}, $self->{qvalue_bdg}, 
@@ -1911,7 +1951,9 @@ sub generate_peakcall_commands {
 	croak("no macs2 application in path!\n") unless $opts{macs} =~ /\w+/;
 	my $qtrack = $self->{qvalue_bdg} || undef;
 	return unless $qtrack;
-	$self->crash("no qvalue bedGraph file $qtrack!\n") unless -e $qtrack;
+	unless ($opts{dryrun}) {
+		$self->crash("no qvalue bedGraph file $qtrack!\n") if not -e $qtrack;
+	}
 	my $command = sprintf("%s bdgpeakcall -i %s -c %s -l %s -g %s --no-trackline -o %s ",
 		$opts{macs}, $qtrack, $opts{cutoff}, $opts{peaksize}, $opts{peakgap}, 
 		$self->{peak}
