@@ -18,14 +18,9 @@ use File::Spec;
 use File::Which;
 use File::Path qw(make_path);
 use Getopt::Long;
+use Parallel::ForkManager;
 
-my $VERSION = 12.4;
-
-my $parallel;
-eval {
-	require Parallel::ForkManager;
-	$parallel = 1;
-};
+my $VERSION = 13.0;
 
 # parameters
 my %opts = (
@@ -58,6 +53,7 @@ my %opts = (
 	chrskip     => "chrM|MT|lambda|Adapter|PhiX",
 	blacklist   => undef,
 	cpu         => 4,
+	job         => 2,
 	chipbin     => 10,
 	slocalbin   => 50,
 	llocalbin   => 100,
@@ -84,7 +80,6 @@ my %opts = (
 	plotpeak    => sprintf("%s", which 'plot_peak_figures.R'),
 	rscript     => sprintf("%s", which 'Rscript'),
 );
-$opts{job} = $parallel ? 2 : 1;
 my @names;
 my @chips;
 my @controls;
