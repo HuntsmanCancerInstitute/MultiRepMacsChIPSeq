@@ -69,6 +69,7 @@ my %opts = (
 	bamdedup    => sprintf("%s", which 'bam_partial_dedup.pl'),
 	macs        => sprintf("%s", which 'macs2'),
 	manwig      => sprintf("%s", which 'manipulate_wig.pl'),
+	mandata     => sprintf("%s", which 'manipulate_datasets.pl'),
 	wig2bw      => sprintf("%s", which 'wigToBigWig'),
 	bw2bdg      => sprintf("%s", which 'bigWigToBedGraph'),
 	bedtools    => sprintf("%s", which 'bedtools'),
@@ -216,6 +217,7 @@ Options:
   --bamdedup  path             ($opts{bamdedup})
   --macs      path             ($opts{macs})
   --manwig    path             ($opts{manwig})
+  --mandata   path             ($opts{mandata})
   --wig2bw    path             ($opts{wig2bw})
   --bw2bdg    path             ($opts{bw2bdg})
   --printchr  path             ($opts{printchr})
@@ -342,6 +344,7 @@ check_control();
 run_bw_conversion();
 run_bdgcmp();
 run_call_peaks();
+run_clean_peaks();
 run_bdg_conversion();
 run_peak_merge();
 run_rescore();
@@ -541,6 +544,7 @@ sub check_progress_file {
 		bw2bdg        => 0,
 		bdgcmp        => 0,
 		callpeak      => 0,
+		cleanpeak     => 0,
 		bdg2bw        => 0,
 		peakmerge     => 0,
 		rescore       => 0
@@ -789,6 +793,20 @@ sub run_call_peaks {
 	update_progress_file('callpeak');
 }
 
+sub run_clean_peaks {
+	my @commands;
+	print "\n\n======= Cleaning peak files\n";
+	if ($progress{cleanpeak}) {
+		print "\nStep is completed\n";
+		return;
+	}
+	foreach my $Job (@Jobs) {
+		push @commands, $Job->generate_cleanpeak_commands;
+	}
+	execute_commands(\@commands);
+	update_progress_file('cleanpeak');
+}
+
 sub run_bdg_conversion {
 	my @commands;
 	my %name2done;
@@ -831,6 +849,7 @@ sub run_peak_merge {
 	}
 	die "no bedtools application in path!\n" unless $opts{bedtools} =~ /\w+/;
 	die "no intersect_peaks.pl application in path!\n" unless $opts{intersect} =~ /\w+/;
+	die "no manipulate_datasets.pl application in path!\n" unless $opts{mandata} =~ /\w+/;
 	my @commands;
 	
 	# narrowPeaks
@@ -844,6 +863,8 @@ sub run_peak_merge {
 	}
 	my $log = $merge_file . '.merge.out.txt';
 	$command .= sprintf("2>&1 > %s ", $log);
+	$command .= sprintf("&& %s --func addname --target %s_merge --in %s.bed 2>&1 >> %s",
+		$opts{mandata}, $opts{out}, $merge_file, $log);
 	push @commands, [$command, $merge_file . '.bed', $log]; 
 		# this will have multiple outputs, but one is just a .bed file
 	
@@ -854,14 +875,14 @@ sub run_peak_merge {
 			 $merge2_file);
 	
 		foreach my $Job (@Jobs) {
-			if ($Job->{peak}) {
-				my $bf = $Job->{peak};
-				$bf =~ s/narrow/gapped/;
-				$command2 .= sprintf("%s ", $bf);
+			if ($Job->{gappeak}) {
+				$command2 .= sprintf("%s ", $Job->{gappeak});
 			}
 		}
 		my $log2 = $merge2_file . '.merge.out.txt';
 		$command2 .= sprintf("2>&1 > %s ", $log2);
+		$command2 .= sprintf("&& %s --func addname --target %s_gapmerge --in %s.bed 2>&1 >> %s",
+			$opts{mandata}, $opts{out}, $merge2_file, $log2);
 		push @commands, [$command2, $merge2_file . '.bed', $log2];
 			# this will have multiple outputs, but one is just a .bed file
 	}
@@ -971,8 +992,7 @@ sub run_rescore {
 			}
 		}
 		else {
-			$input2 = $Jobs[0]->{peak};
-			$input2 =~ s/narrow/gapped/;
+			$input2 = $Jobs[0]->{gappeak};
 			if (not $opts{dryrun} and not -e $input2) {
 				die "unable to find merged bed file '$input2'!\n";
 			}
@@ -1192,6 +1212,7 @@ sub new {
 	    fe_bdg => undef,
 	    logfe_bw => undef,
 	    peak => undef,
+	    gappeak => undef,
 	    qvalue_bw => undef,
 	    chrnorm => $chrnorm,
 	}, $class;
@@ -1208,6 +1229,7 @@ sub new {
 		$self->{fe_bdg} = "$namepath.FE.bdg";
 		$self->{logfe_bw} = "$namepath.log2FE.bw";
 		$self->{peak} = "$namepath.narrowPeak";
+		$self->{gappeak} = "$namepath.gappedPeak";
 	}
 	elsif ($chip =~ /\.bam$/i) {
 		my @bams = split(',', $chip);
@@ -1219,6 +1241,7 @@ sub new {
 		$self->{fe_bdg} = "$namepath.FE.bdg";
 		$self->{logfe_bw} = "$namepath.log2FE.bw";
 		$self->{peak} = "$namepath.narrowPeak";
+		$self->{gappeak} = "$namepath.gappedPeak";
 		if ($chip_scale) {
 			$self->{chip_scale} = [split(',', $chip_scale)];
 			$self->crash("unequal scale factors and bam files!\n") if 
@@ -1963,18 +1986,56 @@ sub generate_peakcall_commands {
 	$command .= " 2> $log";
 	if ($opts{broad}) {
 		# sneak this in as an extra command
-		my $bpeak = $self->{peak};
-		$bpeak =~ s/narrow/gapped/;
-		my $command2 = sprintf("%s bdgbroadcall -i %s -c %s -C %s -l %s -g %s -G %s -o %s ",
+		my $command2 = sprintf("%s bdgbroadcall -i %s -c %s -C %s -l %s -g %s -G %s --no-trackline -o %s ",
 			$opts{macs}, $qtrack, $opts{cutoff}, $opts{broadcut}, $opts{peaksize}, 
-			$opts{peakgap}, $opts{broadgap}, $bpeak
+			$opts{peakgap}, $opts{broadgap}, $self->{gappeak}
 		);
-		my $log2 = $self->{peak};
-		$log2 =~ s/narrowPeak$/broadcall.out.txt/;
+		my $log2 = $self->{gappeak};
+		$log2 =~ s/gappedPeak$/broadcall.out.txt/;
 		$command2 .= " 2> $log2";
-		return ( [$command, $self->{peak}, $log], [$command2, $bpeak, $log2] );
+		return ( [$command, $self->{peak}, $log], [$command2, $self->{gappeak}, $log2] );
 	}
 	return [$command, $self->{peak}, $log];
+}
+
+sub generate_cleanpeak_commands {
+	my $self = shift;
+	croak("no manipulate_datasets.pl application in path!\n") unless $opts{mandata} =~ /\w+/;
+	my @commands;
+	
+	# clean narrowPeak file
+	# take only the first five columns, change extension as bed, and rename peaks
+	# bdgpeakcall doesn't actually report all the extra narrowPeak columns, so might 
+	# as well just change it to a simple bed file. Plus, I HATE the peak name it gives.
+	my $newpeak = $self->{peak};
+	$newpeak =~ s/narrowPeak$/bed/;
+	my $command = sprintf("cut -f1-5 %s > %s ", $self->{peak}, $newpeak);
+	$command .= sprintf("&& %s --func addname --target %s --in %s ", $opts{mandata}, 
+		$self->{name}, $newpeak);
+	my $log = $newpeak;
+	$log =~ s/bed/cleanpeak.out.txt/;
+	$command .= sprintf(" 2>&1 > %s ", $log);
+	$command .= sprintf("&& rm %s", $self->{peak});
+	push @commands, [$command, $newpeak, $log];
+	$self->{peak} = $newpeak; # replace in object
+	
+	
+	# clean broadpeak in similar fashion
+	if ($opts{broad}) {
+		my $newpeak1 = $self->{gappeak};
+		$newpeak1 =~ s/gappedPeak$/gapped.bed/;
+		my $command1 = sprintf("cut -f1-12 %s > %s ", $self->{gappeak}, $newpeak1);
+		$command1 .= sprintf("&& %s --func addname --target %s_gapped --in %s ", $opts{mandata}, 
+			$self->{name}, $newpeak1);
+		my $log1 = $newpeak1;
+		$log1 =~ s/bed/cleanpeak.out.txt/;
+		$command1 .= sprintf(" 2>&1 > %s ", $log1);
+		$command1 .= sprintf("&& rm %s", $self->{gappeak});
+		push @commands, [$command1, $newpeak1, $log1];
+		$self->{gappeak} = $newpeak1; # replace in object
+	}
+	
+	return @commands;
 }
 
 sub generate_bdg2bw_commands {
