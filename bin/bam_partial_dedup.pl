@@ -257,7 +257,7 @@ my ($counts, $outbam) = deduplicate();
 printf "  Total mapped: %34d 
   Optical duplicate count: %23d
   Non-duplicate count: %27d
-  Retained non-optical duplicate count: %10d 
+  Retained non-optical duplicate count: %10d
   Removed non-optical duplicate count: %11d
   Current duplication rate: %22.4f\n",
 	$counts->{total}, $counts->{optical}, $counts->{nondup}, $counts->{duplicate}, 

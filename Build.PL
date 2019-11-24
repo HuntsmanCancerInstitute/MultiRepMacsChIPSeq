@@ -20,7 +20,7 @@ my $build = Module::Build->new(
 		'Module::Build'           => 0,
 	},
 	requires           => {
-		'Bio::ToolBox'              => 1.65,
+		'Bio::ToolBox'              => 1.68,
 		'Bio::DB::HTS'              => 0,
 		'Bio::DB::Big'              => 0,
 		'Parallel::ForkManager'     => 0,

@@ -569,12 +569,76 @@ sub run_dedup {
 		print "\nStep is completed\n";
 		return;
 	}
+	
+	### Run de-duplication
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_dedup_commands(\%name2done);
 	}
 	if (@commands) {
 		execute_commands(\@commands);
 	}
+	
+	### Collect deduplication statistics
+	my @dedupstats;
+	push @dedupstats, join("\t", qw(File TotalCount OpticalDuplicateCount DuplicateCount
+		NonDuplicateCount DuplicationRate RetainedDuplicateCount));
+	foreach my $c (@commands) {
+		# initialize counts
+		my $total   = 0; # total count
+		my $optdup  = 0; # optical duplicate count
+		my $nondup  = 0; # non-duplicate count
+		my $dup     = 0; # duplicate count
+		my $retdup  = 0; # retained duplicate count
+		my $duprate = 0; # duplication rate
+		
+		# open log file and collect stats
+		my $fh = IO::File->new($c->[2], 'r');
+		while (my $line = $fh->getline) {
+			if ($line =~  /^  Total mapped:\s+(\d+)$/) {
+				# bam_partial_dedup
+				$total = $1;
+			}
+			elsif ($line =~ /^  Non-duplicate count:\s+(\d+)$/) {
+				$nondup = $1;
+			}
+			elsif ($line =~ /^  Optical duplicate count:\s+(\d+)$/) {
+				# optical bam_partial_dedup
+				$optdup = $1;
+			}
+			elsif ($line =~ /^  Non-optical duplicate count:\s+(\d+)$/) {
+				# non-optical bam_partial_dedup
+				$dup = $1;
+			}
+			elsif ($line =~ /^  Non-optical duplication rate:\s+(\d\.\d+)$/) {
+				# non-optical bam_partial_dedup
+				$duprate = $1;
+			}
+			elsif ($line =~ /^  Retained non-optical duplicate count:\s+(\d+)\s*$/) {
+				# bam_partial_dedup
+				# oops, there may be a space at the end
+				$retdup = $1;
+			}
+		}
+		$fh->close;
+		
+		# name of bam file, extracted from log file
+		my (undef, undef, $name) = File::Spec->splitpath($c->[2]);
+		$name =~ s/\.dedup\.out\.txt$//;
+		
+		# store in array
+		push @dedupstats, join("\t", $name, $total, $optdup, $dup, $nondup, $duprate, 
+			$retdup || $dup);
+	}
+	
+	# print duplicate stats file
+	my $dedupfile = File::Spec->catfile($opts{dir}, $opts{out} . '.dedup-stats.txt');
+	my $fh = IO::File->new($dedupfile, 'w');
+	foreach (@dedupstats) {
+		$fh->print("$_\n");
+	}
+	$fh->close;
+	print "\n Wrote deduplication report $dedupfile\n";
+	
 	update_progress_file('deduplication');
 }
 
