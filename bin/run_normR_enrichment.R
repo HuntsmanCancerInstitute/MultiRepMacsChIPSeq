@@ -28,7 +28,9 @@ opts <-  list(
   make_option(c("-t","--threshold"), default=0.001,
               help="Threshold Q-value for filtering, default 0.001"),
   make_option(c("-m","--min"), default=50,
-              help="Minimum interval count sum, default 50")
+              help="Minimum interval count sum, default 50"),
+  make_option(c("--all"), action="store_true", default=FALSE,
+              help="Report all windows, not just significant")
 )
 
 parser <- OptionParser(option_list=opts, description = "
@@ -107,6 +109,30 @@ e1 <- enrichR(treatment = counts[,chipcol],
 write.table(data.frame(seqnames(targets),start(targets),end(targets),getEnrichment(e1)),
             file=paste0(opt$output,"_logEnrichment.bdg"),
             sep = "\t", row.names = F, quote = F, col.names = F)
+
+# write all results
+if (opt$all != "NA"){
+    allresults <- data.frame(
+      Chromosome = seqnames(targets),
+      Start = start(targets),
+      End = end(targets),
+      ChIPCount = getCounts(e1)$treatment,
+      ControlCount = getCounts(e1)$control,
+      Enrichment = getEnrichment(e1),
+      Pvalue = getPvalues(e1),
+      QValue = getQvalues(e1)
+    )
+    # check for name and add it if present
+    if (length(namecol)) {
+      allresults$Name <- counts[,namecol]
+      allresults <- allresults[,c(1,2,3,9,4:8)]
+    }
+    # write results
+    write.table(allresults,file=paste0(opt$output,".all.txt"),
+                sep = "\t", row.names = F, quote = F, col.names = T)
+
+}
+ 
 
 
 # get significant results
