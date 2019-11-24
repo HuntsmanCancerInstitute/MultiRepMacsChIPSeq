@@ -77,6 +77,7 @@ my %opts = (
 	bedtools    => sprintf("%s", which 'bedtools'),
 	getdata     => sprintf("%s", which 'get_datasets.pl'),
 	getrel      => sprintf("%s", which 'get_relative_data.pl'),
+	geteff      => sprintf("%s", which 'get_chip_efficiency.pl'),
 	printchr    => sprintf("%s", which 'print_chromosome_lengths.pl'),
 	data2wig    => sprintf("%s", which 'data2wig.pl'),
 	meanbdg     => sprintf("%s", which 'generate_mean_bedGraph.pl'),
@@ -230,6 +231,7 @@ Options:
   --data2wig  path             ($opts{data2wig})
   --getdata   path             ($opts{getdata})
   --getrel    path             ($opts{getrel})
+  --geteff    path             ($opts{geteff})
   --meanbdg   path             ($opts{meanbdg})
   --bedtools  path             ($opts{bedtools})
   --intersect path             ($opts{intersect})
@@ -318,6 +320,7 @@ GetOptions(
 	'bedtools=s'            => \$opts{bedtools},
 	'getdata=s'             => \$opts{getdata},
 	'getrel=s'              => \$opts{getrel},
+	'geteff=s'              => \$opts{geteff},
 	'printchr=s'            => \$opts{printchr},
 	'meanbdg=s'             => \$opts{meanbdg},
 	'intersect=s'           => \$opts{intersect},
@@ -357,6 +360,7 @@ run_clean_peaks();
 run_bdg_conversion();
 run_peak_merge();
 run_rescore();
+run_efficiency();
 run_plot_peaks();
 finish();
 
@@ -559,7 +563,8 @@ sub check_progress_file {
 		cleanpeak     => 0,
 		bdg2bw        => 0,
 		peakmerge     => 0,
-		rescore       => 0
+		rescore       => 0,
+		efficiency    => 0
 	);
 	if (-e $progress_file) {
 		my $fh = IO::File->new($progress_file, '<');
@@ -1201,6 +1206,75 @@ sub run_rescore {
 	update_progress_file('rescore');
 }
 
+sub run_efficiency {
+	print "\n\n======= Scoring peak calls for ChIP efficiency\n";
+	if ($progress{efficiency}) {
+		print "\nStep is completed\n";
+		return;
+	}
+	die "no get_chip_efficiency.pl script in path!\n" unless $opts{geteff} =~ /\w+/;
+	
+	### Sample conditions file
+	my $samplefile = File::Spec->catfile($opts{dir}, $opts{out} . '_samples.txt');
+	if (not $opts{dryrun} and not -e $samplefile) {
+		die "unable to find sample file '$samplefile'!\n";
+	}
+	
+	### ChIP efficiency
+	my @commands;
+	foreach my $Job (@Jobs) {
+		my $output = File::Spec->catfile($opts{dir}, $Job->{name} . '.efficiency.txt');
+		my $command = sprintf("%s --in %s --group %s --out %s --cpu %d ", 
+			$opts{geteff}, $Job->{peak}, $samplefile, $output);
+		# add count files, no prefix
+		foreach my $b ( @{ $Job->{chip_count_bw} } ) {
+			$command .=  "$b ";
+		}
+		foreach my $b ( @{ $Job->{control_count_bw} } ) {
+			$command .=  "$b ";
+		}
+		my $log = $output;
+		$log =~ s/txt/out.txt/;
+		$command .= sprintf("2>&1 > $log");
+		push @commands, [$command, $output, $log];
+	}
+	
+	# execute the efficiency commands
+	execute_commands(@commands);
+	
+	# merge the efficiency outputs into one
+	if (scalar @Jobs > 1) {
+		my @combined_eff_data;
+		my @combined_eff_meta;
+		foreach my $c (@commands) {
+			my $fh = IO::File->new($c->[1], 'r');
+			while (my $line = $fh->getline) {
+				if (substr($line, 0, 1) eq '#') {
+					push @combined_eff_meta, $line;
+				}
+				else {
+					push @combined_eff_data, $line;
+				}
+			}
+			$fh->close;
+			unlink $c->[1];
+		}
+		
+		# write merged file
+		my $combined_eff_out = File::Spec->catfile($opts{dir}, $opts{out} . '.chip_efficiency.txt');
+		my $fh = IO::File->new($combined_eff_out, 'w');
+		foreach (@combined_eff_meta) {
+			$fh->print($_);
+		}
+		foreach (@combined_eff_data) {
+			$fh->print($_);
+		}
+		$fh->close;
+		print "\nWrote combined ChIP efficiency file $combined_eff_out\n";
+	}
+	
+	update_progress_file('efficiency');
+}
 
 sub run_plot_peaks {
 	return unless ($opts{plot});
