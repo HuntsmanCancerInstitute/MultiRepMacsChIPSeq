@@ -67,7 +67,7 @@ while (@ARGV) {
 			push @files, $stdout;
 		}
 		my $stderr = "$path/stderr.txt";
-		if (-e $stdout) {
+		if (-e $stderr) {
 			# a Pysano standard error file
 			push @files, $stderr;
 		}
@@ -242,6 +242,8 @@ my @headers = qw(Sample NovoalignTotalReads NovoalignUniqueMapped NovoalignMulti
 	# we skip the sample identifier column, but check everything else
 my @columns;
 for my $i (1..$#headers) {
+	# calculate a sum for this particular column
+	# any nonzero sum indicates we have data collected, so this column will be output
 	my $check = sum0( map {$output[$_]->[$i]} (0..$#output) );
 	push @columns, $i if $check != 0;
 }
