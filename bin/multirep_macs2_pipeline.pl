@@ -14,6 +14,7 @@
 
 use strict;
 use IO::File;
+use File::Copy;
 use File::Spec;
 use File::Which;
 use File::Path qw(make_path);
@@ -67,6 +68,7 @@ my %opts = (
 	repmean     => 0,
 	plot        => 0,
 	dryrun      => 0,
+	organize    => 0,
 	bam2wig     => sprintf("%s", which 'bam2wig.pl'),
 	bamdedup    => sprintf("%s", which 'bam_partial_dedup.pl'),
 	macs        => sprintf("%s", which 'macs2'),
@@ -218,6 +220,7 @@ Options:
   --cpu       integer           Number of CPUs to use per job ($opts{cpu})
   --job       integer           Number of simultaneous jobs ($opts{job})
   --dryrun                      Just print the commands without execution
+  --organize                    Organize files into subfolders when finished
 
  Application  Paths
   --bam2wig   path             ($opts{bam2wig})
@@ -309,6 +312,7 @@ GetOptions(
 	'cpu=i'                 => \$opts{cpu},
 	'job=i'                 => \$opts{job},
 	'dryrun!'               => \$opts{dryrun},
+	'organize!'             => \$opts{organize},
 	'help!'                 => \$help,
 	'bam2wig=s'             => \$opts{bam2wig},
 	'bamdedup=s'            => \$opts{bamdedup},
@@ -363,6 +367,7 @@ run_rescore();
 run_efficiency();
 run_plot_peaks();
 finish();
+run_organize();
 
 # final statement
 printf "Finished in %.1f minutes\n", (time -$start) / 60;
@@ -1345,6 +1350,60 @@ sub finish {
 	print "\nCombined all job output log files into '$file'\n";
 }
 
+
+sub run_organize {
+	# directories
+	my $fragdir  = File::Spec->catpath($opts{dir}, 'Fragment');
+	my $log2dir  = File::Spec->catpath($opts{dir}, 'Log2FE');
+	my $countdir = File::Spec->catpath($opts{dir}, 'Count');
+	my $qdir     = File::Spec->catpath($opts{dir}, 'QValue');
+	my $peakdir  = File::Spec->catpath($opts{dir}, 'Peaks');
+	my $imagedir = File::Spec->catpath($opts{dir}, 'Images');
+	my $analdir  = File::Spec->catpath($opts{dir}, 'Analysis');
+	foreach ($fragdir, $log2dir, $countdir, $qdir, $peakdir, $imagedir, $analdir) {
+		make_path($_);
+	}
+	
+	# move job files
+	foreach my $Job (@Jobs) {
+		move($Job->{chip_bw}, $fragdir);
+		move($Job->{lambda_bw}, $fragdir) if -e $Job->{lambda_bw};
+		move($Job->{logfe_bw}, $log2dir);
+		move($Job->{qvalue_bw}, $qdir);
+		move($Job->{qvalue_bdg}, $qdir) if -e $Job->{qvalue_bdg};
+		move($Job->{peak}, $peakdir);
+		move($Job->{gappeak}, $peakdir) if -e $Job->{gappeak};
+	}
+	
+	# count files
+	foreach (glob('*.count.bw')) {
+		move($_, $countdir);
+	}
+	
+	# merged peak
+	foreach (glob('*.bed')) {
+		move($_, $peakdir);
+	}
+	
+	# text files
+	foreach (glob('*.txt*')) {
+		next if $_ =~ /job_output_logs\.txt$/;
+		move($_, $analdir);
+	}
+	
+	# image files
+	foreach (glob('*.png')) {
+		move($_, $imagedir);
+	}
+	
+	# dedup bam files
+	if ($opts{savebam}) {
+		my $bamdir = File::Spec->catpath($opts{dir}, 'DeDupBam');
+		foreach (glob('*.ba?')) {
+			move($_, $bamdir);
+		}
+	}
+}
 
 
 ############### ChIPJob Package ########################################################
