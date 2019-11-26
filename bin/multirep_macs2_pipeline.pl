@@ -778,7 +778,9 @@ sub check_command_finished {
 			return 5;
 		}
 	}
-	return 0; # command was not finished
+	
+	# else presume command was not finished
+	return 0; 
 }
 
 sub update_progress_file {
@@ -1301,7 +1303,11 @@ sub run_plot_peaks {
 	my $command = sprintf("%s %s --input %s ", $opts{rscript}, $opts{plotpeak}, $outbase);
 	my $log = $outbase . '_plot_figures.out.txt';
 	$command .= " 2>&1 > $log";
-	execute_commands( [ [$command, '', $log] ] );
+	
+	# there are multiple output files from this script
+	# only using one as an example
+	my $example = File::Spec->catfile($opts{dir}, $opts{out} . '_PCA.png');
+	execute_commands( [ [$command, $example, $log] ] );
 }
 
 
