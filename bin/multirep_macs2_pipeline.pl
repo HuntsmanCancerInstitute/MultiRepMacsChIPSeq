@@ -370,8 +370,8 @@ finish();
 run_organize();
 
 # final statement
-printf "Finished in %.1f minutes\n", (time -$start) / 60;
-print "\n======== Finished ChIPSeq multi-replicate pipeline ==========\n\n";
+printf "\n\nFinished in %.1f minutes\n", (time -$start) / 60;
+print "======== Finished ChIPSeq multi-replicate pipeline ==========\n";
 
 
 
@@ -503,6 +503,9 @@ sub check_input_files {
 	}
 	if ($error) {
 		die "ERROR! Missing $error input files!\n";
+	}
+	else {
+		print " All input files found\n";
 	}
 }
 
@@ -1313,6 +1316,8 @@ sub run_plot_peaks {
 
 sub finish {
 	return if $opts{dryrun};
+	print "\n\n======= Combining log files\n";
+	
 	
 	# combine output logs
 	my @combined_output;
@@ -1339,8 +1344,10 @@ sub finish {
 		$fh->print($_);
 	}
 	$fh->close;
+	print "\nCombined all job output log files into '$file'\n";
 	
 	# remove files no longer need
+	print "\n\n======= Deleting temporary files\n";
 	unless ($opts{savebam}) {
 		foreach my $Job (@Jobs) {
 			foreach my $b ( @{ $Job->{chip_dedup_bams} } ) {
@@ -1357,9 +1364,6 @@ sub finish {
 	}
 	unlink $chromofile;
 	unlink $progress_file;
-	
-	# final print statements
-	print "\nCombined all job output log files into '$file'\n";
 }
 
 
