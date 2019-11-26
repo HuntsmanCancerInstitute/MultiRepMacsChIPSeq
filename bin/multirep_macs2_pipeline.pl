@@ -1481,13 +1481,16 @@ sub new {
 			$self->crash("unequal scale factors and bam files!\n") if 
 				scalar(@{$self->{chip_bams}}) != scalar(@bams);
 		}
-		# count bw files
+		# generate count bw and dedup bam file names
 		foreach my $bam (@bams) {
-			my $bamname = $bam; # $bam is aliased, so must make a copy
-			$bamname =~ s/\.bam$//i;
-			my (undef, undef, $fname) = File::Spec->splitpath($bamname);
-			push @{ $self->{chip_count_bw} }, sprintf("%s.count.bw",
-				File::Spec->catfile($opts{dir}, $fname));
+			my $base_name = $bam; # $bam is aliased, so must make a copy
+			my (undef, undef, $fname) = File::Spec->splitpath($bam);
+			$fname =~ s/\.bam$//i; # strip extension
+			my $base = File::Spec->catfile($opts{dir}, $fname);
+			# count bigWig
+			push @{ $self->{chip_count_bw} }, "$base.count.bw";
+			# dedup bam
+			push @{ $self->{chip_dedup_bams} }, "$base.dedup.bam";
 		}
 	}
 	else {
@@ -1544,13 +1547,16 @@ sub new {
 			$self->crash("unequal scale factors and bam files!\n") if 
 				scalar(@bams) != scalar(@{$self->{control_scale}});
 		}
-		# count bw files
+		# generate count bw  and dedup file names
 		foreach my $bam (@bams) {
-			my $bamname = $bam; # $bam is aliased, so must make a copy
-			$bamname =~ s/\.bam$//i;
-			my (undef, undef, $fname) = File::Spec->splitpath($bamname);
-			push @{ $self->{control_count_bw} }, sprintf("%s.count.bw",
-				File::Spec->catfile($opts{dir}, $fname));
+			my $base_name = $bam; # $bam is aliased, so must make a copy
+			my (undef, undef, $fname) = File::Spec->splitpath($bam);
+			$fname =~ s/\.bam$//i; # strip extension
+			my $base = File::Spec->catfile($opts{dir}, $fname);
+			# count bigWig
+			push @{ $self->{control_count_bw} }, "$base.count.bw";
+			# dedup bam
+			push @{ $self->{control_dedup_bams} }, "$base.dedup.bam";
 		}
 	}
 	else {
@@ -1578,10 +1584,7 @@ sub generate_dedup_commands {
 	if (defined $self->{chip_bams}) {
 		for (my $i = 0; $i < scalar @{$self->{chip_bams}}; $i++) {
 			my $in = $self->{chip_bams}->[$i];
-			my (undef,undef,$out) = File::Spec->splitpath($in);
-			$out = File::Spec->catfile($opts{dir}, $out);
-			$out =~ s/\.bam$/.dedup.bam/i;
-			$self->{chip_dedup_bams}->[$i] = $out;
+			my $out = $self->{chip_dedup_bams}->[$i];
 			my $command = sprintf "%s --in %s --out %s --cpu %s ", 
 				$opts{bamdedup},
 				$in,
@@ -1619,10 +1622,7 @@ sub generate_dedup_commands {
 				$self->{control_dedup_bams}->[$i] = $name2done->{$in};
 				next;
 			}
-			my (undef,undef,$out) = File::Spec->splitpath($in);
-			$out = File::Spec->catfile($opts{dir}, $out);
-			$out =~ s/\.bam$/.dedup.bam/i;
-			$self->{control_dedup_bams}->[$i] = $out;
+			my $out = $self->{control_dedup_bams}->[$i];
 			my $command = sprintf "%s --in %s --out %s --cpu %s ", 
 				$opts{bamdedup},
 				$in,
