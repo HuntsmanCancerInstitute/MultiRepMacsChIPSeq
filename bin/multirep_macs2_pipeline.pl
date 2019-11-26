@@ -943,8 +943,8 @@ sub run_peak_merge {
 	my $command = sprintf("%s --bed %s --out %s ", $opts{intersect}, $opts{bedtools}, 
 		 $merge_file);
 	foreach my $Job (@Jobs) {
-		if ($Job->{peak}) {
-			$command .= sprintf("%s ", $Job->{peak});
+		if ($Job->{clean_peak}) {
+			$command .= sprintf("%s ", $Job->{clean_peak});
 		}
 	}
 	my $log = $merge_file . '.merge.out.txt';
@@ -961,8 +961,8 @@ sub run_peak_merge {
 			 $merge2_file);
 	
 		foreach my $Job (@Jobs) {
-			if ($Job->{gappeak}) {
-				$command2 .= sprintf("%s ", $Job->{gappeak});
+			if ($Job->{clean_gappeak}) {
+				$command2 .= sprintf("%s ", $Job->{clean_gappeak});
 			}
 		}
 		my $log2 = $merge2_file . '.merge.out.txt';
@@ -995,7 +995,7 @@ sub run_rescore {
 		}
 	}
 	else {
-		$input = $Jobs[0]->{peak};
+		$input = $Jobs[0]->{clean_peak};
 		if (not $opts{dryrun} and not -e $input) {
 			die "unable to find narrow peak file '$input'!\n";
 		}
@@ -1096,7 +1096,7 @@ sub run_rescore {
 			}
 		}
 		else {
-			$input2 = $Jobs[0]->{gappeak};
+			$input2 = $Jobs[0]->{clean_gappeak};
 			if (not $opts{dryrun} and not -e $input2) {
 				die "unable to find gapped Peak bed file '$input2'!\n";
 			}
@@ -1230,7 +1230,7 @@ sub run_efficiency {
 	foreach my $Job (@Jobs) {
 		my $output = File::Spec->catfile($opts{dir}, $Job->{name} . '.efficiency.txt');
 		my $command = sprintf("%s --in %s --group %s --out %s --cpu %d ", 
-			$opts{geteff}, $Job->{peak}, $samplefile, $output);
+			$opts{geteff}, $Job->{clean_peak}, $samplefile, $output);
 		# add count files, no prefix
 		foreach my $b ( @{ $Job->{chip_count_bw} } ) {
 			$command .=  "$b ";
@@ -1443,6 +1443,8 @@ sub new {
 	    qvalue_bw           => undef, # q-value bigWig file name
 	    peak                => undef, # narrow peak file name
 	    gappeak             => undef, # gapped peak file name
+	    clean_peak          => undef, # cleaned peak file name
+	    clean_gappeak       => undef, # cleaned gapped peak file name
 	}, $class;
 	
 	
@@ -1458,6 +1460,8 @@ sub new {
 		$self->{logfe_bw} = "$namepath.log2FE.bw";
 		$self->{peak} = "$namepath.narrowPeak";
 		$self->{gappeak} = "$namepath.gappedPeak";
+		$self->{clean_peak} = "$namepath.bed";
+		$self->{clean_gappeak} = "$namepath.gapped.bed";
 	}
 	elsif ($chip =~ /\.bam$/i) {
 		my @bams = split(',', $chip);
@@ -1470,6 +1474,8 @@ sub new {
 		$self->{logfe_bw} = "$namepath.log2FE.bw";
 		$self->{peak} = "$namepath.narrowPeak";
 		$self->{gappeak} = "$namepath.gappedPeak";
+		$self->{clean_peak} = "$namepath.bed";
+		$self->{clean_gappeak} = "$namepath.gapped.bed";
 		if ($chip_scale) {
 			$self->{chip_scale} = [split(',', $chip_scale)];
 			$self->crash("unequal scale factors and bam files!\n") if 
@@ -2214,7 +2220,8 @@ sub generate_peakcall_commands {
 	$command .= " 2> $log";
 	if ($opts{broad}) {
 		# sneak this in as an extra command
-		my $command2 = sprintf("%s bdgbroadcall -i %s -c %s -C %s -l %s -g %s -G %s --no-trackline -o %s ",
+		# bdgbroadcall doesn't support writing without a trackline
+		my $command2 = sprintf("%s bdgbroadcall -i %s -c %s -C %s -l %s -g %s -G %s -o %s ",
 			$opts{macs}, $qtrack, $opts{cutoff}, $opts{broadcut}, $opts{peaksize}, 
 			$opts{peakgap}, $opts{broadgap}, $self->{gappeak}
 		);
@@ -2235,32 +2242,32 @@ sub generate_cleanpeak_commands {
 	# take only the first five columns, change extension as bed, and rename peaks
 	# bdgpeakcall doesn't actually report all the extra narrowPeak columns, so might 
 	# as well just change it to a simple bed file. Plus, I HATE the peak name it gives.
-	my $newpeak = $self->{peak};
-	$newpeak =~ s/narrowPeak$/bed/;
-	my $command = sprintf("cut -f1-5 %s > %s ", $self->{peak}, $newpeak);
+	my $command = sprintf("cut -f1-5 %s > %s ", $self->{peak}, $self->{clean_peak});
 	$command .= sprintf("&& %s --func addname --target %s --in %s ", $opts{mandata}, 
-		$self->{name}, $newpeak);
-	my $log = $newpeak;
+		$self->{name}, $self->{clean_peak});
+	my $log = $self->{clean_peak};
 	$log =~ s/bed/cleanpeak.out.txt/;
 	$command .= sprintf(" 2>&1 > %s ", $log);
 	$command .= sprintf("&& rm %s", $self->{peak});
-	push @commands, [$command, $newpeak, $log];
-	$self->{peak} = $newpeak; # replace in object
+	push @commands, [$command, $self->{clean_peak}, $log];
 	
 	
 	# clean broadpeak in similar fashion
 	if ($opts{broad}) {
-		my $newpeak1 = $self->{gappeak};
-		$newpeak1 =~ s/gappedPeak$/gapped.bed/;
-		my $command1 = sprintf("cut -f1-12 %s > %s ", $self->{gappeak}, $newpeak1);
-		$command1 .= sprintf("&& %s --func addname --target %s_gapped --in %s ", $opts{mandata}, 
-			$self->{name}, $newpeak1);
-		my $log1 = $newpeak1;
+		# macs always writes out a track options line, which wreaks havoc with 
+		# manipulate_datasets in checking file formats, so we need to get rid of it
+		# it doesn't really add a lot of utility besides enforcing file format
+		# since we're purposefully changing format, it's really interfering
+		# so use tail to explicitly take everything from 2nd line onwards
+		my $command1 = sprintf("tail -n +2 %s | cut -f1-12 > %s ", 
+			$self->{gappeak}, $self->{clean_gappeak});
+		$command1 .= sprintf("&& %s --func addname --target %s_gapped --in %s ", 
+			$opts{mandata}, $self->{name}, $self->{clean_gappeak});
+		my $log1 = $self->{clean_gappeak};
 		$log1 =~ s/bed/cleanpeak.out.txt/;
 		$command1 .= sprintf(" 2>&1 > %s ", $log1);
 		$command1 .= sprintf("&& rm %s", $self->{gappeak});
-		push @commands, [$command1, $newpeak1, $log1];
-		$self->{gappeak} = $newpeak1; # replace in object
+		push @commands, [$command1, $self->{clean_gappeak}, $log1];
 	}
 	
 	return @commands;
