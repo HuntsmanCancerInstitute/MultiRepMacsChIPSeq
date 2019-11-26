@@ -649,7 +649,7 @@ sub run_dedup {
 		
 		# store in array
 		push @dedupstats, join("\t", $name, $total, $optdup, $dup, $nondup, $duprate, 
-			$retdup || $dup);
+			$retdup);
 	}
 	
 	# print duplicate stats file
