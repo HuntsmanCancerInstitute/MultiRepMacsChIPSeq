@@ -1256,7 +1256,7 @@ sub run_efficiency {
 	}
 	
 	# execute the efficiency commands
-	execute_commands(@commands);
+	execute_commands(\@commands);
 	
 	# merge the efficiency outputs into one
 	if (scalar @Jobs > 1) {
