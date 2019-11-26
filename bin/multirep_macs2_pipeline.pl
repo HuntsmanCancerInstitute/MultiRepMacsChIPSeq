@@ -1054,35 +1054,42 @@ sub run_rescore {
 		}
 	}
 	
+	
 	# add log outputs to commands
 	my @commands;
 	my $log = $output1;
-	$log =~ s/txt$/log.txt/;
+	$log =~ s/txt$/out.txt/;
 	$command1 .= " 2>&1 > $log";
 	push @commands, [$command1, $output1, $log];
+	
 	$log = $output2;
-	$log =~ s/txt$/log.txt/;
+	$log =~ s/txt$/out.txt/;
 	$command2 .= " 2>&1 > $log";
 	push @commands, [$command2, $output2, $log];
+	
 	$log = $output3;
-	$log =~ s/txt$/log.txt/;
+	$log =~ s/txt$/out.txt/;
 	$command3 .= " 2>&1 > $log";
 	push @commands, [$command3, $output3, $log];
+	
 	$log = $output4;
-	$log =~ s/txt$/log.txt/;
-	$command3 .= " 2>&1 > $log";
+	$log =~ s/txt$/out.txt/;
+	$command4 .= " 2>&1 > $log";
 	push @commands, [$command4, $output4, $log];
+	
 	$log = $output5;
-	$log =~ s/txt$/log.txt/;
+	$log =~ s/txt$/out.txt/;
 	$command5 .= " 2>&1 > $log";
 	push @commands, [$command5, $output5, $log];
+	
 	if ($opts{window}) {
 		# user has given an actual genome window size, so we'll run this command
 		$log = $output6;
-		$log =~ s/txt\.gz$/log.txt/;
+		$log =~ s/txt\.gz$/out.txt/;
 		$command6 .= " 2>&1 > $log";
 		push @commands, [$command6, $output6, $log];
 	}
+	
 	
 	# broad peak rescore
 	my ($output7, $output8, $output9);
@@ -1134,15 +1141,17 @@ sub run_rescore {
 		# add log outputs to commands
 		my @commands;
 		my $log = $output7;
-		$log =~ s/txt$/log.txt/;
+		$log =~ s/txt$/out.txt/;
 		$command7 .= " 2>&1 > $log";
 		push @commands, [$command7, $output7, $log];
+		
 		$log = $output8;
-		$log =~ s/txt$/log.txt/;
+		$log =~ s/txt$/out.txt/;
 		$command8 .= " 2>&1 > $log";
 		push @commands, [$command8, $output8, $log];
+		
 		$log = $output9;
-		$log =~ s/txt$/log.txt/;
+		$log =~ s/txt$/out.txt/;
 		$command9 .= " 2>&1 > $log";
 		push @commands, [$command9, $output9, $log];
 	}
@@ -1176,7 +1185,7 @@ sub run_rescore {
 		my $command10 = sprintf("%s --in %s --out %s --sample %s --method mean --format 0 ", 
 			$opts{combrep}, $output3, $output3m, $samplefile);
 		$log = $output3m;
-		$log =~ s/txt/log.txt/;
+		$log =~ s/txt/out.txt/;
 		$command10 .= " 2>&1 > $log";
 		push @commands2, [$command10, $output3m, $log];
 		
@@ -1187,7 +1196,7 @@ sub run_rescore {
 			my $command11 = sprintf("%s --in %s --out %s --sample %s --method mean --format 0 ", 
 				$opts{combrep}, $output6, $output6m, $samplefile);
 			$log = $output6m;
-			$log =~ s/txt\.gz/log.txt/;
+			$log =~ s/txt\.gz/out.txt/;
 			$command11 .= " 2>&1 > $log";
 			push @commands2, [$command11, $output6m, $log];
 		}
@@ -1199,7 +1208,7 @@ sub run_rescore {
 			my $command12 = sprintf("%s --in %s --out %s --sample %s --method mean --format 0 ", 
 				$opts{combrep}, $output9, $output9m, $samplefile);
 			$log = $output9m;
-			$log =~ s/txt/log.txt/;
+			$log =~ s/txt/out.txt/;
 			$command12 .= " 2>&1 > $log";
 			push @commands2, [$command12, $output9m, $log];
 		}
