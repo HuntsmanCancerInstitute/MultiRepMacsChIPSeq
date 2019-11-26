@@ -1316,25 +1316,22 @@ sub finish {
 	
 	# combine output logs
 	my @combined_output;
-	foreach my $c (@finished_commands) {
-		my $log = $c->[2]; # the log file
-		next unless $log;
+	my @logs = glob(File::Spec->catfile($opts{dir}, '*.out.txt'));
+	foreach my $log (@logs) {
 		push @combined_output, "=== Log file: $log\n";
-		if (-e $log) {
-			if (-z _) {
-				# an empty file
-				push @combined_output, "\n";
-				unlink $log;
-			}
-			else {
-				# push log contents to combined output
-				my $fh = IO::File->new($log) or next;
-				push @combined_output, <$fh>;
-				push @combined_output, "\n";
-				$fh->close;
-			}
-			unlink $log if -e $log;
+		if (-z $log) {
+			# an empty file
+			push @combined_output, "\n";
+			unlink $log;
 		}
+		else {
+			# push log contents to combined output
+			my $fh = IO::File->new($log) or next;
+			push @combined_output, <$fh>;
+			push @combined_output, "\n";
+			$fh->close;
+		}
+		unlink $log if -e $log;
 	}
 	my $file = File::Spec->catfile($opts{dir}, $opts{out} . "_job_output_logs.txt");
 	my $fh = IO::File->new($file, "w");
@@ -1344,7 +1341,6 @@ sub finish {
 	$fh->close;
 	
 	# remove files no longer need
-	unlink $chromofile;
 	unless ($opts{savebam}) {
 		foreach my $Job (@Jobs) {
 			foreach my $b ( @{ $Job->{chip_dedup_bams} } ) {
@@ -1359,6 +1355,7 @@ sub finish {
 			}
 		}
 	}
+	unlink $chromofile;
 	unlink $progress_file;
 	
 	# final print statements
