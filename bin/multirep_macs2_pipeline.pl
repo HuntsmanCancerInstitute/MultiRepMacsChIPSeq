@@ -1367,15 +1367,17 @@ sub finish {
 
 
 sub run_organize {
+	return unless ($opts{organize});
+	print "\n\n======= Moving files into subdirectories\n";
+	
 	# directories
-	my $fragdir  = File::Spec->catpath($opts{dir}, 'Fragment');
-	my $log2dir  = File::Spec->catpath($opts{dir}, 'Log2FE');
-	my $countdir = File::Spec->catpath($opts{dir}, 'Count');
-	my $qdir     = File::Spec->catpath($opts{dir}, 'QValue');
-	my $peakdir  = File::Spec->catpath($opts{dir}, 'Peaks');
-	my $imagedir = File::Spec->catpath($opts{dir}, 'Images');
-	my $analdir  = File::Spec->catpath($opts{dir}, 'Analysis');
-	foreach ($fragdir, $log2dir, $countdir, $qdir, $peakdir, $imagedir, $analdir) {
+	my $fragdir  = File::Spec->catfile($opts{dir}, 'Fragment');
+	my $log2dir  = File::Spec->catfile($opts{dir}, 'Log2FE');
+	my $countdir = File::Spec->catfile($opts{dir}, 'Count');
+	my $qdir     = File::Spec->catfile($opts{dir}, 'QValue');
+	my $peakdir  = File::Spec->catfile($opts{dir}, 'Peaks');
+	my $analdir  = File::Spec->catfile($opts{dir}, 'Analysis');
+	foreach ($fragdir, $log2dir, $countdir, $qdir, $peakdir, $analdir) {
 		make_path($_);
 	}
 	
@@ -1391,33 +1393,38 @@ sub run_organize {
 	}
 	
 	# count files
-	foreach (glob('*.count.bw')) {
+	foreach (glob(File::Spec->catfile($opts{dir}, '*.count.bw')) ) {
 		move($_, $countdir);
 	}
 	
 	# merged peak
-	foreach (glob('*.bed')) {
+	foreach (glob(File::Spec->catfile($opts{dir}, '*.bed')) ) {
 		move($_, $peakdir);
 	}
 	
 	# text files
-	foreach (glob('*.txt*')) {
+	foreach (glob(File::Spec->catfile($opts{dir}, '*.txt*')) ) {
 		next if $_ =~ /job_output_logs\.txt$/;
 		move($_, $analdir);
 	}
 	
 	# image files
-	foreach (glob('*.png')) {
-		move($_, $imagedir);
+	if ($opts{plot}) {
+		my $imagedir = File::Spec->catfile($opts{dir}, 'Images');
+		make_path($imagedir);
+		foreach (glob(File::Spec->catfile($opts{dir}, '*.png')) ) {
+			move($_, $imagedir);
+		}
 	}
 	
 	# dedup bam files
 	if ($opts{savebam}) {
-		my $bamdir = File::Spec->catpath($opts{dir}, 'DeDupBam');
-		foreach (glob('*.ba?')) {
+		my $bamdir = File::Spec->catfile($opts{dir}, 'DeDupBam');
+		foreach (glob(File::Spec->catfile($opts{dir}, '*.dedup.ba?')) ) {
 			move($_, $bamdir);
 		}
 	}
+	
 }
 
 
