@@ -1023,9 +1023,9 @@ sub run_rescore {
 		$opts{getdata}, $opts{cpu}, $input, $output2);
 	my $command3 = sprintf("%s --method sum --cpu %s --in %s --out %s --format 0 ",
 		$opts{getdata}, $opts{cpu}, $input, $output3);
-	my $command4 = sprintf("%s --method mean --cpu %s --in %s --out %s --win %s --num 10 --pos m --format 3 --groups --sum ",
+	my $command4 = sprintf("%s --method mean --cpu %s --in %s --out %s --win %s --num 10 --pos m --long --format 3 --groups --sum ",
 		$opts{getrel}, $opts{cpu}, $input, $output4, $opts{binsize});
-	my $command5 = sprintf("%s --method mean --cpu %s --in %s --out %s --win %s --num 10 --pos m --format 3 --groups --sum ",
+	my $command5 = sprintf("%s --method mean --cpu %s --in %s --out %s --win %s --num 10 --pos m --long --format 3 --groups --sum ",
 		$opts{getrel}, $opts{cpu}, $input, $output5, $opts{binsize});
 	my $command6 = sprintf("%s --method sum --cpu %s --feature genome --win %d --discard %s --out %s --format 0 ",
 		$opts{getdata}, $opts{cpu}, $opts{window}, $opts{discard}, $output6);
