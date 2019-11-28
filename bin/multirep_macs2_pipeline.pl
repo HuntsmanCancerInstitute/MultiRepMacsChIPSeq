@@ -1242,6 +1242,7 @@ sub run_efficiency {
 	### ChIP efficiency
 	my @commands;
 	foreach my $Job (@Jobs) {
+		next unless defined $Job->{clean_peak};
 		my $output = File::Spec->catfile($opts{dir}, $Job->{name} . '.efficiency.txt');
 		my $command = sprintf("%s --in %s --group %s --out %s --cpu %d ", 
 			$opts{geteff}, $Job->{clean_peak}, $samplefile, $output);
@@ -1262,7 +1263,7 @@ sub run_efficiency {
 	execute_commands(\@commands);
 	
 	# merge the efficiency outputs into one
-	if (scalar @Jobs > 1) {
+	if (scalar @commands > 1) {
 		my @combined_eff_data;
 		my @combined_eff_meta;
 		foreach my $c (@commands) {
@@ -2258,6 +2259,7 @@ sub generate_peakcall_commands {
 
 sub generate_cleanpeak_commands {
 	my $self = shift;
+	return unless defined $self->{peak}; # skip control jobs
 	croak("no manipulate_datasets.pl application in path!\n") unless $opts{mandata} =~ /\w+/;
 	my @commands;
 	
