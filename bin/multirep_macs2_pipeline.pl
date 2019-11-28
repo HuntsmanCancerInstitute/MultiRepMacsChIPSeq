@@ -2280,7 +2280,7 @@ sub generate_cleanpeak_commands {
 	# bdgpeakcall doesn't actually report all the extra narrowPeak columns, so might 
 	# as well just change it to a simple bed file. Plus, I HATE the peak name it gives.
 	my $command = sprintf("cut -f1-5 %s > %s ", $self->{peak}, $self->{clean_peak});
-	$command .= sprintf("&& %s --func addname --target %s --in %s ", $opts{mandata}, 
+	$command .= sprintf("&& %s --func addname --target %s. --in %s ", $opts{mandata}, 
 		$self->{name}, $self->{clean_peak});
 	my $log = $self->{clean_peak};
 	$log =~ s/bed/cleanpeak.out.txt/;
@@ -2298,7 +2298,7 @@ sub generate_cleanpeak_commands {
 		# so use tail to explicitly take everything from 2nd line onwards
 		my $command1 = sprintf("tail -n +2 %s | cut -f1-12 > %s ", 
 			$self->{gappeak}, $self->{clean_gappeak});
-		$command1 .= sprintf("&& %s --func addname --target %s_gapped --in %s ", 
+		$command1 .= sprintf("&& %s --func addname --target %s_gapped. --in %s ", 
 			$opts{mandata}, $self->{name}, $self->{clean_gappeak});
 		my $log1 = $self->{clean_gappeak};
 		$log1 =~ s/bed/cleanpeak.out.txt/;
