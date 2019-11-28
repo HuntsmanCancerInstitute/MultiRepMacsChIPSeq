@@ -1383,15 +1383,27 @@ sub run_organize {
 		make_path($_);
 	}
 	
-	# move job files
-	foreach my $Job (@Jobs) {
-		move($Job->{chip_bw}, $fragdir);
-		move($Job->{lambda_bw}, $fragdir) if -e $Job->{lambda_bw};
-		move($Job->{logfe_bw}, $log2dir);
-		move($Job->{qvalue_bw}, $qdir);
-		move($Job->{qvalue_bdg}, $qdir) if -e $Job->{qvalue_bdg};
-		move($Job->{peak}, $peakdir);
-		move($Job->{gappeak}, $peakdir) if -e $Job->{gappeak};
+	# we're globbing all the files, hope this isn't a problem in case user has 
+	# similarly named files in existing directory.
+	# Otherwise there's an awful lot of conditional checks for files in every single 
+	# ChIPJob object plus general run files....
+	
+	# log2FE files
+	foreach (glob(File::Spec->catfile($opts{dir}, '*.log2FE.bw')) ) {
+		move($_, $log2dir);
+	}
+	
+	# fragment files
+	foreach (glob(File::Spec->catfile($opts{dir}, '*.fragment.bw')) ) {
+		move($_, $fragdir);
+	}
+	foreach (glob(File::Spec->catfile($opts{dir}, '*.lambda_control.bw')) ) {
+		move($_, $fragdir);
+	}
+	
+	# qvalue files
+	foreach (glob(File::Spec->catfile($opts{dir}, '*.qvalue.bw')) ) {
+		move($_, $qdir);
 	}
 	
 	# count files
