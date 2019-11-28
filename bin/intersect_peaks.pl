@@ -100,7 +100,7 @@ my $command = "cat ";
 foreach my $f (@files) {
 	$command .= sprintf("%s ", $f);
 }
-$command .= sprintf(" | %s sort -i - | %s merge -c 4,5 -o distinct,mean -i - > %s",
+$command .= sprintf(" | %s sort -i - | %s merge -c 4,5 -o distinct,mean -prec 0 -i - > %s",
 	$tool, $tool, $outfile . '.bed' );
 if (system($command)) {
 	die "something went wrong! command:\n $command\n";
