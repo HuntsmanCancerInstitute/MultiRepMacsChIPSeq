@@ -1241,17 +1241,33 @@ sub run_efficiency {
 	
 	### ChIP efficiency
 	my @commands;
+	
+	# universal control counts
+	# I have to search for these explicitly, since they're not associated with ChIP job
+	my @universal_counts;
+	foreach my $Job (@Jobs) {
+		next unless (
+			not defined $Job->{clean_peak} and 
+			scalar @{ $Job->{control_count_bw} } > 0
+		);
+		push @universal_counts, @{ $Job->{control_count_bw} };
+	}
+	
+	# collect count files for each job
 	foreach my $Job (@Jobs) {
 		next unless defined $Job->{clean_peak};
 		my $output = File::Spec->catfile($opts{dir}, $Job->{name} . '.efficiency.txt');
 		my $command = sprintf("%s --in %s --group %s --out %s --cpu %d ", 
 			$opts{geteff}, $Job->{clean_peak}, $samplefile, $output);
-		# add count files, no prefix
+		# add count files, we should have at least one chip and one control
 		foreach my $b ( @{ $Job->{chip_count_bw} } ) {
-			$command .=  "$b ";
+			$command .= "$b ";
 		}
 		foreach my $b ( @{ $Job->{control_count_bw} } ) {
-			$command .=  "$b ";
+			$command .= "$b ";
+		}
+		foreach my $b (@universal_counts) {
+			$command .= "$b ";
 		}
 		my $log = $output;
 		$log =~ s/txt/out.txt/;
