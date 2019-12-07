@@ -25,6 +25,8 @@ opts <-  list(
          help="Maximum log2 Fold Enrichment value to plot, default 4"),
     make_option(c("-q","--qmax"), default=30,
          help="Maximum q-value to plot, default 30"),
+    make_option(c("-r","--fmax"), default = 4,
+         help="Maximum fragment value to plot, default 4"),
     make_option(c("-f","--format"), default="png",
          help="Format of output file: png, pdf, default png")
 )
@@ -32,14 +34,25 @@ opts <-  list(
 parser <- OptionParser(option_list=opts, description = "
 This script generates a number of heat maps and plots for identified peak calls, 
 including the following:
-  - heat map and cluster of jaccard (spatial overlap) statistic between peaks
-  - heat map and cluster of the number of peak intersctions
-  - heat map of the mean q-value scores for each ChIP over merged peaks
-  - heat map of the mean log2 fold enrichment for each ChIP over merged peaks
+  - Scatter plot of before and after duplication counts versus non-duplicate
+  - PCA plot between all sample replicates based on fragment counts in peak
+  - Multiple pairwise correlation (Pearson, Spearman, and Euclidean distance) 
+    heat maps and clusters of the counts between sample replicates
+  - Heat map and cluster of the number of peak intersections
+  - Heat map and cluster of jaccard (spatial overlap) statistic between peaks
+  - Pie chart of spatial overlap fraction of total merged peak coverage for 
+    each sample
+  - Bar chart of the fraction of fragment counts in corresponding peaks 
+    for each replicate, a measure of ChIP efficiency
+  - Heat map of the mean q-value scores for each ChIP over merged peaks
+  - Heat map of the mean log2 fold enrichment for each ChIP over merged peaks
     with k-means clustering (6, 8, and 10 clusters)
-  - pairwise Pearson, Spearman, and Euclidean distance between all sample 
-    replicates with heat map and cluster
-  - PCA plot between all sample replicates
+  - Profile heat map of the fragment density over the midpoint of merged
+    peaks for all samples, with and without k-means (4) clustering
+  - Profile heat map of the log2 Fold Enrichment over the midpoint of merged
+    peaks for all samples, with and without k-means (4) clustering
+  - Mean profile line plot of fragment density over merged peaks
+  - Mean profile line plot of log2 Fold Enrichment over merged peaks
 ")
 
 opt <- parse_args(parser)
@@ -68,36 +81,80 @@ color10 = c("1" = "#543005", "2" = "#8c510a", "3" = "#bf812d",
             "10" = "#003c30")
 
 
-#### Functions
 
-makekmeans <-function(rdata, hm_min, hm_max, k, hm_color, rowColor, figmain, outbase) {
+######## Functions #############
+
+makekmeans <-function(rdata, k) {
   set.seed(100)
   n <- ncol(rdata)
   o <- apply(rdata, 1, mean)
   rdata <- rdata[order(o, decreasing = T),]
-  rdata <- replace(rdata, rdata > hm_max, hm_max)
-  rdata <- replace(rdata, rdata < hm_min, hm_min)
   kresult <- kmeans(rdata, k, nstart = 100, iter.max = 100)
   kdata <- cbind(rdata, kresult$cluster)
   o <- order(kdata[, n+1])
   kdata <- kdata[o, ]
   rowAnnot <- data.frame(row.names = rownames(kdata),
                          "Cluster"=as.character(kdata$`kresult$cluster`))
-  pheatmap(kdata[,c(1:n)], cluster_cols = T, color = hm_color, 
-           border_color = NA, breaks = seq(hm_min,hm_max,length=256), 
-           cluster_rows = F, show_rownames = F, 
-           show_colnames = T, annotation_row = rowAnnot, 
-           annotation_colors = list("Cluster" = rowColor), main = figmain,
+  klist <- list("data" = kdata, "anno" = rowAnnot)
+  return(klist)
+}
+
+plot_mean_k_hm <-function(rdata, hm_min, hm_max, k, hm_color, rowColor, figmain, outbase) {
+  n <- ncol(rdata)
+  kdata <- makekmeans(rdata, k)
+  
+  pheatmap(kdata$data[,1:n],  
+           border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
+           cluster_rows = F, cluster_cols = T, 
+           show_rownames = F, show_colnames = T, 
+           color = hm_color,
+           annotation_row = kdata$anno, 
+           annotation_colors = list("Cluster" = rowColor), 
+           main = figmain, 
            filename = paste0(outbase, ".", opt$format), width = 8, height = 10)
-  write.table(data.frame(kresult$cluster), file = paste0(outbase, "_klist.txt"), 
+  write.table(kdata$anno, file = paste0(outbase, "_klist.txt"), 
               sep = "\t", quote = F)
 }
 
-makehm <-function(rdata, hm_min, hm_max, hm_color, figmain, outbase) {
+plot_profile_k_hm <-function(rdata, hm_min, hm_max, k, hm_color, rowColor, colAnno, figmain, outbase) {
+  n <- ncol(rdata)
+  kdata <- makekmeans(rdata, k)
+  nms <- as.vector(unique(colAnno[,1]))
+  clrs <- brewer.pal(length(nms), "Set1")
+  names(clrs) <- nms
+  pheatmap(kdata$data[,1:n], 
+           border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
+           cluster_rows = F, cluster_cols = F, 
+           show_rownames = F, show_colnames = F, 
+           color = hm_color, 
+           annotation_row = kdata$anno, 
+           annotation_col = colAnno, 
+           annotation_colors = list("Cluster" = rowColor, "Dataset" = clrs), 
+           main = figmain,filename = paste0(outbase, ".png"), width = 8, height = 10)
+  write.table(kdata$anno, file = paste0(outbase, "_klist.txt"), 
+              sep = "\t", quote = F)
+}
+
+plot_profile_hm <-function(rdata, hm_min, hm_max, hm_color, colAnno, figmain, outbase) {
+  n <- ncol(rdata)
   o <- apply(rdata, 1, mean)
   rdata <- rdata[order(o, decreasing = T),]
-  rdata <- replace(rdata, rdata > hm_max, hm_max)
-  rdata <- replace(rdata, rdata < hm_min, hm_min)
+  nms <- as.vector(unique(colAnno[,1]))
+  clrs <- brewer.pal(length(nms), "Set1")
+  names(clrs) <- nms
+  pheatmap(rdata, 
+           border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
+           cluster_rows = F, cluster_cols = F, 
+           show_rownames = F, show_colnames = F, 
+           color = hm_color, 
+           annotation_col = colAnno, 
+           annotation_colors = list("Dataset" = clrs), 
+           main = figmain,filename = paste0(outbase, ".png"), width = 8, height = 10)
+}
+
+plot_mean_hm <-function(rdata, hm_min, hm_max, hm_color, figmain, outbase) {
+  o <- apply(rdata, 1, mean)
+  rdata <- rdata[order(o, decreasing = T),]
   pheatmap(rdata, cluster_cols = T, color = hm_color, 
            border_color = NA, breaks = seq(hm_min,hm_max,length=256), 
            cluster_rows = F, show_rownames = F, show_colnames = T, main = figmain,
@@ -107,8 +164,12 @@ makehm <-function(rdata, hm_min, hm_max, hm_color, figmain, outbase) {
 makeDist <- function(rdata, cdata, outfile) {
   sampleDists = dist(t(rdata))
   sampleDistMatrix <- as.matrix( sampleDists )
-  colours = colorRampPalette( rev(brewer.pal(9, 'Blues')) )(255)
-  pheatmap(sampleDistMatrix, col=colours, annotation_row = cdata,
+  hmclrs = colorRampPalette( rev(brewer.pal(9, 'Blues')) )(255)
+  nms <- as.vector(unique(cdata[,1]))
+  anclrs <- brewer.pal(length(nms), "Set1")
+  names(anclrs) <- nms
+  pheatmap(sampleDistMatrix, color=hmclrs, annotation_row = cdata,
+           annotation_colors = list("Dataset" = anclrs),
            cluster_cols = T, cluster_rows = T,
            main = "Distance Correlation of Sample Counts",
            filename = outfile, width = 10, height = 8)
@@ -117,8 +178,12 @@ makeDist <- function(rdata, cdata, outfile) {
 makePearCorr <- function(rdata, cdata, outfile) {
   sampleCorr = cor(rdata, method = "pearson")
   sampleMatrix <- as.matrix( sampleCorr )
-  colours = colorRampPalette( brewer.pal(9, 'Blues') )(255)
-  pheatmap(sampleMatrix, col=colours, annotation_row = cdata, 
+  hmclrs = colorRampPalette( rev(brewer.pal(9, 'Blues')) )(255)
+  nms <- as.vector(unique(cdata[,1]))
+  anclrs <- brewer.pal(length(nms), "Set1")
+  names(anclrs) <- nms
+  pheatmap(sampleMatrix, color = hmclrs, annotation_row = cdata, 
+           annotation_colors = list("Dataset" = anclrs),
            breaks = seq(0,1,length=255),
            cluster_cols = T, cluster_rows = T,
            main = "Pearson Correlation of Sample Counts",
@@ -128,14 +193,17 @@ makePearCorr <- function(rdata, cdata, outfile) {
 makeSpearCorr <- function(rdata, cdata, outfile) {
   sampleCorr = cor(rdata, method = "spearman")
   sampleMatrix <- as.matrix( sampleCorr )
-  colours = colorRampPalette( brewer.pal(9, 'Blues') )(255)
-  pheatmap(sampleMatrix, col=colours, annotation_row = cdata,
+  hmclrs = colorRampPalette( rev(brewer.pal(9, 'Blues')) )(255)
+  nms <- as.vector(unique(cdata[,1]))
+  anclrs <- brewer.pal(length(nms), "Set1")
+  names(anclrs) <- nms
+  pheatmap(sampleMatrix, color = hmclrs, annotation_row = cdata,
+           annotation_colors = list("Dataset" = anclrs),
            breaks = seq(0,1,length=255),
            cluster_cols = T, cluster_rows = T,
            main = "Spearman Correlation of Sample Counts",
            filename = outfile, width = 10, height = 8)
 }
-
 
 makePCA <- function(rdata, cdata, outfile) {
   if (ncol(rdata) != nrow(cdata)) {
@@ -146,14 +214,58 @@ makePCA <- function(rdata, cdata, outfile) {
   p <- prcomp(t(x))
   percentVar <- round(p$sdev^2/sum(p$sdev^2) * 100, 1)
   ggdat <- cbind(cdata, as.data.frame(p$x))
-  p1 <- ggplot(ggdat, aes(PC1, PC2, color=Group, label=rownames(ggdat))) + 
+  p1 <- ggplot(ggdat, aes(PC1, PC2, color=Dataset, label=rownames(ggdat))) + 
     geom_point(size=3) + 
+    scale_fill_brewer(palette="Spectral") +
     ggrepel::geom_text_repel() +
     xlab(paste0("PC1: ", percentVar[1],"% variance")) + 
-    ylab(paste0("PC2: ",percentVar[2],"% variance"))
+    ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+    ggtitle("Principle Component Analysis of Sample Replicates")
   ggsave(filename = outfile, plot = p1, width = 6, height = 6)
 } 
 
+plotMid <- function(gdata, ylabel, figmain, outbase) {
+  sampleList <- colnames(gdata)[2:ncol(gdata)]
+  gdata_long <- melt(gdata, id="Midpoint", measure.vars = sampleList, 
+                     variable.name = "Dataset")
+  p <- ggplot(gdata_long, aes(Midpoint, value)) + 
+    geom_line(aes(color = Dataset)) + 
+    scale_fill_brewer(palette="Spectral") +
+    scale_x_continuous(name = "Relative distance") + 
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    ylab(ylabel) +
+    ggtitle(figmain)
+  ggsave(plot = p, filename = paste0(outbase, '.', opt$format), width = 6, height = 4)
+}
+
+
+
+
+
+######## Script #############
+
+# count data
+countfile <- paste0(opt$input,"_counts.txt")
+samplefile <- paste0(opt$input,"_samples.txt")
+if(file.exists(countfile)) {
+  # read input data
+  countdata <- read.table(countfile, header=TRUE, sep="\t", row.names = 1, 
+                          check.names = FALSE, na.strings = ".")
+  sampledata <- read.table(samplefile, header=TRUE, sep="\t", row.names = 1, 
+                           check.names = FALSE)
+  
+  if ( colnames(countdata)[1] == "Name" ) {
+    # exclude this column name
+    countdata <- countdata[,2:ncol(countdata)]
+  }
+  countdata[is.na(countdata)] <- 0
+  
+  # plot
+  makeDist(countdata,sampledata,paste0(opt$input,"_distance.", opt$format))
+  makePearCorr(countdata,sampledata,paste0(opt$input,"_pearson.", opt$format))
+  makeSpearCorr(countdata,sampledata,paste0(opt$input,"_spearman.", opt$format))
+  makePCA(countdata,sampledata,paste0(opt$input,"_PCA.", opt$format))
+}
 
 
 
@@ -182,7 +294,69 @@ if(file.exists(intersectfile)) {
 
 
 
-# qvalue table
+# spatial venn pie chart
+svennfile <- paste0(opt$input, '.spatialVenn.txt')
+if(file.exists(svennfile)) {
+  svenndata <- read.table(svennfile, header=TRUE, sep="\t", 
+                          check.names = F, na.strings = '.')
+  colnames(svenndata)[1] <- "Dataset"
+  svenndata <- subset(svenndata, svenndata$Fraction >= 0.01)
+  p <- ggplot(svenndata, aes(x="", y=Fraction, fill=Dataset)) +
+    geom_bar(width = 1, stat = "identity") +
+    coord_polar("y", start = 0) +
+    scale_fill_brewer(palette="Spectral") +
+    theme_minimal() + 
+    theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          axis.ticks = element_blank(),
+          panel.grid=element_blank(),
+          axis.text.x=element_blank()) +
+    ggtitle("Spatial occupancy fraction for each sample")
+  ggsave(plot = p, filename = paste0(opt$input, '.spatialVenn.pie.', opt$format), 
+         width = 6, height = 4)
+  
+}
+
+
+
+# chip efficiency
+efffile <- paste0(opt$input, '.chip_efficiency.txt')
+if(file.exists(efffile)) {
+  effdata <- read.table(efffile, header=TRUE, sep = "\t",
+                        check.names = F, na.strings = '.')
+  p <- ggplot(effdata, aes(x = Replicate, y = Efficiency)) +
+    geom_col(aes(fill = Dataset)) +
+    scale_fill_brewer(palette="Dark2") +
+    theme(axis.text.x = element_text(angle = 90)) +
+    ggtitle("Fraction of total fragments in respective called peaks")
+  ggsave(plot = p, filename = paste0(opt$input, '.chip_efficiency.', opt$format), 
+         width = 6, height = 4)
+}
+
+
+
+# deduplication plot
+ddupfile <- paste0(opt$input, '.dedup-stats.txt')
+if(file.exists(ddupfile)) {
+  ddupdata <- read.table(ddupfile, header=TRUE, sep="\t", 
+                        check.names = F, na.strings = '.')
+  colnames(ddupdata)[4] <- "Before"
+  colnames(ddupdata)[7] <- "After"
+  ddupdata_long <- melt(ddupdata, id="NonDuplicateCount", 
+                       measure.vars = c("Before", "After"), 
+                       variable.name = "DeDuplication")
+  p <- ggplot(ddupdata_long, aes(x = NonDuplicateCount, y = value, color = DeDuplication)) +
+    geom_point(size=3) +
+    xlab("NonDuplicate Count") +
+    ylab("Duplicate Count") +
+    ggtitle("Number of Duplicate Fragments After De-duplication")
+  ggsave(plot = p, filename = paste0(opt$input, '.dedup-stats.', opt$format),
+         width = 6, height = 4)
+}
+
+
+
+# qvalue heat map table table
 qfile <- paste0(opt$input, "_qvalue.txt")
 if(file.exists(qfile)) {
     qdata = read.table(qfile, header=TRUE, sep="\t", 
@@ -191,11 +365,14 @@ if(file.exists(qfile)) {
         # exclude this column name
         qdata <- qdata[,2:ncol(qdata)]
     }
-    qdata[is.na(qdata)] <- 0
-    makehm(qdata, 0, opt$qmax, colorRampPalette(brewer.pal(9, 'Reds'))(256), 
-           "Mean Q-Value",
-           paste0(opt$input,"_qvalue_hm"))
-}
+    if (ncol(qdata > 1)) {
+      # only make a heat map file if there is more than one sample
+      qdata[is.na(qdata)] <- 0
+      plot_mean_hm(qdata, 0, opt$qmax, colorRampPalette(brewer.pal(9, 'Reds'))(255), 
+             "Mean Q-Value",
+             paste0(opt$input,"_qvalue_hm"))
+    }
+ }
 
 
 
@@ -208,48 +385,93 @@ if(file.exists(lfefile)) {
         # exclude this column name
         lfedata <- lfedata[,2:ncol(lfedata)]
     }
-    lfedata[is.na(lfedata)] <- 0
-    
-    clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(256)
-    makehm(lfedata, opt$min, opt$max, clrs, 
-           "Mean Log2 Fold Enrichment",
-           paste0(opt$input,"_log2FE_hm"))
-    makekmeans(lfedata, opt$min, opt$max, 6, clrs, color6, 
-               "Mean Log2 Fold Enrichment, 6 Clusters",
-               paste0(opt$input,"_log2FE_hm_K6"))
-    makekmeans(lfedata, opt$min, opt$max, 8, clrs, color8, 
-               "Mean Log2 Fold Enrichment, 8 Clusters",
-               paste0(opt$input,"_log2FE_hm_K8"))
-    makekmeans(lfedata, opt$min, opt$max, 10, clrs, color10, 
-               "Mean Log2 Fold Enrichment, 10 Clusters",
-               paste0(opt$input,"_log2FE_hm_K10"))
-}
-
-
-
-# count data
-countfile <- paste0(opt$input,"_counts.txt")
-samplefile <- paste0(opt$input,"_samples.txt")
-if(file.exists(countfile)) {
-    # read input data
-    countdata <- read.table(countfile, header=TRUE, sep="\t", row.names = 1, 
-                            check.names = FALSE, na.strings = ".")
-    sampledata <- read.table(samplefile, header=TRUE, sep="\t", row.names = 1, 
-                             check.names = FALSE)
-    
-    if ( colnames(countdata)[1] == "Name" ) {
-        # exclude this column name
-        countdata <- countdata[,2:ncol(countdata)]
+    if (ncol(lfedata) > 1) {
+      # only make heat map files if there is more than one sample
+      lfedata[is.na(lfedata)] <- 0
+      clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(255)
+      plot_mean_hm(lfedata, opt$min, opt$max, clrs, 
+             "Mean Log2 Fold Enrichment",
+             paste0(opt$input,"_log2FE_hm"))
+      plot_mean_k_hm(lfedata, opt$min, opt$max, 6, clrs, color6, 
+                 "Mean Log2 Fold Enrichment, 6 Clusters",
+                 paste0(opt$input,"_log2FE_hm_K6"))
+      plot_mean_k_hm(lfedata, opt$min, opt$max, 8, clrs, color8, 
+                 "Mean Log2 Fold Enrichment, 8 Clusters",
+                 paste0(opt$input,"_log2FE_hm_K8"))
+      plot_mean_k_hm(lfedata, opt$min, opt$max, 10, clrs, color10, 
+                 "Mean Log2 Fold Enrichment, 10 Clusters",
+                 paste0(opt$input,"_log2FE_hm_K10"))
     }
-    countdata[is.na(countdata)] <- 0
-    
-    # plot
-    makeDist(countdata,sampledata,paste0(opt$input,"_distance.", opt$format))
-    makePearCorr(countdata,sampledata,paste0(opt$input,"_pearson.", opt$format))
-    makeSpearCorr(countdata,sampledata,paste0(opt$input,"_spearman.", opt$format))
-    makePCA(countdata,sampledata,paste0(opt$input,"_PCA.", opt$format))
 }
 
 
+
+# fragment profile heat map
+fproffile <- paste0(opt$input, "_profile_fragment.txt")
+if(file.exists(fproffile)) {
+  fprofdata = read.table(fproffile,header=TRUE,sep="\t", 
+                         row.names = 1, check.names = F, na.strings = '.')
+  if ( colnames(fprofdata)[1] == "Name" ) {
+    # exclude this column name
+    fprofdata <- fprofdata[,2:ncol(fprofdata)]
+  }
+  grpdata = read.table(paste0(opt$input, "_profile_fragment.groups.txt"), header=TRUE, sep="\t", 
+                       row.names = 1, check.names = F)
+  clrs <- colorRampPalette(brewer.pal(9, 'Reds'))(255)
+  plot_profile_hm(fprofdata, 0, opt$fmax, clrs, grpdata,
+         "ChIP Fragment Density Profile",
+         paste0(opt$input,"_profile_fragment_hm"))
+  plot_profile_k_hm(fprofdata, 0, opt$fmax, 4, clrs, color4, grpdata, 
+                    "ChIP Fragment Density Profile, 4 Clusters",
+                    paste0(opt$input, "_profile_fragment_hm_K4"))
+}
+
+
+
+# log2FE profile heat map
+lfeproffile <- paste0(opt$input, "_profile_log2FE.txt")
+if(file.exists(lfeproffile)) {
+  lfeprofdata = read.table(lfeproffile,header=TRUE,sep="\t", 
+                         row.names = 1, check.names = F, na.strings = '.')
+  if ( colnames(lfeprofdata)[1] == "Name" ) {
+    # exclude this column name
+    lfeprofdata <- lfeprofdata[,2:ncol(lfeprofdata)]
+  }
+  grpdata = read.table(paste0(opt$input, "_profile_log2FE.groups.txt"), header=TRUE, sep="\t", 
+                       row.names = 1, check.names = F)
+  clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(255)
+  plot_profile_hm(lfeprofdata, opt$min, opt$max, clrs, grpdata,
+         "ChIP Log2 Fold Enrichment Profile",
+         paste0(opt$input,"_profile_log2FE_hm"))
+  plot_profile_k_hm(lfeprofdata, opt$min, opt$max, 4, clrs, color4, grpdata, 
+                    "ChIP Log2 Fold Enrichment Profile, 4 Clusters",
+                    paste0(opt$input, "_profile_log2FE_hm_K4"))
+}
+
+
+
+# plot fragment mean profile line plot
+fprofsumfile <- paste0(opt$input, "_profile_fragment_summary.txt")
+if(file.exists(fprofsumfile)) {
+  fprofsumdata <- read.table(fprofsumfile, header=TRUE, sep="\t", 
+                            row.names = 1, check.names = F, na.strings = '.')
+  fprofsumdata[is.na(fprofsumdata)] <- 0
+  plotMid(fprofsumdata, "Fragment Density", "Mean Profile of Fragment Density over Peaks", 
+          paste0(opt$input, "_profile_fragment_summary"))
+  
+}
+
+
+
+# plot log2FE mean profile line plot
+lfeprofsumfile <- paste0(opt$input, "_profile_log2FE_summary.txt")
+if(file.exists(fprofsumfile)) {
+  lfeprofsumdata <- read.table(lfeprofsumfile, header=TRUE, sep="\t", 
+                             row.names = 1, check.names = F, na.strings = '.')
+  lfeprofsumdata[is.na(lfeprofsumdata)] <- 0
+  plotMid(lfeprofsumdata, "Log2 Fold Enrichment", "Mean Profile of Log2 Fold Enrichment over Peaks", 
+          paste0(opt$input, "_profile_log2FE_summary"))
+  
+}
 
 
