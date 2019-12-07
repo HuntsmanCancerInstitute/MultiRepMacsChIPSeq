@@ -1545,7 +1545,6 @@ sub new {
 		}
 		# generate count bw and dedup bam file names
 		foreach my $bam (@bams) {
-			my $base_name = $bam; # $bam is aliased, so must make a copy
 			my (undef, undef, $fname) = File::Spec->splitpath($bam);
 			$fname =~ s/\.bam$//i; # strip extension
 			my $base = File::Spec->catfile($opts{dir}, $fname);
@@ -1611,7 +1610,6 @@ sub new {
 		}
 		# generate count bw  and dedup file names
 		foreach my $bam (@bams) {
-			my $base_name = $bam; # $bam is aliased, so must make a copy
 			my (undef, undef, $fname) = File::Spec->splitpath($bam);
 			$fname =~ s/\.bam$//i; # strip extension
 			my $base = File::Spec->catfile($opts{dir}, $fname);
