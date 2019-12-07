@@ -237,9 +237,13 @@ sub collect_peak_data {
 				else {
 					# we have overlaps!
 					foreach my $r (@$results) {
+						# coordinates for result peak interval
+						my $r_start = $r->[0];
+						my $r_end   = $r->[1];
+						
+						# check base by base
 						for (my $i = $i_start; $i < $i_end; $i++) {
-							# check if this base overlaps
-							if ($i >= $i_start and $i < $i_end) {
+							if ($i >= $r_start and $i < $r_end) {
 								# overlaps a peak
 								$on_peak_sum += $interval->{value};
 							}
