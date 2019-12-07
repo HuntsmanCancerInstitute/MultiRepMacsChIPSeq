@@ -39,7 +39,9 @@ is reported. Typically this fraction should be several times higher for ChIPs
 than for Input, and this ratio can be interpreted as the efficiency.
 
 Alignment count (point) data is preferred, although fragment data could also be 
-used (the numbers will just get very big).
+used (the numbers will just get very big). Note for count data that the sum of 
+on- and off-peak values should be roughly equivalent to the sum of alignments 
+used in the analysis, within tolerance of rounding errors for scaled datasets. 
 
 More than one ChIP file can be provided. Each ChIP file is processed in a 
 separate thread. 
