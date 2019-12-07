@@ -116,7 +116,7 @@ if ($groupfile) {
 
 
 #### Output
-my $Output = Bio::ToolBox->new_data( qw(Replicate Sample OnPeakSum OffPeakSum Efficiency));
+my $Output = Bio::ToolBox->new_data( qw(Replicate Dataset OnPeakSum OffPeakSum Efficiency));
 $Output->add_comment("Peak file: $input");
 
 
