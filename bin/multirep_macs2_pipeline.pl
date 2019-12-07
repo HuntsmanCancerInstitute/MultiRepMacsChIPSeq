@@ -1313,6 +1313,11 @@ sub run_efficiency {
 		$fh->close;
 		print "\nWrote combined ChIP efficiency file $combined_eff_out\n";
 	}
+	elsif (scalar @command == 1) {
+		# just one, so rename it for consistency sake
+		my $eff_out = File::Spec->catfile($opts{dir}, $opts{out} . '.chip_efficiency.txt');
+		move($command[0]->[1], $eff_out);
+	}
 	
 	update_progress_file('efficiency');
 }
