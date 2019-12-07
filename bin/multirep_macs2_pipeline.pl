@@ -1282,11 +1282,15 @@ sub run_efficiency {
 	if (scalar @commands > 1) {
 		my @combined_eff_data;
 		my @combined_eff_meta;
+		my $eff_header;
 		foreach my $c (@commands) {
 			my $fh = IO::File->new($c->[1], 'r');
 			while (my $line = $fh->getline) {
 				if (substr($line, 0, 1) eq '#') {
 					push @combined_eff_meta, $line;
+				}
+				elsif ($line =~ /^Replicate/) {
+					$eff_header = $line unless $eff_header;
 				}
 				else {
 					push @combined_eff_data, $line;
@@ -1302,6 +1306,7 @@ sub run_efficiency {
 		foreach (@combined_eff_meta) {
 			$fh->print($_);
 		}
+		$fh->print($eff_header);
 		foreach (@combined_eff_data) {
 			$fh->print($_);
 		}
