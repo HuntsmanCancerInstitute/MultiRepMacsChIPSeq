@@ -114,7 +114,7 @@ if ($groupfile) {
 
 
 #### Output
-my $Output = Bio::ToolBox->new_data( qw(ChIP Group OnPeakSum OffPeakSum Efficiency));
+my $Output = Bio::ToolBox->new_data( qw(Replicate Sample OnPeakSum OffPeakSum Efficiency));
 $Output->add_comment("Peak file: $input");
 
 
@@ -167,6 +167,7 @@ sub collect_peak_data {
 	# I need to "verify" the dataset bigwig file if I want to use the simplify dataset 
 	# name, but the open_db_connection method used by the open_database function 
 	# doesn't handle "verified" files with a 'file:'prefix. Sigh.
+	# this is fixed in Bio::ToolBox 1.68
 	
 	my $chipfile = $PeakData->verify_dataset($file);
 	unless ($chipfile) {
