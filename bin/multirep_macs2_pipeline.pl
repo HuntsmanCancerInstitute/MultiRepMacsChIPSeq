@@ -1013,7 +1013,7 @@ sub run_rescore {
 	my $output6 = File::Spec->catfile($opts{dir}, $opts{out} . '_genome_counts.txt.gz');
 	
 	# start list of conditions
-	my @conditions = ("Sample\tGroup\n");
+	my @conditions = ("Replicate\tSample\n");
 	
 	# generate four get_dataset and two get_relative commands
 	# go ahead and make the fourth genome-wide command, even though we may not use it
