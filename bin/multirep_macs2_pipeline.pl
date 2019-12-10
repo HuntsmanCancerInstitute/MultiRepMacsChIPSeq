@@ -1278,6 +1278,9 @@ sub run_efficiency {
 	# execute the efficiency commands
 	execute_commands(\@commands);
 	
+	# proceed no further if dry run
+	return if $opts{dryrun};
+	
 	# merge the efficiency outputs into one
 	if (scalar @commands > 1) {
 		my @combined_eff_data;
@@ -1396,6 +1399,7 @@ sub finish {
 
 sub run_organize {
 	return unless ($opts{organize});
+	return if $opts{dryrun};
 	print "\n\n======= Moving files into subdirectories\n";
 	
 	# directories
