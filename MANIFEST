@@ -2,6 +2,8 @@ bin/bam_partial_dedup.pl
 bin/combine_std_chipstats.pl
 bin/combine_replicate_data.pl
 bin/generate_mean_bedGraph.pl
+bin/get_chip_efficiency.pl
+bin/install_R_packages.R
 bin/intersect_peaks.pl
 bin/multirep_macs2_pipeline.pl
 bin/plot_shift_models.R

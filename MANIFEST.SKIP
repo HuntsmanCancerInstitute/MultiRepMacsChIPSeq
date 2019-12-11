@@ -74,7 +74,10 @@
 ^MANIFEST\.SKIP
 
 # Avoid archives of this distribution
-\bUMIScripts-[\d\.\_]+
+\bMultiRepMacsChIPSeq-[\d\.\_]+
 
 # Pysano stuff
 \bpysano/
+
+# Docker stuff
+\bDocer/
