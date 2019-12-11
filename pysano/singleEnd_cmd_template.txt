@@ -6,15 +6,16 @@
 NAME=MYNAME
 
 # organism Novoalign index and mappable size in bp
-INDEX=/tomato/dev/data/Human/Hg38/hg38RefSeqNoOddChroms.nov.illumina.nix
+INDEX=/tomato/dev/data/Human/Hg38/hg38.standard.nov.illumina.nix
+BLACKLIST=/tomato/dev/data/Human/Hg38/hg38.blacklist.bed
 SIZE=2500000000
 
 # optical distance
-# use 100 for HiSeq runs or 2500 for NovaSeq runs
+# use 100 for HiSeq runs or 10000 for NovaSeq runs
 OPTDISTANCE=100
 
 # application paths
-NOVO_APP=/tomato/dev/app/novoalign/3.08.02/novoalign
+NOVO_APP=/tomato/dev/app/novoalign/4.00.01/novoalign
 SAM_APP=/tomato/dev/app/samtools/1.8/samtools
 DEDUP_APP=/tomato/dev/app/modulesoftware/bam_partial_dedup
 BAMWIG_APP=/tomato/dev/app/modulesoftware/bam2wig
@@ -22,10 +23,12 @@ MACS_APP=/tomato/dev/app/modulesoftware/macs2
 
 # align
 echo "=== aligning"
-$NOVO_APP --NonC -d $INDEX \
--o SAM -r Random \
--a AGATCGGAAGAGCACACGTCTGAACTCCAGTCA \
--f *.txt.gz | \
+$NOVO_APP \
+-d $INDEX \
+-o SAM \
+-a $ADAPTF $ADAPTR \
+--tune HiSeq \
+-f *.gz | \
 $SAM_APP view -b -o $NAME.raw.bam -
 
 # sort and index
@@ -39,7 +42,13 @@ $SAM_APP idxstats $NAME.bam > $NAME.idxstats.txt
 
 # check duplicate level
 echo "=== duplication levels"
-$DEDUP_APP --in $NAME.bam --cpu $NCPU --optical --distance $OPTDISTANCE
+$DEDUP_APP \
+--cpu $NCPU \
+--in $NAME.bam \
+--optical \
+--distance $OPTDISTANCE \
+--blacklist $BLACKLIST \
+--chrskip "chrM|MT"
 
 # check insert size with macs2
 echo "=== macs2 predictd"
@@ -48,8 +57,12 @@ $MACS_APP predictd -i $NAME.bam -g $SIZE --rfile $NAME.predictd
 
 # raw coverage and size prediction with bam2wig
 echo "=== bam2wig shift prediction"
-$BAMWIG_APP --in $NAME.bam --cpu $NCPU \
---shift --model --chrom 20 \
+$BAMWIG_APP \
+--in $NAME.bam \
+--cpu $NCPU \
+--shift \
+--model \
+--chrom 20 \
 --out $NAME
 
 
