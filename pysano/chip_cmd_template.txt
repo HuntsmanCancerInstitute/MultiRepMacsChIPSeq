@@ -1,0 +1,39 @@
+#e your.name@hci.utah.edu
+
+# Example Pysano template to run the multi-sample ChIP pipeline
+# based on three ChIPSeq sets (antibodies or conditions) sharing the same input
+# Alignments are paired-end from an Illumina Novaseq with high optical duplicate rate
+
+# edit as appropriate
+
+# see documentation for explanation of parameters
+
+module load multirepchipseq
+
+echo "==== My ChIPSeq pipeline"
+multirep_macs2_pipeline.pl \
+--chip file1.bam,file2.bam \
+--name chip1 \
+--chip file3.bam,file4.bam \
+--name chip2 \
+--chip file5.bam,file6.bam \
+--name chip3 \
+--control input1.bam,input2.bam \
+--out all_chip \
+--dir ChIPSeq \
+--pe \
+--optdist 10000 \
+--dupfrac 0.03 \
+--cutoff 2 \
+--tdep 25 \
+--peaksize 500 \
+--peakgap 200 \
+--species human \
+--chrskip 'chrM' \
+--blacklist /tomato/dev/data/Human/Hg38/hg38.blacklist.bed \
+--plot \
+--organize \
+--cpu 8 \
+--job 3 
+
+
