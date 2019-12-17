@@ -29,7 +29,7 @@ eval {
 	$parallel = 1;
 };
 
-my $VERSION = 2.1;
+my $VERSION = 2.2;
 
 unless (@ARGV) {
 	print <<END;
@@ -277,8 +277,9 @@ exit; # bam files should automatically be closed
 ######################## Subroutines ###################################################
 
 sub process_black_list {
-	if ($black_list and -e $black_list) {
-		eval {require Bio::ToolBox::Data};
+	return unless $black_list;
+	if (-e $black_list) {
+		eval {require Bio::ToolBox::Data}; # this should be available
 		my $i = 0;
 		eval {require Set::IntervalTree; $i = 1;};
 		unless ($i) {
@@ -296,6 +297,9 @@ sub process_black_list {
 		} );
 		printf " Loaded %d black list regions\n", ($Data->last_row);
 		return \%black_list_hash;
+	}
+	else {
+		print " PROBLEM: Specified black list file '$black_list' not found, skipping\n";
 	}
 	return;
 }
