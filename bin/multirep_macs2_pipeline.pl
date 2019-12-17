@@ -22,7 +22,7 @@ use Getopt::Long;
 use Parallel::ForkManager;
 use Bio::ToolBox::utility qw(simplify_dataset_name);
 
-my $VERSION = 13.0;
+my $VERSION = 13.1;
 
 # parameters
 my %opts = (
@@ -587,8 +587,6 @@ sub check_progress_file {
 
 sub run_dedup {
 	return unless ($opts{dedup});
-	my @commands;
-	my %name2done;
 	print "\n\n======= De-duplicating bam files\n";
 	if ($progress{deduplication}) {
 		print "\nStep is completed\n";
@@ -596,11 +594,17 @@ sub run_dedup {
 	}
 	
 	### Run de-duplication
+	my @commands;
+	my %name2done;
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_dedup_commands(\%name2done);
 	}
 	if (@commands) {
 		execute_commands(\@commands);
+	}
+	else {
+		update_progress_file('deduplication');
+		return;
 	}
 	
 	### Collect deduplication statistics
@@ -617,6 +621,7 @@ sub run_dedup {
 		my $duprate = 0; # duplication rate
 		
 		# open log file and collect stats
+		next if (not -e $c->[2]);
 		my $fh = IO::File->new($c->[2], 'r');
 		while (my $line = $fh->getline) {
 			if ($line =~  /^  Total mapped:\s+(\d+)$/) {
