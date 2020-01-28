@@ -1435,6 +1435,9 @@ sub run_organize {
 	foreach (glob(File::Spec->catfile($opts{dir}, '*.lambda_control.bw')) ) {
 		move($_, $fragdir);
 	}
+	foreach (glob(File::Spec->catfile($opts{dir}, '*.fragment.global_mean.bw')) ) {
+		move($_, $fragdir);
+	}
 	
 	# qvalue files
 	foreach (glob(File::Spec->catfile($opts{dir}, '*.qvalue.bw')) ) {
