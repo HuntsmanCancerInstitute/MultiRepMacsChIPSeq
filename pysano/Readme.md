@@ -1,4 +1,4 @@
-# Pysano Alignment Templates
+# Pysano Templates
 
 These are `cmd.txt` alignment templates for users of the HCI 
 [pysano](https://uofuhealth.utah.edu/huntsman/shared-resources/gba/bioinformatics/infrastructure/pysano.php) 
@@ -6,7 +6,7 @@ system for executing jobs at [CHPC](https://www.chpc.utah.edu). If you are not a
 user, feel free to use this as a shell script template for aligning and processing 
 your reads.
 
-## Using the command templates
+## Using the alignment command templates
 
 There are two command templates, for single-end and paired-end sequencing. The primary 
 difference is that the single-end runs additional commands to estimate the average 
@@ -17,7 +17,7 @@ insertion length using two different programs.
     Add your email address, cluster name if so desired, adjust the path to your 
     organism index file, and set the effective size of your organism genome. For 
     optical duplicate size checking, set the distance: 100 pixels for older HiSeq 
-    runs, and 2500 for newer NovaSeq runs. This is customization common to all 
+    runs, and 10000 for newer NovaSeq runs. This is customization common to all 
     of your sample alignment jobs.
     
     If necessary, tweak the commands as appropriate. In general, they probably 
@@ -76,6 +76,9 @@ insertion length using two different programs.
     file. It will write out two corresponding PDF files. *NOTE*: the script requires 
     `ggplot2` module.
 
+## Using the ChIP Pipeline cmd template
+
+There are example command templates. 
 
 - Standard 
 

@@ -16,7 +16,7 @@ make comparisons as consistent and uniform as possible across samples.
 
 ## Rationale
 
-The venerable [Macs2](https://pypi.org/project/MACS2/2.1.1.20160309/) application 
+The venerable [Macs2](https://pypi.org/project/MACS2/) application 
 provides a robust method of determining enrichment of ChIP fragments over input with a 
 number of advantages: fragment-based pileup of ChIP signal versus simple counts, single 
 base-pair resolution instead of sliding windows, estimation of local chromatin bias using 
@@ -25,10 +25,14 @@ multiple window sizes, and more.
 However, Macs2 does not deal with replicates well (it simply adds replicates), which can 
 introduce biases towards samples with greater sample depth. Comparing multiple conditions 
 requires careful execution with identical parameters. New techniques for normalization, 
-such as reference genomes, are not supported.
+such as reference genomes, are not supported. 
 
 This package aims to automate Macs2 ChIPSeq peak calling with support for multiple 
-replicas and conditions while supporting newer normalization methods.
+replicas and conditions while supporting newer normalization methods. Importantly, it 
+will output normalized, processed bigWig enrichment files for subsequent genic analysis 
+using, for example, [BioToolBox](https://github.com/tjparnell/biotoolbox) or 
+[deepTools](https://deeptools.readthedocs.io/en/develop/). 
+
 
 ## Normalization methods
 
@@ -88,7 +92,7 @@ Below are some of the methods used for normalizing samples prior to peak calling
 
 ## Overview
 
-Below is a general overview of the pipeline
+Below is a general overview of the pipeline.
 
 - Deduplicate
 
@@ -140,6 +144,13 @@ Below is a general overview of the pipeline
 	master list of peaks. The log2FE and q-value scores can be plotted as heat maps with
 	[plot_peak_figures](applications.md#plot_peak_figuresr). 
 
+- Profile peaks
+
+	Use [get_relative_data](https://metacpan.org/pod/get_relative_data.pl) to collect 
+	the profile of plots using both fragment coverage and log2 Fold Enrichment scores. 
+	These can be plotted as heat maps or mean line plots using 
+	[plot_peak_figures](applications.md#plot_peak_figuresr). 
+
 - Score genome
 
 	Optionally use get_datasets to score the entire genome in windows for use in other 
@@ -170,6 +181,8 @@ system for executing jobs at [CHPC](https://www.chpc.utah.edu) can use the templ
 in the pysano folder. 
 
 ## Fragment length estimation
+
+This may be skipped for paired-end sequenced samples.
 
 Single-end sequenced samples should be empirically checked for fragment length. There 
 are two ways to determine this: using Macs2 `predictd` function and BioToolBox 
@@ -312,7 +325,7 @@ provided to the wrapper:
 These are descriptions and guidance to the variety of options to the main 
 [multirep_macs2_pipeline](applications.md#multirep_macs2_pipelinepl) script. In most 
 cases, you will want to write the command in a shell script for execution due to the 
-complexity.
+complexity. See the Pysano folder for example scripts.
 
 - Genome size
 
@@ -455,9 +468,8 @@ complexity.
         --peaksize 250 \
         --peakgap 150 \
     
-    Peaks are reported as [narrowPeak](http://genome.ucsc.edu/FAQ/FAQformat.html#format12)
-    files, although the Macs2 `bdgpeakcall` function used in the pipeline does not 
-    report pValue and qValue numbers within the file.
+    Peaks are reported as simple [bed](http://genome.ucsc.edu/FAQ/FAQformat.html#format1)
+    files with 5 columns. 
     
     When multiple conditions are provided, the peaks are merged into a single Bed file, 
     representing all possible peaks identified.
@@ -470,11 +482,17 @@ complexity.
     
 - Job control
 
+	The main wrapper utilizes its own parallelization for execution, and is designed 
+	to run on a single work station or compute node with one or more CPU cores; compute 
+	cluster job management software is not needed.  Disk IO may limit effective 
+	throughput more so than the number of CPU cores.
+	
 	There are two options for controlling jobs and CPU usage, as some of the tools are 
 	multi-threaded and many of the applications can be run concurrently. The `--job` 
-	option indicates the number of simultaneous jobs that can be run concurrently. The `--cpu` 
-	option indicates the number of threads available to each job. The product of the two 
-	should not exceed the total number of cores or threads allowed for your machine. 
+	option indicates the number of simultaneous jobs (applications) that can be run 
+	concurrently. The `--cpu` option indicates the number of threads available to each 
+	job. The product of the two should not exceed the total number of cores or threads 
+	allowed for your machine. 
 	
 	When mistakes happen and the pipeline stops early (it happens), it is usually 
 	possible to restart the pipeline after fixing the error. Each child-job is checked for 
