@@ -22,7 +22,7 @@ use Getopt::Long;
 use Parallel::ForkManager;
 use Bio::ToolBox::utility qw(simplify_dataset_name);
 
-my $VERSION = 13.1;
+my $VERSION = 13.2;
 
 # parameters
 my %opts = (
@@ -1263,7 +1263,7 @@ sub run_efficiency {
 		next unless defined $Job->{clean_peak};
 		my $output = File::Spec->catfile($opts{dir}, $Job->{name} . '.efficiency.txt');
 		my $command = sprintf("%s --in %s --group %s --out %s --cpu %d ", 
-			$opts{geteff}, $Job->{clean_peak}, $samplefile, $output);
+			$opts{geteff}, $Job->{clean_peak}, $samplefile, $output, $opts{cpu});
 		# add count files, we should have at least one chip and one control
 		foreach my $b ( @{ $Job->{chip_count_bw} } ) {
 			$command .= "$b ";
