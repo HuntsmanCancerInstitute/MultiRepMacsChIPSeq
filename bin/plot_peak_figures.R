@@ -300,7 +300,8 @@ if(file.exists(svennfile)) {
   svenndata <- read.table(svennfile, header=TRUE, sep="\t", 
                           check.names = F, na.strings = '.')
   colnames(svenndata)[1] <- "Dataset"
-  svenndata <- subset(svenndata, svenndata$Fraction >= 0.01)
+  svenndata <- head(svenndata[order(svenndata$Fraction, decreasing = T),], 11)
+  svenndata <- subset(svenndata, svenndata$Fraction >= 0.02)
   p <- ggplot(svenndata, aes(x="", y=Fraction, fill=Dataset)) +
     geom_bar(width = 1, stat = "identity") +
     coord_polar("y", start = 0) +
