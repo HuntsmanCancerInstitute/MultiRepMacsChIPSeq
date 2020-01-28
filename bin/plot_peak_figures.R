@@ -178,7 +178,7 @@ makeDist <- function(rdata, cdata, outfile) {
 makePearCorr <- function(rdata, cdata, outfile) {
   sampleCorr = cor(rdata, method = "pearson")
   sampleMatrix <- as.matrix( sampleCorr )
-  hmclrs = colorRampPalette( rev(brewer.pal(9, 'Blues')) )(255)
+  hmclrs = colorRampPalette(brewer.pal(9, 'Blues') )(255)
   nms <- as.vector(unique(cdata[,1]))
   anclrs <- brewer.pal(length(nms), "Set1")
   names(anclrs) <- nms
@@ -193,7 +193,7 @@ makePearCorr <- function(rdata, cdata, outfile) {
 makeSpearCorr <- function(rdata, cdata, outfile) {
   sampleCorr = cor(rdata, method = "spearman")
   sampleMatrix <- as.matrix( sampleCorr )
-  hmclrs = colorRampPalette( rev(brewer.pal(9, 'Blues')) )(255)
+  hmclrs = colorRampPalette(brewer.pal(9, 'Blues') )(255)
   nms <- as.vector(unique(cdata[,1]))
   anclrs <- brewer.pal(length(nms), "Set1")
   names(anclrs) <- nms
