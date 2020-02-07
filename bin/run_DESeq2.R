@@ -30,7 +30,9 @@ opts <-  list(
   make_option(c("-t","--threshold"), default=0.01,
               help="Threshold adjusted p-value for filtering, default 0.01"),
   make_option(c("-m","--min"), default=50,
-              help="Minimum base count sum, default 50")
+              help="Minimum base count sum, default 50"),
+  make_option(c("--all"), action="store_true", default=FALSE,
+              help="Report all windows, not just significant")
 )
 
 parser <- OptionParser(option_list=opts, description = "
@@ -112,6 +114,29 @@ ddsResults1 <- results(dds, alpha = opt$threshold, contrast = c('condition', opt
 
 # shrink log fold changes - is this necessary?
 ddsResults1 <- lfcShrink(dds=dds, res=ddsResults1, contrast= c('condition', opt$first, opt$second))
+
+
+# write all results
+if (opt$all == TRUE) {
+	allresults <- data.frame(
+	  Chromosome = seqnames(targets),
+	  Start = start(targets),
+	  End = end(targets),
+	  baseMean = ddsResults1$baseMean,
+	  Log2FoldChange = ddsResults1$log2FoldChange,
+	  Padj = ddsResults1$padj
+	)
+    # check for name and add it if present
+    if (length(namecol)) {
+      allresults$Name <- counts[,namecol]
+      allresults <- allresults[,c(1,2,3,7,4:6)]
+    }
+    # write results
+    write.table(allresults,file=paste0(opt$output,".all.txt"),
+                sep = "\t", row.names = F, quote = F, col.names = T)
+}
+
+
 
 
 # write bedGraph of log fold changes
