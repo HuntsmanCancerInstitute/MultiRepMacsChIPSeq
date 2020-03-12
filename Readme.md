@@ -401,22 +401,33 @@ complexity. See the Pysano folder for example scripts.
 
 - Genome or chromosome normalization
 
-    When normalizing for reference genomes, such as including Drosophila chromatin in 
-    your ChIP assay of human chromatin, include the normalization factor. This can be 
-    calculated by summing the number of alignments to the reference genome, and calculate 
-    with the following formula:
+    When normalizing for reference genomes, such as including _Drosophila_ chromatin in 
+    your ChIP assay of human chromatin as described in 
+    [Orlando et al](https://doi.org/10.1016/j.celrep.2014.10.018), include the 
+    normalization factor. This can be calculated by summing the number of alignments to 
+    the reference genome, and calculate with the following formula:
     
         factor = 1 / (reference_count / 1000000)
     
-    This factor will normalize the bam coverage as reads per million reference-genome 
+    or simply 
+    	
+    	factor = 1000000 / reference_count
+    
+    This factor will normalize the fragment coverage as reads-per-million reference-genome 
     mapped. It is essential to do this for _both_ ChIP and Input; shared input for 
-    multiple biological replicates is not recommended. Provide the normalization factor 
-    for each replicate. 
+    multiple biological replicates is generally not recommended. Provide the normalization
+    factor for each replicate. 
     
         --chip file1.bam,file2.bam,file3.bam \
         --chscale 0.692933,1.820191,0.814981 \
         --control file4.bam,file5.bam,file6.bam \
         --coscale 0.262140,0.301934,0.286234 \
+    
+    **NOTE:** It's best to try the pipeline twice, with and without genome
+    normalization. Large disparities in the normalization factors between ChIP
+    and Input (for example, antibody doesn't work well in _Drosophila_) might
+    result in aberrant peak calling. Typically, scaled factors are better used
+    in post-processing analysis, rather than peak calling.
     
     For chromosome-specific normalizations, calculate the sum of alignments on the 
     chromosome of interest across all reference control (input chromatin) replicates; 
