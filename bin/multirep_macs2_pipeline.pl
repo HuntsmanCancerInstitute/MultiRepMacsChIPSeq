@@ -66,9 +66,9 @@ my %opts = (
 	genomewin   => 0,
 	discard     => 10,
 	repmean     => 0,
-	plot        => 0,
+	plot        => 1,
 	dryrun      => 0,
-	organize    => 0,
+	organize    => 1,
 	bam2wig     => sprintf("%s", which 'bam2wig.pl'),
 	bamdedup    => sprintf("%s", which 'bam_partial_dedup.pl'),
 	macs        => sprintf("%s", which 'macs2'),
@@ -214,13 +214,13 @@ Options:
   --window    integer           Collect counts across genome in given window size
   --discard   number            Discard genome windows with replicate sum below number ($opts{discard})
   --repmean                     Combine replicate counts as mean for each sample set
-  --plot                        Plot figures of results
+  --noplot                      Do not plot figures of results
   
  Job control
   --cpu       integer           Number of CPUs to use per job ($opts{cpu})
   --job       integer           Number of simultaneous jobs ($opts{job})
   --dryrun                      Just print the commands without execution
-  --organize                    Organize files into subfolders when finished
+  --noorganize                  Do not organize files into subfolders when finished
 
  Application  Paths
   --bam2wig   path             ($opts{bam2wig})
@@ -1483,7 +1483,7 @@ sub run_organize {
 	
 	# image files
 	if ($opts{plot}) {
-		my $imagedir = File::Spec->catfile($opts{dir}, 'Images');
+		my $imagedir = File::Spec->catfile($opts{dir}, 'Plots');
 		make_path($imagedir);
 		foreach (glob(File::Spec->catfile($opts{dir}, '*.png')) ) {
 			move($_, $imagedir);
