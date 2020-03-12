@@ -22,7 +22,7 @@ use Getopt::Long;
 use Parallel::ForkManager;
 use Bio::ToolBox::utility qw(simplify_dataset_name);
 
-my $VERSION = 13.2;
+my $VERSION = 13.3;
 
 # parameters
 my %opts = (
@@ -1470,8 +1470,9 @@ sub run_organize {
 	}
 	
 	# dedup bam files
-	if ($opts{savebam}) {
+	if ($opts{savebam} and $opts{dedup}) {
 		my $bamdir = File::Spec->catfile($opts{dir}, 'DeDupBam');
+		make_path($bamdir);
 		foreach (glob(File::Spec->catfile($opts{dir}, '*.dedup.ba?')) ) {
 			move($_, $bamdir);
 		}
