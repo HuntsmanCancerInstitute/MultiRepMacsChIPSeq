@@ -952,43 +952,57 @@ sub run_peak_merge {
 	my $merge_file = File::Spec->catfile($opts{dir}, $opts{out});
 	my $command = sprintf("%s --bed %s --out %s ", $opts{intersect}, $opts{bedtools}, 
 		 $merge_file);
+	my $command_check = length($command);
 	foreach my $Job (@Jobs) {
-		if ($Job->{clean_peak}) {
+		if ($Job->{clean_peak} and -e $Job->{clean_peak} and -s _) {
 			$command .= sprintf("%s ", $Job->{clean_peak});
 		}
 	}
-	my $log = $merge_file . '.merge.out.txt';
-	$command .= sprintf("2>&1 > %s ", $log);
-	$command .= sprintf("&& %s --func addname --target %s_merge --in %s.bed 2>&1 >> %s",
-		$opts{mandata}, $opts{out}, $merge_file, $log);
-	push @commands, [$command, $merge_file . '.bed', $log]; 
-		# this will have multiple outputs, but one is just a .bed file
+	if (length($command) > $command_check) {
+		my $log = $merge_file . '.merge.out.txt';
+		$command .= sprintf("2>&1 > %s ", $log);
+		$command .= sprintf("&& %s --func addname --target %s_merge --in %s.bed 2>&1 >> %s",
+			$opts{mandata}, $opts{out}, $merge_file, $log);
+		push @commands, [$command, $merge_file . '.bed', $log]; 
+			# this will have multiple outputs, but one is just a .bed file
+	}
+	else {
+		print "No narrow peak files to merge!\n";
+	}
 	
 	# broadPeaks
 	if ($opts{broad}) {
 		my $merge2_file = File::Spec->catfile($opts{dir}, $opts{out} . "_broad");
 		my $command2 = sprintf("%s --bed %s --out %s ", $opts{intersect}, $opts{bedtools}, 
 			 $merge2_file);
-	
+		my $command2_check = length($command2);
+		
 		foreach my $Job (@Jobs) {
-			if ($Job->{clean_gappeak}) {
+			if ($Job->{clean_gappeak} and -e $Job->{clean_gappeak} and -s _ ) {
 				$command2 .= sprintf("%s ", $Job->{clean_gappeak});
 			}
 		}
-		my $log2 = $merge2_file . '.merge.out.txt';
-		$command2 .= sprintf("2>&1 > %s ", $log2);
-		$command2 .= sprintf("&& %s --func addname --target %s_gapmerge --in %s.bed 2>&1 >> %s",
-			$opts{mandata}, $opts{out}, $merge2_file, $log2);
-		push @commands, [$command2, $merge2_file . '.bed', $log2];
-			# this will have multiple outputs, but one is just a .bed file
+		if (length($command2) > $command2_check) {
+			my $log2 = $merge2_file . '.merge.out.txt';
+			$command2 .= sprintf("2>&1 > %s ", $log2);
+			$command2 .= sprintf("&& %s --func addname --target %s_gapmerge --in %s.bed 2>&1 >> %s",
+				$opts{mandata}, $opts{out}, $merge2_file, $log2);
+			push @commands, [$command2, $merge2_file . '.bed', $log2];
+				# this will have multiple outputs, but one is just a .bed file
+		}
+		else {
+			print "No gapped peak files to merge!\n";
+		}
 	}
 	
-	execute_commands(\@commands);
-	update_progress_file('peakmerge');
+	if (@commands) {
+		execute_commands(\@commands);
+		update_progress_file('peakmerge');
+	}
 }
 
 sub run_rescore {
-	print "\n\n======= Re-scoring all merged peaks\n";
+	print "\n\n======= Re-scoring all peaks\n";
 	if ($progress{rescore}) {
 		print "\nStep is completed\n";
 		return;
@@ -1001,13 +1015,15 @@ sub run_rescore {
 	if (scalar(@Jobs) > 1) {
 		$input = File::Spec->catfile($opts{dir}, $opts{out} . '.bed');
 		if (not $opts{dryrun} and not -e $input) {
-			die "unable to find merged narrow Peak bed file '$input'!\n";
+			print "No merged peak file '$input'!\n";
+			return;
 		}
 	}
 	else {
 		$input = $Jobs[0]->{clean_peak};
 		if (not $opts{dryrun} and not -e $input) {
-			die "unable to find narrow peak file '$input'!\n";
+			print "No peak file '$input'!\n";
+			return;
 		}
 	}
 	my $output1 = File::Spec->catfile($opts{dir}, $opts{out} . '_qvalue.txt');
@@ -1241,7 +1257,8 @@ sub run_efficiency {
 	### Sample conditions file
 	my $samplefile = File::Spec->catfile($opts{dir}, $opts{out} . '_samples.txt');
 	if (not $opts{dryrun} and not -e $samplefile) {
-		die "unable to find sample file '$samplefile'!\n";
+		print "No sample file '$samplefile'!\n";
+		return;
 	}
 	
 	### ChIP efficiency
@@ -1338,6 +1355,10 @@ sub run_plot_peaks {
 		return;
 	}
 	my $outbase = File::Spec->catfile($opts{dir}, $opts{out});
+	if (not $opts{dryrun} and not -e "$outbase.bed") {
+		print "No output files for plotting\n";
+		return;
+	}
 	my $command = sprintf("%s %s --input %s ", $opts{rscript}, $opts{plotpeak}, $outbase);
 	my $log = $outbase . '_plot_figures.out.txt';
 	$command .= " 2>&1 > $log";
@@ -2248,7 +2269,7 @@ sub convert_bw_to_bdg {
 		my $command = sprintf("%s %s %s 2>> $log", $opts{bw2bdg}, $self->{lambda_bw}, 
 			$self->{lambda_bdg});
 		push @commands, [$command, $self->{lambda_bdg}, $log];
-		$name2done->{$self->{lambda_bdg}} = 1; # mark as done
+		$name2done->{$self->{lambda_bdg}} = 1; # finished
 	}
 	return @commands;
 }
@@ -2316,18 +2337,20 @@ sub generate_cleanpeak_commands {
 	# take only the first five columns, change extension as bed, and rename peaks
 	# bdgpeakcall doesn't actually report all the extra narrowPeak columns, so might 
 	# as well just change it to a simple bed file. Plus, I HATE the peak name it gives.
-	my $command = sprintf("cut -f1-5 %s > %s ", $self->{peak}, $self->{clean_peak});
-	$command .= sprintf("&& %s --func addname --target %s. --in %s ", $opts{mandata}, 
-		$self->{name}, $self->{clean_peak});
-	my $log = $self->{clean_peak};
-	$log =~ s/bed/cleanpeak.out.txt/;
-	$command .= sprintf(" 2>&1 > %s ", $log);
-	$command .= sprintf("&& rm %s", $self->{peak});
-	push @commands, [$command, $self->{clean_peak}, $log];
+	if (-e $self->{peak} and -s > 10) {
+		my $command = sprintf("cut -f1-5 %s > %s ", $self->{peak}, $self->{clean_peak});
+		$command .= sprintf("&& %s --func addname --target %s. --in %s ", $opts{mandata}, 
+			$self->{name}, $self->{clean_peak});
+		my $log = $self->{clean_peak};
+		$log =~ s/bed/cleanpeak.out.txt/;
+		$command .= sprintf(" 2>&1 > %s ", $log);
+		$command .= sprintf("&& rm %s", $self->{peak});
+		push @commands, [$command, $self->{clean_peak}, $log];
+	}
 	
 	
 	# clean broadpeak in similar fashion
-	if ($opts{broad}) {
+	if ($opts{broad} and -e $self->{gappeak}) {
 		# macs always writes out a track options line, which wreaks havoc with 
 		# manipulate_datasets in checking file formats, so we need to get rid of it
 		# it doesn't really add a lot of utility besides enforcing file format
