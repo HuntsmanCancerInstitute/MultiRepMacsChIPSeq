@@ -2337,7 +2337,7 @@ sub generate_cleanpeak_commands {
 	# take only the first five columns, change extension as bed, and rename peaks
 	# bdgpeakcall doesn't actually report all the extra narrowPeak columns, so might 
 	# as well just change it to a simple bed file. Plus, I HATE the peak name it gives.
-	if (-e $self->{peak} and -s > 10) {
+	if (-e $self->{peak} and -s _ > 10) {
 		my $command = sprintf("cut -f1-5 %s > %s ", $self->{peak}, $self->{clean_peak});
 		$command .= sprintf("&& %s --func addname --target %s. --in %s ", $opts{mandata}, 
 			$self->{name}, $self->{clean_peak});
