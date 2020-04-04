@@ -29,7 +29,7 @@ eval {
 	$parallel = 1;
 };
 
-my $VERSION = 2.2;
+my $VERSION = 3;
 
 unless (@ARGV) {
 	print <<END;
@@ -78,6 +78,10 @@ recommended for patterned flow cells from Illumina NovaSeq or NextSeq. Set a
 distance of 100 pixels for unpatterned (Illumina HiSeq) or at least 10000 for  
 patterned (NovaSeq). By default, optical duplicate alignments are not written 
 to output. To ONLY filter for optical duplicates, set --max to a very high number.
+
+Bam files representing multiple sequence lanes that are identified properly by 
+unique read groups are de-deduplicated separately with regard to optical 
+duplicates, but not coordinate duplicates. (New as version 3)
 
 Existing alignment duplicate marks (bit flag 0x400) are ignored. 
 
@@ -755,9 +759,11 @@ sub identify_optical_duplicates {
 	my @nondups;
 	foreach my $a (@$alignments) {
 		my @bits = split(':', $a->qname);
-		$tile2alignment{$bits[$tilepos]} ||= [];
+		my $rg = $a->aux_get("RG") || '';
+		my $rgtile = join('.', $rg, $bits[$tilepos]);
+		$tile2alignment{$rgtile} ||= [];
 		# each item in the array is another array of [x, y, $a]
-		push @{$tile2alignment{$bits[$tilepos]}}, [$bits[$xpos], $bits[$ypos], $a];
+		push @{$tile2alignment{$rgtile}}, [$bits[$xpos], $bits[$ypos], $a];
 	}
 	
 	# walk through each tile
