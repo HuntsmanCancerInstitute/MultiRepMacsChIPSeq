@@ -2180,7 +2180,8 @@ sub generate_lambda_control_commands {
 	my $background = sprintf("%.4f", ( 1_000_000 * $opts{fragsize} ) / $opts{genome} );
 	my $background_bdg = $self->{lambda_bdg};
 	$background_bdg =~ s/lambda_control/background/;
-	my $infh = IO::File->new($chromofile); # use the chromosome file as source
+	my $infh = IO::File->new($chromofile) or  # use the chromosome file as source
+		die "unable to open chromosome file '$chromofile'!\n";
 	my $outfh = IO::File->new($background_bdg, "w");
 	while (my $line = $infh->getline) {
 		chomp $line;
