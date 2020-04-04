@@ -96,8 +96,15 @@ unless ($cpu) {
 
 # Peaks
 # we could parse into seqfeatures, but it's not really needed, and this is faster
-my $PeakData = Bio::ToolBox->load_file($input) or 
-	die " unable to load input file '$input'!\n";
+my $PeakData;
+if (-e $input) {
+	$PeakData = Bio::ToolBox->load_file($input) or 
+		die " unable to load input file '$input'!\n";
+}
+else {
+	print " no input file '$input'!\n faking it!!!\n";
+	$PeakData = Bio::ToolBox->new_data( qw(Chromo Start Stop) );
+}
 
 # ChIPs
 my %chip2group;
