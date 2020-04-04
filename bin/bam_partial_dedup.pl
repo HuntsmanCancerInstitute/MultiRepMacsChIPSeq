@@ -461,9 +461,10 @@ sub count_alignments {
 		my $availableDups = $dupCount;
 		if ($max) {
 			# adjust for the number of duplicates to be tossed for exceeding max cutoff
-			foreach my $d (keys %$depth2count) {
-				$availableDups -= (($d - $max) * $depth2count->{$d}) 
-					if ($max > 1 and $d > $max);
+			while (my ($d, $c) = each %$depth2count) {
+				if ($max > 1 and $d > $max) {
+					$availableDups -= (($d - $max) * $c) 
+				}
 			}
 		}
 		
@@ -526,8 +527,8 @@ sub count_alignments_singlethread {
 		
 		# add chromosome counts to global values
 		$totalCount += $data->{totalCount};
-		foreach my $d (keys %{$data->{depth2count}}) {
-			$depth2count{$d} += $data->{depth2count}{$d};
+		while (my ($d, $c) = each %{ $data->{depth2count} } ) {
+			$depth2count{$d} += $c;
 		}
 	}
 	return ($totalCount, $opticalCount, \%depth2count);
@@ -547,8 +548,8 @@ sub count_alignments_multithread {
 		# add child counts to global values
 		$totalCount += $data->{totalCount};
 		$opticalCount += $data->{optCount};
-		foreach my $d (keys %{$data->{depth2count}}) {
-			$depth2count{$d} += $data->{depth2count}{$d};
+		while (my ($d, $c) = each %{ $data->{depth2count} } ) {
+			$depth2count{$d} += $c;
 		}
 	});
 	
@@ -766,18 +767,18 @@ sub identify_optical_duplicates {
 		push @{$tile2alignment{$rgtile}}, [$bits[$xpos], $bits[$ypos], $a];
 	}
 	
-	# walk through each tile
-	foreach my $tile (keys %tile2alignment) {
+	# walk through each read-group tile
+	while (my ($rgtile, $rgtile_alnts) = each %tile2alignment) {
 		# check the number of alignments
-		if (scalar @{ $tile2alignment{$tile} } == 1) {
+		if (scalar @$rgtile_alnts == 1) {
 			# we only have one, so it's a nondup
-			push @nondups, $tile2alignment{$tile}->[0][2];
+			push @nondups, $rgtile_alnts->[0][2];
 		}
 		else {
 			# we have more than one so must sort through
 			
 			# sort by increasing X coordinate
-			my @spots = sort {$a->[0] <=> $b->[0]} @{$tile2alignment{$tile}};
+			my @spots = sort {$a->[0] <=> $b->[0]} @$rgtile_alnts;
 			# collect the deltas from one spot to the next on the X axis
 			my @xdiffs = map { $spots[$_]->[0] - $spots[$_-1]->[0] } (1..$#spots);
 			
@@ -1243,12 +1244,12 @@ sub write_out_max_se_alignments {
 	}
 	
 	# write forward reads
-	foreach my $pos (keys %fends) {
+	while (my ($pos, $ends) = each %fends) {
 		
 		# collect the non-optical duplicate reads
 		my $reads;
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($fends{$pos});
+			my ($nondup, $dup) = identify_optical_duplicates($ends);
 			$reads = $nondup;
 			$data->{optical} += scalar @$dup;
 			if ($keep_optical and scalar(@$dup)) {
@@ -1261,7 +1262,7 @@ sub write_out_max_se_alignments {
 		}
 		else {
 			# blindly take everything
-			$reads = $fends{$pos};
+			$reads = $ends;
 		}
 		
 		# always write one alignment
@@ -1286,12 +1287,12 @@ sub write_out_max_se_alignments {
 	}
 	
 	# write reverse reads
-	foreach my $pos (keys %rends) {
+	while (my ($pos, $ends) = each %rends) {
 		
 		# collect the non-optical duplicate reads
 		my $reads;
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($rends{$pos});
+			my ($nondup, $dup) = identify_optical_duplicates($ends);
 			$reads = $nondup;
 			$data->{optical} += scalar @$dup;
 			if ($keep_optical and scalar(@$dup)) {
@@ -1304,7 +1305,7 @@ sub write_out_max_se_alignments {
 		}
 		else {
 			# blindly take everything
-			$reads = $rends{$pos};
+			$reads = $ends;
 		}
 		
 		# always write one alignment
