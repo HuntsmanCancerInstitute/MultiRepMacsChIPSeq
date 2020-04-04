@@ -954,7 +954,7 @@ sub run_peak_merge {
 		 $merge_file);
 	my $command_check = length($command);
 	foreach my $Job (@Jobs) {
-		if ($Job->{clean_peak} and -e $Job->{clean_peak} and -s _) {
+		if ($Job->{clean_peak} and -e $Job->{clean_peak}) {
 			$command .= sprintf("%s ", $Job->{clean_peak});
 		}
 	}
@@ -2338,7 +2338,7 @@ sub generate_cleanpeak_commands {
 	# take only the first five columns, change extension as bed, and rename peaks
 	# bdgpeakcall doesn't actually report all the extra narrowPeak columns, so might 
 	# as well just change it to a simple bed file. Plus, I HATE the peak name it gives.
-	if (-e $self->{peak} and -s _ > 10) {
+	if (-e $self->{peak} and -s _ > 0) {
 		my $command = sprintf("cut -f1-5 %s > %s ", $self->{peak}, $self->{clean_peak});
 		$command .= sprintf("&& %s --func addname --target %s. --in %s ", $opts{mandata}, 
 			$self->{name}, $self->{clean_peak});
@@ -2347,6 +2347,11 @@ sub generate_cleanpeak_commands {
 		$command .= sprintf(" 2>&1 > %s ", $log);
 		$command .= sprintf("&& rm %s", $self->{peak});
 		push @commands, [$command, $self->{clean_peak}, $log];
+	}
+	elsif (-e $self->{peak} and -s _ == 0) {
+		# an empty file, let's fake the clean one
+		my $command = sprintf "touch %s && rm %s", $self->{clean_peak}, $self->{peak};
+		push @commands, [$command, '', ''];
 	}
 	
 	
