@@ -27,6 +27,8 @@ opts <-  list(
          help="Maximum q-value to plot, default 30"),
     make_option(c("-r","--fmax"), default = 4,
          help="Maximum fragment value to plot, default 4"),
+    make_option(c("-p","--palette"), default = "Set1",
+         help="RColorBrewer palette for samples, default Set1"),
     make_option(c("-f","--format"), default="png",
          help="Format of output file: png, pdf, default png")
 )
@@ -53,6 +55,10 @@ including the following:
     peaks for all samples, with and without k-means (4) clustering
   - Mean profile line plot of fragment density over merged peaks
   - Mean profile line plot of log2 Fold Enrichment over merged peaks
+
+Samples are identified by color palette: Try Set1, Set2, Set3, Spectral, Dark2, 
+or any other named palette in RColorBrewer. Note that excessive sample numbers 
+may exceed the number the colors in a given palette (8 to 12). 
 ")
 
 opt <- parse_args(parser)
@@ -120,7 +126,7 @@ plot_profile_k_hm <-function(rdata, hm_min, hm_max, k, hm_color, rowColor, colAn
   n <- ncol(rdata)
   kdata <- makekmeans(rdata, k)
   nms <- as.vector(unique(colAnno[,1]))
-  clrs <- brewer.pal(length(nms), "Set1")
+  clrs <- brewer.pal(length(nms), opt$palette)
   names(clrs) <- nms
   pheatmap(kdata$data[,1:n], 
            border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
@@ -140,7 +146,7 @@ plot_profile_hm <-function(rdata, hm_min, hm_max, hm_color, colAnno, figmain, ou
   o <- apply(rdata, 1, mean)
   rdata <- rdata[order(o, decreasing = T),]
   nms <- as.vector(unique(colAnno[,1]))
-  clrs <- brewer.pal(length(nms), "Set1")
+  clrs <- brewer.pal(length(nms), opt$palette)
   names(clrs) <- nms
   pheatmap(rdata, 
            border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
@@ -166,7 +172,7 @@ makeDist <- function(rdata, cdata, outfile) {
   sampleDistMatrix <- as.matrix( sampleDists )
   hmclrs = colorRampPalette( rev(brewer.pal(9, 'Blues')) )(255)
   nms <- as.vector(unique(cdata[,1]))
-  anclrs <- brewer.pal(length(nms), "Set1")
+  anclrs <- brewer.pal(length(nms), opt$palette)
   names(anclrs) <- nms
   pheatmap(sampleDistMatrix, color=hmclrs, annotation_row = cdata,
            annotation_colors = list("Dataset" = anclrs),
@@ -180,7 +186,7 @@ makePearCorr <- function(rdata, cdata, outfile) {
   sampleMatrix <- as.matrix( sampleCorr )
   hmclrs = colorRampPalette(brewer.pal(9, 'Blues') )(255)
   nms <- as.vector(unique(cdata[,1]))
-  anclrs <- brewer.pal(length(nms), "Set1")
+  anclrs <- brewer.pal(length(nms), opt$palette)
   names(anclrs) <- nms
   pheatmap(sampleMatrix, color = hmclrs, annotation_row = cdata, 
            annotation_colors = list("Dataset" = anclrs),
@@ -195,7 +201,7 @@ makeSpearCorr <- function(rdata, cdata, outfile) {
   sampleMatrix <- as.matrix( sampleCorr )
   hmclrs = colorRampPalette(brewer.pal(9, 'Blues') )(255)
   nms <- as.vector(unique(cdata[,1]))
-  anclrs <- brewer.pal(length(nms), "Set1")
+  anclrs <- brewer.pal(length(nms), opt$palette)
   names(anclrs) <- nms
   pheatmap(sampleMatrix, color = hmclrs, annotation_row = cdata,
            annotation_colors = list("Dataset" = anclrs),
@@ -216,7 +222,7 @@ makePCA <- function(rdata, cdata, outfile) {
   ggdat <- cbind(cdata, as.data.frame(p$x))
   p1 <- ggplot(ggdat, aes(PC1, PC2, color=Dataset, label=rownames(ggdat))) + 
     geom_point(size=3) + 
-    scale_fill_brewer(palette="Spectral") +
+    scale_fill_brewer(palette=opt$palette) +
     ggrepel::geom_text_repel() +
     xlab(paste0("PC1: ", percentVar[1],"% variance")) + 
     ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
@@ -230,7 +236,7 @@ plotMid <- function(gdata, ylabel, figmain, outbase) {
                      variable.name = "Dataset")
   p <- ggplot(gdata_long, aes(Midpoint, value)) + 
     geom_line(aes(color = Dataset)) + 
-    scale_fill_brewer(palette="Spectral") +
+    scale_fill_brewer(palette=opt$palette) +
     scale_x_continuous(name = "Relative distance") + 
     geom_vline(xintercept = 0, linetype = "dashed") +
     ylab(ylabel) +
@@ -305,7 +311,7 @@ if(file.exists(svennfile)) {
   p <- ggplot(svenndata, aes(x="", y=Fraction, fill=Dataset)) +
     geom_bar(width = 1, stat = "identity") +
     coord_polar("y", start = 0) +
-    scale_fill_brewer(palette="Spectral") +
+    scale_fill_brewer(palette=opt$palette) +
     theme_minimal() + 
     theme(axis.title.x = element_blank(),
           axis.title.y = element_blank(),
@@ -325,9 +331,10 @@ efffile <- paste0(opt$input, '.chip_efficiency.txt')
 if(file.exists(efffile)) {
   effdata <- read.table(efffile, header=TRUE, sep = "\t",
                         check.names = F, na.strings = '.')
+  effdata$Replicate <- make.unique(as.character(effdata$Replicate))
   p <- ggplot(effdata, aes(x = Replicate, y = Efficiency)) +
     geom_col(aes(fill = Dataset)) +
-    scale_fill_brewer(palette="Dark2") +
+    scale_fill_brewer(palette=opt$palette) +
     theme(axis.text.x = element_text(angle = 90)) +
     ggtitle("Fraction of total fragments in respective called peaks")
   ggsave(plot = p, filename = paste0(opt$input, '.chip_efficiency.', opt$format), 
