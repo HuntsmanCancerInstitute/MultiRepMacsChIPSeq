@@ -22,7 +22,7 @@ use Getopt::Long;
 use Parallel::ForkManager;
 use Bio::ToolBox::utility qw(simplify_dataset_name);
 
-my $VERSION = 13.3;
+my $VERSION = 13.4;
 
 # parameters
 my %opts = (
@@ -953,12 +953,14 @@ sub run_peak_merge {
 	my $command = sprintf("%s --bed %s --out %s ", $opts{intersect}, $opts{bedtools}, 
 		 $merge_file);
 	my $command_check = length($command);
+	my $count_check = 0;
 	foreach my $Job (@Jobs) {
-		if ($Job->{clean_peak} and -e $Job->{clean_peak}) {
+		if ($Job->{clean_peak} and -e $Job->{clean_peak} and -s _ > 0) {
 			$command .= sprintf("%s ", $Job->{clean_peak});
+			$count_check++;
 		}
 	}
-	if (length($command) > $command_check) {
+	if (length($command) > $command_check and $count_check > 1) {
 		my $log = $merge_file . '.merge.out.txt';
 		$command .= sprintf("2>&1 > %s ", $log);
 		$command .= sprintf("&& %s --func addname --target %s_merge --in %s.bed 2>&1 >> %s",
@@ -967,7 +969,7 @@ sub run_peak_merge {
 			# this will have multiple outputs, but one is just a .bed file
 	}
 	else {
-		print "No narrow peak files to merge!\n";
+		print "One or fewer narrow peak files found, nothing to merge!\n";
 	}
 	
 	# broadPeaks
@@ -976,13 +978,15 @@ sub run_peak_merge {
 		my $command2 = sprintf("%s --bed %s --out %s ", $opts{intersect}, $opts{bedtools}, 
 			 $merge2_file);
 		my $command2_check = length($command2);
+		my $count2_check = 0;
 		
 		foreach my $Job (@Jobs) {
-			if ($Job->{clean_gappeak} and -e $Job->{clean_gappeak} and -s _ ) {
+			if ($Job->{clean_gappeak} and -e $Job->{clean_gappeak} and -s _  > 0) {
 				$command2 .= sprintf("%s ", $Job->{clean_gappeak});
+				$count2_check++;
 			}
 		}
-		if (length($command2) > $command2_check) {
+		if (length($command2) > $command2_check and $count2_check > 1) {
 			my $log2 = $merge2_file . '.merge.out.txt';
 			$command2 .= sprintf("2>&1 > %s ", $log2);
 			$command2 .= sprintf("&& %s --func addname --target %s_gapmerge --in %s.bed 2>&1 >> %s",
@@ -991,7 +995,7 @@ sub run_peak_merge {
 				# this will have multiple outputs, but one is just a .bed file
 		}
 		else {
-			print "No gapped peak files to merge!\n";
+			print "One or fewer gapped peak files found, nothing to merge!\n";
 		}
 	}
 	
@@ -2351,7 +2355,7 @@ sub generate_cleanpeak_commands {
 	elsif (-e $self->{peak} and -s _ == 0) {
 		# an empty file, let's fake the clean one
 		my $command = sprintf "touch %s && rm %s", $self->{clean_peak}, $self->{peak};
-		push @commands, [$command, '', ''];
+		push @commands, [$command, $self->{clean_peak}, ''];
 	}
 	
 	
