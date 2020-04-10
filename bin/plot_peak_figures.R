@@ -377,7 +377,7 @@ if(file.exists(qfile)) {
       # only make a heat map file if there is more than one sample
       qdata[is.na(qdata)] <- 0
       plot_mean_hm(qdata, 0, opt$qmax, colorRampPalette(brewer.pal(9, 'Reds'))(255), 
-             "Mean Q-Value",
+             "Mean Q-Value over merged peaks",
              paste0(opt$input,"_qvalue_hm"))
     }
  }
@@ -398,16 +398,16 @@ if(file.exists(lfefile)) {
       lfedata[is.na(lfedata)] <- 0
       clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(255)
       plot_mean_hm(lfedata, opt$min, opt$max, clrs, 
-             "Mean Log2 Fold Enrichment",
+             "Mean Log2 Fold Enrichment over merged peaks",
              paste0(opt$input,"_log2FE_hm"))
       plot_mean_k_hm(lfedata, opt$min, opt$max, 6, clrs, color6, 
-                 "Mean Log2 Fold Enrichment, 6 Clusters",
+                 "Mean Log2 Fold Enrichment over merged peaks, 6 Clusters",
                  paste0(opt$input,"_log2FE_hm_K6"))
       plot_mean_k_hm(lfedata, opt$min, opt$max, 8, clrs, color8, 
-                 "Mean Log2 Fold Enrichment, 8 Clusters",
+                 "Mean Log2 Fold Enrichment over merged peaks, 8 Clusters",
                  paste0(opt$input,"_log2FE_hm_K8"))
       plot_mean_k_hm(lfedata, opt$min, opt$max, 10, clrs, color10, 
-                 "Mean Log2 Fold Enrichment, 10 Clusters",
+                 "Mean Log2 Fold Enrichment over merged peaks, 10 Clusters",
                  paste0(opt$input,"_log2FE_hm_K10"))
     }
 }
@@ -427,10 +427,10 @@ if(file.exists(fproffile)) {
                        row.names = 1, check.names = F)
   clrs <- colorRampPalette(brewer.pal(9, 'Reds'))(255)
   plot_profile_hm(fprofdata, 0, opt$fmax, clrs, grpdata,
-         "ChIP Fragment Density Profile",
+         "ChIP fragment density profile around merged peak midpoints",
          paste0(opt$input,"_profile_fragment_hm"))
   plot_profile_k_hm(fprofdata, 0, opt$fmax, 4, clrs, color4, grpdata, 
-                    "ChIP Fragment Density Profile, 4 Clusters",
+                    "ChIP fragment density profile around merged peak midpoints, 4 Clusters",
                     paste0(opt$input, "_profile_fragment_hm_K4"))
 }
 
@@ -449,10 +449,10 @@ if(file.exists(lfeproffile)) {
                        row.names = 1, check.names = F)
   clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(255)
   plot_profile_hm(lfeprofdata, opt$min, opt$max, clrs, grpdata,
-         "ChIP Log2 Fold Enrichment Profile",
+         "ChIP Log2 Fold Enrichment profile around merged peak midpoints",
          paste0(opt$input,"_profile_log2FE_hm"))
   plot_profile_k_hm(lfeprofdata, opt$min, opt$max, 4, clrs, color4, grpdata, 
-                    "ChIP Log2 Fold Enrichment Profile, 4 Clusters",
+                    "ChIP Log2 Fold Enrichment profile around merged peak midpoints, 4 Clusters",
                     paste0(opt$input, "_profile_log2FE_hm_K4"))
 }
 
@@ -464,7 +464,7 @@ if(file.exists(fprofsumfile)) {
   fprofsumdata <- read.table(fprofsumfile, header=TRUE, sep="\t", 
                             row.names = 1, check.names = F, na.strings = '.')
   fprofsumdata[is.na(fprofsumdata)] <- 0
-  plotMid(fprofsumdata, "Fragment Density", "Mean Profile of Fragment Density over Peaks", 
+  plotMid(fprofsumdata, "Fragment Density", "Mean fragment density profile around merged peak midpoints", 
           paste0(opt$input, "_profile_fragment_summary"))
   
 }
@@ -477,7 +477,7 @@ if(file.exists(fprofsumfile)) {
   lfeprofsumdata <- read.table(lfeprofsumfile, header=TRUE, sep="\t", 
                              row.names = 1, check.names = F, na.strings = '.')
   lfeprofsumdata[is.na(lfeprofsumdata)] <- 0
-  plotMid(lfeprofsumdata, "Log2 Fold Enrichment", "Mean Profile of Log2 Fold Enrichment over Peaks", 
+  plotMid(lfeprofsumdata, "Log2 Fold Enrichment", "Mean Log2 Fold Enrichment profile around merged peak midpoints", 
           paste0(opt$input, "_profile_log2FE_summary"))
   
 }
