@@ -90,6 +90,7 @@ while (@ARGV) {
 	
 	# process files
 	foreach my $file (@files) {
+		print "  combining $file....\n"; 
 		my $fh = IO::File->new($file) or 
 			die "unable to read $file! $!\n";
 		while (my $line = $fh->getline) {
@@ -220,7 +221,19 @@ while (@ARGV) {
 	# sort order
 	if ($path =~ /^(\d+)X(\d+)/) {
 		# GNomEx identifier
-		$sorter{num}{$1}{$2} = $n;
+		if (exists $sorter{num}{$1}{$2}) {
+			# more than one
+			if (ref($sorter{num}{$1}{$2}) eq 'ARRAY') {
+				push @{ $sorter{num}{$1}{$2} }, $n;
+			}
+			else {
+				my $first = $sorter{num}{$1}{$2};
+				$sorter{num}{$1}{$2} = [$first, $n];
+			}
+		}
+		else {
+			$sorter{num}{$1}{$2} = $n;
+		}
 	}
 	else {
 		$sorter{char}{$path} = $n;
@@ -255,8 +268,17 @@ $fh->printf( "%s\n", join("\t", map { $headers[$_] } @columns) );
 # sort by experiment ID, requestXsample, e.g. 1234X1
 foreach my $i (sort {$a <=> $b} keys %{$sorter{num}}) {
 	foreach my $j (sort {$a <=> $b} keys %{$sorter{num}{$i}}) {
-		my $row = $output[ $sorter{num}{$i}{$j} ];
-		$fh->printf("%s\n", join("\t", map { $row->[$_] } @columns) );
+		# check to see if we have an array of multiple samples
+		if (ref($sorter{num}{$i}{$j}) eq 'ARRAY') {
+			foreach my $n ( @{ $sorter{num}{$i}{$j} }) {
+				my $row = $output[$n];
+				$fh->printf("%s\n", join("\t", map { $row->[$_] } @columns) )
+			}
+		}
+		else {
+			my $row = $output[ $sorter{num}{$i}{$j} ];
+			$fh->printf("%s\n", join("\t", map { $row->[$_] } @columns) );
+		}
 	}
 }
 # sort everything else
