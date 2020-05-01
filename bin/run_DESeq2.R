@@ -73,9 +73,9 @@ idx <- which(samples[,1] == opt$first | samples[,1] == opt$second)
 cond <- data.frame(row.names = rownames(samples)[idx], condition = samples[idx,1])
 
 # input count file
-counts <- read.delim(opt$count, header = TRUE, 
-                     check.names = F, sep = "\t", comment.char = "#")
-
+counts <- read.delim(opt$count, header = TRUE, sep = "\t", 
+                     check.names = F, comment.char = "#", na.strings = ".")
+counts[is.na(counts)] <- 0
 
 # output basename
 if (opt$output == "NA"){
@@ -88,21 +88,25 @@ chromcol <- grep("^Chromo",colnames(counts))
 startcol <- grep("^Start",colnames(counts))
 stopcol  <- grep("^Stop|End", colnames(counts))
 namecol  <- grep("^Name", colnames(counts))
+idcol  <- grep("^Primary_ID", colnames(counts))
 if (length(chromcol) & length(startcol) & length(stopcol)) {
   # this is easy
   targets <- GRanges(seqnames=counts[,chromcol],
                      ranges=IRanges(counts[,startcol],counts[,stopcol]),
                      strand=NULL)
-} else {
-  # must extract from name, hope it's as chr1:123-456 format
-  if (length(namecol)) {
+} else if (length(idcol)) {
+  # must extract from id, hope it's as chr1:123-456 format
+  coord <- do.call(rbind, strsplit(as.character(counts[,idcol]), ":|-"))
+  targets <- GRanges(seqnames=coord[,1],
+                     ranges=IRanges(as.integer(coord[,2]),as.integer(coord[,3])),
+                     strand=NULL)
+} else if (length(namecol)) {
+  # try extracting from name, hope it's as chr1:123-456 format
   coord <- do.call(rbind, strsplit(as.character(counts[,namecol]), ":|-"))
   targets <- GRanges(seqnames=coord[,1],
                      ranges=IRanges(as.integer(coord[,2]),as.integer(coord[,3])),
                      strand=NULL)
-  }
 }
-
 
 
 # Run DESeq2
