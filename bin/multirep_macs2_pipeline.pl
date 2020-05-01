@@ -22,7 +22,7 @@ use Getopt::Long;
 use Parallel::ForkManager;
 use Bio::ToolBox::utility qw(simplify_dataset_name);
 
-my $VERSION = 13.4;
+my $VERSION = 13.5;
 
 # parameters
 my %opts = (
@@ -44,7 +44,7 @@ my %opts = (
 	shiftsize   => 0,
 	slocal      => 1000,
 	llocal      => 10000,
-	qvalue      => 2,
+	cutoff      => 2,
 	peaksize    => undef,
 	peakgap     => undef,
 	broad       => 0,
