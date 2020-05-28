@@ -96,12 +96,8 @@ foreach my $f (@files) {
 
 ### Merge the peaks
 print " Merging peak files....\n";
-my $command = "cat ";
-foreach my $f (@files) {
-	$command .= sprintf("%s ", $f);
-}
-$command .= sprintf(" | %s sort -i - | %s merge -c 4,5 -o distinct,mean -i - > %s",
-	$tool, $tool, $outfile . '.bed' );
+my $command = sprintf("cat %s | %s sort -i - | %s merge -c 4,5 -o distinct,mean -i - > %s",
+	join(" ", @files), $tool, $tool, $outfile . '.bed' );
 if (system($command)) {
 	die "something went wrong! command:\n $command\n";
 }
