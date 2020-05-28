@@ -16,6 +16,7 @@ use strict;
 use Getopt::Long;
 use File::Which;
 use File::Spec;
+use File::Path qw(make_path);
 use File::Basename qw(fileparse);
 use Parallel::ForkManager;
 use Bio::ToolBox::big_helper qw(
@@ -175,7 +176,9 @@ my ($bdg1, $bdg2, $dif1, $dif2, $enr1, $enr2, $peak1, $peak2);
 
 if ($outdir) {
 	# first make the directory
-	mkdir $outdir or die "unable to make directory $outdir! $!\n";
+	unless (-e $outdir) {
+		make_path($outdir) or die "unable to make directory $outdir! $!\n";
+	}
 	
 	# bedgraph
 	$bdg1 = File::Spec->catfile($outdir, $base1 . '.zeroed.bdg');
