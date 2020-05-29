@@ -1489,6 +1489,9 @@ sub run_organize {
 	foreach (glob(File::Spec->catfile($opts{dir}, '*.lambda_control.bw')) ) {
 		move($_, $fragdir);
 	}
+	foreach (glob(File::Spec->catfile($opts{dir}, '*.fragment_control.bw')) ) {
+		move($_, $fragdir);
+	}
 	foreach (glob(File::Spec->catfile($opts{dir}, '*.fragment.global_mean.bw')) ) {
 		move($_, $fragdir);
 	}
@@ -1532,6 +1535,14 @@ sub run_organize {
 		}
 	}
 	
+	# saved bedGraph files
+	if ($opts{savebdg}) {
+		my $bdgdir = File::Spec->catfile($opts{dir}, 'BedGraph');
+		make_path($bdgdir);
+		foreach (glob(File::Spec->catfile($opts{dir}, '*.bdg')) ) {
+			move($_, $bdgdir);
+		}
+	}
 }
 
 
