@@ -18,11 +18,12 @@ use File::Copy;
 use File::Spec;
 use File::Which;
 use File::Path qw(make_path);
+use List::Util qw(min);
 use Getopt::Long;
 use Parallel::ForkManager;
 use Bio::ToolBox::utility qw(simplify_dataset_name);
 
-my $VERSION = 13.5;
+my $VERSION = 14;
 
 # parameters
 my %opts = (
@@ -50,7 +51,7 @@ my %opts = (
 	broad       => 0,
 	linkqv      => 1,
 	gaplink     => undef,
-	targetdep   => 25,
+	targetdep   => undef,
 	lambda      => 1,
 	chrskip     => "chrM|MT|lambda|Adapter|PhiX",
 	blacklist   => undef,
@@ -199,7 +200,7 @@ Options:
  Peak calling
   --cutoff    number            Threshold q-value for calling peaks ($opts{cutoff}) 
                                  Higher numbers are more significant, -1*log10(q)
-  --tdep      integer           Average sequence depth of bam files in millions ($opts{targetdep})
+  --tdep      integer           Scaled target depth of output files in millions (calculated)
   --peaksize  integer           Minimum peak size to call (2 x size)
   --peakgap   integer           Maximum gap between peaks before merging (1 x size)
   --broad                       Also perform broad (gapped) peak calling
@@ -609,6 +610,7 @@ sub run_dedup {
 	
 	### Collect deduplication statistics
 	my @dedupstats;
+	my %file2total;
 	push @dedupstats, join("\t", qw(File TotalCount OpticalDuplicateCount DuplicateCount
 		NonDuplicateCount DuplicationRate RetainedDuplicateCount));
 	foreach my $c (@commands) {
@@ -658,6 +660,20 @@ sub run_dedup {
 		# store in array
 		push @dedupstats, join("\t", $name, $total, $optdup, $dup, $nondup, $duprate, 
 			$retdup);
+		
+		# calculate the total accepted counts and store as millions
+		$file2total{$name} = sprintf("%.1f", ($nondup + $retdup) / 1_000_000);
+	}
+	
+	# summarize depth totals
+	print "\n Total accepted fragments after de-duplication\n";
+	foreach my $n (sort {$a cmp $b} keys %file2total) {
+		printf "  %sM\t$n\n", $file2total{$n};
+	}
+	unless (defined $opts{targetdep}) {
+		$opts{targetdep} = int( min(values %file2total) );
+		$opts{targetdep} ||= 1; # just in case!
+		printf "\n Setting target dept to %d Million\n", $opts{targetdep};
 	}
 	
 	# print duplicate stats file
@@ -817,6 +833,16 @@ sub run_bam_conversion {
 		print "\nStep is completed\n";
 		return;
 	}
+	
+	# check target depth first
+	unless (defined $opts{targetdep}) {
+		# this should've been calculated from actual data after deduplication, 
+		# unless it wasn't
+		$opts{targetdep} = 25;
+		print "Setting target depth arbitrarily to 25 million\n  Use deduplication to calculate automatically or explicitly set with --tdep option\n";
+	}
+	
+	# generate and execute jobs
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_bam2wig_commands(\%name2done);
 	}
