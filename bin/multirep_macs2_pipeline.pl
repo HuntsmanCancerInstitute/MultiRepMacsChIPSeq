@@ -1059,8 +1059,8 @@ sub run_rescore {
 			return;
 		}
 	}
-	my $output1 = File::Spec->catfile($opts{dir}, $opts{out} . '_qvalue.txt');
-	my $output2 = File::Spec->catfile($opts{dir}, $opts{out} . '_log2FE.txt');
+	my $output1 = File::Spec->catfile($opts{dir}, $opts{out} . '_meanQvalue.txt');
+	my $output2 = File::Spec->catfile($opts{dir}, $opts{out} . '_meanLog2FE.txt');
 	my $output3 = File::Spec->catfile($opts{dir}, $opts{out} . '_counts.txt');
 	my $output4 = File::Spec->catfile($opts{dir}, $opts{out} . '_profile_fragment.txt');
 	my $output5 = File::Spec->catfile($opts{dir}, $opts{out} . '_profile_log2FE.txt');
@@ -1167,8 +1167,8 @@ sub run_rescore {
 				die "unable to find gapped Peak bed file '$input2'!\n";
 			}
 		}
-		$output7 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_qvalue.txt');
-		$output8 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_log2FE.txt');
+		$output7 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_meanQvalue.txt');
+		$output8 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_meanLog2FE.txt');
 		$output9 = File::Spec->catfile($opts{dir}, $opts{out} . '_broad_counts.txt');
 		
 		# generate three get_dataset commands

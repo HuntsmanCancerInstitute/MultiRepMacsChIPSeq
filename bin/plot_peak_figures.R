@@ -365,7 +365,7 @@ if(file.exists(ddupfile)) {
 
 
 # qvalue heat map table table
-qfile <- paste0(opt$input, "_qvalue.txt")
+qfile <- paste0(opt$input, "_meanQvalue.txt")
 if(file.exists(qfile)) {
     qdata = read.table(qfile, header=TRUE, sep="\t", 
                        row.names = 1, check.names = F, na.strings = '.')
@@ -385,7 +385,7 @@ if(file.exists(qfile)) {
 
 
 # log2 Fold Enrichment table
-lfefile <- paste0(opt$input,"_log2FE.txt")
+lfefile <- paste0(opt$input,"_meanLog2FE.txt")
 if(file.exists(lfefile)) {
     lfedata = read.table(lfefile,header=TRUE,sep="\t", 
                          row.names = 1, check.names = F, na.strings = '.')
