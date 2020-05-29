@@ -174,7 +174,8 @@ Options:
                                   set to 1 to remove all duplicates
   --optdist   integer           Maximum distance for optical duplicates ($opts{optdist})
                                   use 100 for HiSeq, 10000 for NovaSeq
-  --deduppair                   Run deduplication as paired-end only
+  --deduppair                   Run deduplication as paired-end, but coverage as single-end
+                                  e.g. for ATAC-Seq cut site analysis
   --savebam                     Save de-duplicated bam files
 
  Fragment coverage
