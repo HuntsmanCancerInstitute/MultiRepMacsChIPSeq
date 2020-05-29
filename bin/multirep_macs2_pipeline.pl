@@ -497,6 +497,15 @@ MESSAGE
 }
 
 sub print_start {
+	if ($opts{dryrun}) {
+		print <<DRYRUN;
+
+======= Dry Run =======
+Some values are empirically determined during execution and are made up here.
+Some files may not be generated during actual execution, but commands should
+mostly be complete. No files will be generated.
+DRYRUN
+	}
 	print "\n\n======= Samples\n";
 	for my $i (0 .. $#names) {
 		printf " %s: %s\n", $names[$i], $chips[$i]; 
@@ -637,6 +646,7 @@ sub run_dedup {
 	}
 	if (@commands) {
 		execute_commands(\@commands);
+		return if $opts{dryrun};
 	}
 	else {
 		update_progress_file('deduplication');
@@ -863,6 +873,13 @@ sub run_bam_fragment_conversion {
 		# run programs
 		execute_commands(\@commands);
 		
+		# skip counting results if dryrun
+		if ($opts{dryrun}) {
+			# artificially set target depth
+			print "\n Artificially setting target depth to 25 Million for dry run purposes\n";
+			$opts{targetdep} = 25;
+			return;
+		}
 		
 		# count results
 		my %bam2count;
@@ -1062,6 +1079,7 @@ sub run_peak_merge {
 	die "no bedtools application in path!\n" unless $opts{bedtools} =~ /\w+/;
 	die "no intersect_peaks.pl application in path!\n" unless $opts{intersect} =~ /\w+/;
 	die "no manipulate_datasets.pl application in path!\n" unless $opts{mandata} =~ /\w+/;
+	
 	my @commands;
 	
 	# narrowPeaks
@@ -1071,7 +1089,12 @@ sub run_peak_merge {
 	my $command_check = length($command);
 	my $count_check = 0;
 	foreach my $Job (@Jobs) {
-		if ($Job->{clean_peak} and -e $Job->{clean_peak} and -s _ > 0) {
+		if (
+			($Job->{clean_peak} and -e $Job->{clean_peak} and -s _ > 0) or 
+			$opts{dryrun}
+		) {
+			# only add the file if it exists and non-zero in length
+			# or just fake it if we're running a dry run
 			$command .= sprintf("%s ", $Job->{clean_peak});
 			$count_check++;
 		}
@@ -1085,7 +1108,9 @@ sub run_peak_merge {
 			# this will have multiple outputs, but one is just a .bed file
 	}
 	else {
-		print "One or fewer narrow peak files found, nothing to merge!\n";
+		unless ($opts{dryrun}) {
+			print "One or fewer narrow peak files found, nothing to merge!\n";
+		}
 	}
 	
 	# broadPeaks
@@ -1097,7 +1122,12 @@ sub run_peak_merge {
 		my $count2_check = 0;
 		
 		foreach my $Job (@Jobs) {
-			if ($Job->{clean_gappeak} and -e $Job->{clean_gappeak} and -s _  > 0) {
+			if (
+				($Job->{clean_gappeak} and -e $Job->{clean_gappeak} and -s _  > 0) or 
+				$opts{dryrun}
+			) {
+				# only add the file if it exists and non-zero in length
+				# or just fake it if we're running a dry run
 				$command2 .= sprintf("%s ", $Job->{clean_gappeak});
 				$count2_check++;
 			}
@@ -1111,7 +1141,9 @@ sub run_peak_merge {
 				# this will have multiple outputs, but one is just a .bed file
 		}
 		else {
-			print "One or fewer gapped peak files found, nothing to merge!\n";
+			unless ($opts{dryrun}) {
+				print "One or fewer gapped peak files found, nothing to merge!\n";
+			}
 		}
 	}
 	
@@ -2328,6 +2360,7 @@ sub generate_bam2wig_count_commands {
 	return @commands;
 }
 
+
 sub generate_lambda_control_commands {
 	my $self = shift;
 	my $name2done = shift;
@@ -2443,16 +2476,26 @@ sub convert_bw_to_bdg {
 	my $name2done = shift;
 	croak("no bigWigToBedGraph application in path!\n") unless $opts{bw2bdg} =~ /\w+/;
 	my @commands;
-	if ($self->{chip_bw} and -e $self->{chip_bw}) {
+	if (
+		($self->{chip_bw} and -e $self->{chip_bw}) or 
+		$opts{dryrun}
+	) {
+		# generate command if bigWig file exists or we're in dry run mode
 		my $log = $self->{chip_bdg};
 		$log =~ s/bdg$/out.txt/;
 		my $command = sprintf("%s %s %s 2>> $log", $opts{bw2bdg}, $self->{chip_bw}, 
 			$self->{chip_bdg});
 		push @commands, [$command, $self->{chip_bdg}, $log]
 	}
-	if ($self->{lambda_bw} and -e $self->{lambda_bw} and 
-		not exists $name2done->{$self->{lambda_bdg}}
+	if (
+		(
+			$self->{lambda_bw} and -e $self->{lambda_bw} and 
+			not exists $name2done->{$self->{lambda_bdg}} 
+		) or
+		$opts{dryrun}
 	) {
+		# generate command if bigWig exists and hasn't been done yet
+		# or if we're in dry run mode
 		my $log = $self->{lambda_bdg};
 		$log =~ s/bdg$/out.txt/;
 		my $command = sprintf("%s %s %s 2>> $log", $opts{bw2bdg}, $self->{lambda_bw}, 
@@ -2474,12 +2517,15 @@ sub generate_enrichment_commands {
 		$self->crash("no control lambda fragment file $lambda!\n") if not -e $lambda;
 	}
 	
-	my $command = sprintf("%s bdgcmp -t %s -c %s -S %s -m qpois FE -o %s %s ", 
-		$opts{macs}, $chip, $lambda, $opts{targetdep}, $self->{qvalue_bdg}, 
-		$self->{fe_bdg});
+	my $command = sprintf("%s bdgcmp -t %s -c %s -m qpois FE ", $opts{macs}, $chip, 
+		$lambda);
+	if (defined $opts{targetdep}) {
+		$command .= sprintf("-S %d ", $opts{targetdep});
+	}
 	if (not $opts{lambda}) {
 		$command .= "-p 1 "; # add a pseudo count of 1 when doing explicit comparisons
 	}
+	$command .= sprintf("-o %s %s ", $self->{qvalue_bdg}, $self->{fe_bdg});
 	my $log = $self->{qvalue_bdg};
 	$log =~ s/qvalue\.bdg$/bdgcmp.out.txt/;
 	$command .= " 2> $log ";
@@ -2526,7 +2572,12 @@ sub generate_cleanpeak_commands {
 	# take only the first five columns, change extension as bed, and rename peaks
 	# bdgpeakcall doesn't actually report all the extra narrowPeak columns, so might 
 	# as well just change it to a simple bed file. Plus, I HATE the peak name it gives.
-	if (-e $self->{peak} and -s _ > 0) {
+	if (
+		(-e $self->{peak} and -s _ > 0) or 
+		$opts{dryrun}
+	) {
+		# generate the command only if the peak file exists and nonzero in size
+		# or we're in dry run mode
 		my $command = sprintf("cut -f1-5 %s > %s ", $self->{peak}, $self->{clean_peak});
 		$command .= sprintf("&& %s --func addname --target %s. --in %s ", $opts{mandata}, 
 			$self->{name}, $self->{clean_peak});
@@ -2544,12 +2595,19 @@ sub generate_cleanpeak_commands {
 	
 	
 	# clean broadpeak in similar fashion
-	if ($opts{broad} and -e $self->{gappeak}) {
+	if (
+		($opts{broad} and -e $self->{gappeak}) or 
+		$opts{dryrun}
+	) {
+		# generate the command if the gapped peak file exists
+		# or if we're in dry run mode
+		
 		# macs always writes out a track options line, which wreaks havoc with 
 		# manipulate_datasets in checking file formats, so we need to get rid of it
 		# it doesn't really add a lot of utility besides enforcing file format
 		# since we're purposefully changing format, it's really interfering
 		# so use tail to explicitly take everything from 2nd line onwards
+		
 		my $command1 = sprintf("tail -n +2 %s | cut -f1-12 > %s ", 
 			$self->{gappeak}, $self->{clean_gappeak});
 		$command1 .= sprintf("&& %s --func addname --target %s_gapped. --in %s ", 
