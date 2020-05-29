@@ -530,6 +530,9 @@ sub generate_job_file_structure {
 				# add lambda control if we're using that, otherwise leave it be
 				$universal_name .= '.lambda_control';
 			}
+			else {
+				$universal_name .= '.fragment_control';
+			}
 		}
 		elsif ($universal_control =~ /\.(?:bw|bigwig)$/i) {
 			# a pre-processed bigWig file
@@ -1663,8 +1666,18 @@ sub new {
 			$self->{sld_control_file} = "$control_base.sldlocal.txt";
 		}
 		else {
-			$self->{lambda_bdg} = $namepath . '.bdg';
-			$self->{lambda_bw} = $namepath . '.bw';
+			# even with no lambda, we recycle the hash entries for simplicity
+			if ($namepath =~ /\.fragment_control/) {
+				# the fragment control extension is already appended to the name
+				# as is the case with universal controls
+				$self->{lambda_bdg} = $namepath . '.bdg';
+				$self->{lambda_bw} = $namepath . '.bw';
+			}
+			else {
+				# append the fragment control extension
+				$self->{lambda_bdg} = $namepath . '.fragment_control.bdg';
+				$self->{lambda_bw} = $namepath . '.fragment_control.bw';
+			}
 		}
 		
 		if ($control_scale) {
