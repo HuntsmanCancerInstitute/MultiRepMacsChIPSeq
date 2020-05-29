@@ -18,11 +18,12 @@ use File::Copy;
 use File::Spec;
 use File::Which;
 use File::Path qw(make_path);
+use List::Util qw(min);
 use Getopt::Long;
 use Parallel::ForkManager;
 use Bio::ToolBox::utility qw(simplify_dataset_name);
 
-my $VERSION = 13.5;
+my $VERSION = 14;
 
 # parameters
 my %opts = (
@@ -45,12 +46,12 @@ my %opts = (
 	slocal      => 1000,
 	llocal      => 10000,
 	cutoff      => 2,
+	targetdep   => undef,
 	peaksize    => undef,
 	peakgap     => undef,
 	broad       => 0,
 	linkqv      => 1,
 	gaplink     => undef,
-	targetdep   => 25,
 	lambda      => 1,
 	chrskip     => "chrM|MT|lambda|Adapter|PhiX",
 	blacklist   => undef,
@@ -135,11 +136,6 @@ nolambda option, whereupon only the control fragment is directly used as referen
 If no control file is provided, then the chromosomal mean from the ChIP file is used 
 as a (poor) substitute. 
 
-When using a calibration genome in the ChIPSeq (ChIP-Rx), calculate the ratio of 
-target/reference alignments for each replica and sample. Provide these with the 
-scale options in the same order as the bam files. Note that significant 
-de-duplication levels may affect these ratios; if possible, de-duplicate first.
-
 Advanced users may provide one processed bigWig file per ChIP or control sample. 
 
 See https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq for full 
@@ -152,8 +148,6 @@ Options:
   --chip      file1,file2...    Repeat for each sample set
   --name      text              Repeat for each sample
   --control   file1,file2...    Repeat if matching multiple samples
-  --chscale   number,number...  Calibration scales for each ChIP replica and set
-  --coscale   number,number...  Calibration scales for each control replica and set
  
  Output
   --dir       directory         Directory for writing all files ($opts{dir})
@@ -199,7 +193,6 @@ Options:
  Peak calling
   --cutoff    number            Threshold q-value for calling peaks ($opts{cutoff}) 
                                  Higher numbers are more significant, -1*log10(q)
-  --tdep      integer           Average sequence depth of bam files in millions ($opts{targetdep})
   --peaksize  integer           Minimum peak size to call (2 x size)
   --peakgap   integer           Maximum gap between peaks before merging (1 x size)
   --broad                       Also perform broad (gapped) peak calling
@@ -359,7 +352,8 @@ my %progress = check_progress_file();
 my $chromofile = generate_chr_file();
 run_dedup();
 check_bams();
-run_bam_conversion();
+run_bam_fragment_conversion();
+run_bam_count_conversion();
 check_control();
 run_bw_conversion();
 run_bdgcmp();
@@ -403,6 +397,18 @@ sub check_inputs {
 		$opts{slocal} = 0;
 		$opts{llocal} = 0;
 		$opts{lambda} = 0;
+	}
+	if (scalar(@chip_scales) or scalar(@control_scales)) {
+		# no longer recommended
+			print <<MESSAGE;
+
+WARNING: Manually setting ChIP and/or Control scaling factors!!!!
+Please be aware that manually scaling coverage depth is an advanced option
+and should only be done when you're aware of the ramifications. Inappropriate
+scaling may artificially alter the expected statistics required for accurate
+peak calling and may reduce confidence of identified peaks.
+
+MESSAGE
 	}
 	if (scalar(@chip_scales) and scalar(@chip_scales) != scalar(@chips)) {
 		die "Unequal number of ChIP samples and ChIP scale factors!\n";
@@ -449,6 +455,23 @@ sub check_inputs {
 			die sprintf("target directory %s is not writable!\n", $opts{dir});
 		}
 	}
+	# target depth
+	if (defined $opts{targetdep}) {
+		my $files = join(",", @chips, @controls);
+		if ($files =~ /\.bam/i) {
+			# no longer recommend manually setting with bam files
+			# bigWig files would be acceptable
+			print <<MESSAGE;
+
+WARNING: Manually setting the target sequence depth is not recommended!!!!
+Target depth is now automatically calculated empirically as the minimum
+number of accepted fragments from all provided bam files. Reconsider using
+this option unless you understand the ramifications.
+
+MESSAGE
+		}
+	}
+	
 	# sizes
 	unless (defined $opts{peaksize}) {
 		$opts{peaksize} = 2 * $opts{fragsize};
@@ -570,7 +593,8 @@ sub generate_job_file_structure {
 sub check_progress_file {
 	my %p = (
 		deduplication => 0,
-		bam2wig       => 0,
+		fragment      => 0,
+		count         => 0,
 		lambda        => 0,
 		bw2bdg        => 0,
 		bdgcmp        => 0,
@@ -586,6 +610,11 @@ sub check_progress_file {
 		while (my $line = $fh->getline) {
 			chomp $line;
 			$p{$line} = 1 if exists $p{$line};
+			if ($line eq 'bam2wig') {
+				# old value!? shouldn't happen but just in case
+				$p{fragment} = 1;
+				$p{count} = 1;
+			}
 		}
 		$fh->close;
 	}
@@ -626,7 +655,7 @@ sub run_dedup {
 		my $dup     = 0; # duplicate count
 		my $retdup  = 0; # retained duplicate count
 		my $duprate = 0; # duplication rate
-		
+	
 		# open log file and collect stats
 		next if (not -e $c->[2]);
 		my $fh = IO::File->new($c->[2], 'r');
@@ -657,16 +686,16 @@ sub run_dedup {
 			}
 		}
 		$fh->close;
-		
+	
 		# name of bam file, extracted from log file
 		my (undef, undef, $name) = File::Spec->splitpath($c->[2]);
 		$name =~ s/\.dedup\.out\.txt$//;
-		
+	
 		# store in array
 		push @dedupstats, join("\t", $name, $total, $optdup, $dup, $nondup, $duprate, 
 			$retdup);
 	}
-	
+
 	# print duplicate stats file
 	my $dedupfile = File::Spec->catfile($opts{dir}, $opts{out} . '.dedup-stats.txt');
 	my $fh = IO::File->new($dedupfile, 'w');
@@ -816,21 +845,101 @@ sub check_bams {
 	}
 }
 
-sub run_bam_conversion {
+sub run_bam_fragment_conversion {
 	my @commands;
 	my %name2done;
-	print "\n\n======= Converting bam files\n";
-	if ($progress{bam2wig}) {
+	print "\n\n======= Generating fragment coverage files\n";
+	if ($progress{fragment}) {
 		print "\nStep is completed\n";
 		return;
 	}
+	
+	# generate commands and run
+	# also collect read depth counts from each bam file
 	foreach my $Job (@Jobs) {
-		push @commands, $Job->generate_bam2wig_commands(\%name2done);
+		push @commands, $Job->generate_bam2wig_frag_commands(\%name2done);
 	}
 	if (@commands) {
+		# run programs
+		execute_commands(\@commands);
+		
+		
+		# count results
+		my %bam2count;
+		foreach my $com (@commands) {
+			my $log = $com->[2];
+			my $fh = IO::File->open($log) or  # this should open!!!!
+				die "something is wrong! Job completed but unable to open $log!? $!";
+			
+			my @files; # there may be one or more files processed here
+			while (my $line = $fh->getline) {
+				chomp $line;
+				if ($line =~ /^ Processing files (.+)\.\.\.$/) {
+					# the names of files
+					@files = split(/, /, $1);
+				}
+				elsif ($line =~ /^ Normalizing depth based on ([\d,]+) total counted fragments$/) {
+					# only one file was processed
+					# need to grab the name from the list
+					my $count = $1;
+					unless (exists $bam2count{$files[0]}) {
+						$count =~ s/,//g; # remove commas
+						$bam2count{$files[0]} = sprintf "%.1f", $count / 1_000_000;
+					}
+				}
+				elsif ($line =~ /^  (.+) had ([\d,]+) total counted fragments$/) {
+					my $file = $1;
+					my $count = $2;
+					unless (exists $bam2count{$file}) {
+						$count =~ s/,//g; # remove commas
+						$bam2count{$file} = sprintf "%.1f", $count / 1_000_000;
+					}
+				}
+			}
+			$fh->close;
+		}
+		
+		# print report
+		print "\n Total fragments accepted for analysis\n";
+		foreach my $f (sort {$a cmp $b} keys %bam2count) {
+			printf "  %6sM  $f\n", $bam2count{$f};
+		}
+		
+		# Calculate minimum target depth to use
+		my $targetdep = int( min(values %bam2count) );
+		$targetdep ||= 1; # just in case!
+		if (defined $opts{targetdep}) {
+			printf "\n WARNING!!! Calculated target sequence depth of %d Million is overridden by manually set value %d\n",
+				$targetdep, $opts{targetdep};
+		}
+		else {
+			$opts{targetdep} = $targetdep;
+			printf "\n Setting target sequence depth to %d Million\n", $opts{targetdep};
+		}
+	}
+	
+	update_progress_file('fragment');
+}
+
+sub run_bam_count_conversion {
+	my @commands;
+	my %name2done;
+	print "\n\n======= Generating fragment count files\n";
+	if ($progress{count}) {
+		print "\nStep is completed\n";
+		return;
+	}
+	
+	# generate commands and run
+	foreach my $Job (@Jobs) {
+		push @commands, $Job->generate_bam2wig_count_commands(\%name2done);
+	}
+	if (@commands) {
+		# run programs
 		execute_commands(\@commands);
 	}
-	update_progress_file('bam2wig');
+	
+	update_progress_file('count');
 }
 
 sub check_control {
@@ -1820,7 +1929,7 @@ sub find_dedup_bams {
 	}	
 }
 
-sub generate_bam2wig_commands {
+sub generate_bam2wig_frag_commands {
 	my $self = shift;
 	my $name2done = shift;
 	croak("no bam2wig.pl script in path!\n") unless $opts{bam2wig} =~ /\w+/;
@@ -1832,9 +1941,8 @@ sub generate_bam2wig_commands {
 		
 		# base fragment command
 		my $frag_command = sprintf(
-			"%s --in %s --out %s --qual %s --nosecondary --noduplicate --nosupplementary --bin %s --cpu %s --rpm --mean --bw --bwapp %s ", 
+			"%s --out %s --qual %s --nosecondary --noduplicate --nosupplementary --bin %s --cpu %s --mean --bw --bwapp %s ", 
 			$opts{bam2wig}, 
-			join(',', @{$self->{chip_use_bams}}), 
 			$self->{chip_bw},
 			$opts{mapq},
 			$opts{chipbin},
@@ -1842,81 +1950,43 @@ sub generate_bam2wig_commands {
 			$opts{wig2bw}
 		);
 		
-		# base count command
-		my $count_command = sprintf(
-			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --bw --bwapp %s ", 
-			$opts{bam2wig}, 
-			$opts{mapq},
-			$opts{cpu},
-			$opts{wig2bw}
-		);
 		# paired or single options
 		if ($opts{paired}) {
 			$frag_command .= sprintf("--pe --span --minsize %s --maxsize %s ", 
-				$opts{minsize}, $opts{maxsize});
-			$count_command .= sprintf("--pe --mid --minsize %s --maxsize %s ", 
 				$opts{minsize}, $opts{maxsize});
 		}
 		else {
 			$frag_command .= sprintf("--extend --extval %s ", $opts{fragsize});
 			$frag_command .= sprintf("--shiftval %s ", $opts{shiftsize}) 
 				if $opts{shiftsize};
-			$count_command .= sprintf("--start --shiftval %0.0f ", 
-				($opts{fragsize} / 2) + $opts{shiftsize} );
 		}
 		# additional filtering
 		if ($opts{blacklist}) {
 			$frag_command .= sprintf("--blacklist %s ", $opts{blacklist});
-			$count_command .= sprintf("--blacklist %s ", $opts{blacklist});
 		}
 		if ($opts{chrskip}) {
 			$frag_command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
-			$count_command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
 		}
 		# scaling
 		if ($self->{chip_scale}) {
 			$frag_command .= sprintf("--scale %s ", join(',', @{$self->{chip_scale}} ) );
-			# count command gets scaled below
+		}
+		else {
+			# standard scaling
+			$frag_command .= "--rpm ";
 		}
 		# chromosome-specific scaling
 		if ($self->{chrnorm}) {
 			$frag_command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
 				$opts{chrapply});
-			# count command gets scaled below
 		}
 		# finish fragment command
+		$frag_command .= sprintf("--in %s ", join(',', @{$self->{chip_use_bams}}));
 		my $log = $self->{chip_bw};
 		$log =~ s/bw$/out.txt/;
 		$frag_command .= " 2>&1 > $log";
 		push @commands, [$frag_command, $self->{chip_bw}, $log];
 		
-		# finish count commands
-		for my $i (0 .. $#{$self->{chip_use_bams}} ) {
-			# add filenames
-			my $command = $count_command . sprintf("--in %s --out %s ", 	
-				$self->{chip_use_bams}->[$i], $self->{chip_count_bw}->[$i]);
-			# add scaling as necessary
-			unless ($opts{rawcounts}) {
-				$command .= "--rpm --format 3 ";
-				if ($self->{chrnorm}) {
-					# chromosome-specific scaling
-					$count_command .= sprintf("--chrnorm %s --chrapply %s ", 
-						$self->{chrnorm}, $opts{chrapply});
-				}
-				if ($self->{chip_scale}) {
-					$command .= sprintf("--scale %.4f ", 
-						$opts{targetdep} * $self->{chip_scale}->[$i] );
-				}
-				else {
-					# we always scale the count by the target depth
-					$command .= sprintf("--scale %d ", $opts{targetdep})
-				}
-			}
-			my $log = $self->{chip_count_bw}->[$i];
-			$log =~ s/bw$/out.txt/;
-			$command .= " 2>&1 > $log";
-			push @commands, [$command, $self->{chip_count_bw}->[$i], $log];
-		}
 	}
 	
 	### Control bams
@@ -1937,77 +2007,29 @@ sub generate_bam2wig_commands {
 		
 		# base fragment command
 		my $frag_command = sprintf(
-			"%s --in %s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --rpm --mean --bdg ", 
-			$opts{bam2wig}, 
-			$control_bam_string, 
+			"--qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --mean --bdg ", 
 			$opts{mapq},
 			$opts{cpu}
-		);
-		# base count command
-		my $count_command = sprintf(
-			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --bw --bwapp %s ", 
-			$opts{bam2wig}, 
-			$opts{mapq},
-			$opts{cpu},
-			$opts{wig2bw}
 		);
 		
 		# general paired options, restrict size for all
 		if ($opts{paired}) {
 			$frag_command .= sprintf("--pe --minsize %s --maxsize %s ", 
 				$opts{minsize}, $opts{maxsize});
-			$count_command .= sprintf("--pe --mid --minsize %s --maxsize %s ", 
-				$opts{minsize}, $opts{maxsize});
-		}
-		else {
-			$count_command .= sprintf("--start --shiftval %0.0f ", 
-				($opts{fragsize} / 2) + $opts{shiftsize});
 		}
 		
 		# additional filters
 		if ($opts{blacklist}) {
 			$frag_command .= sprintf("--blacklist %s ", $opts{blacklist});
-			$count_command .= sprintf("--blacklist %s ", $opts{blacklist});
 		}
 		if ($opts{chrskip}) {
 			$frag_command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
-			$count_command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
 		}
 		# chromosome-specific scaling
 		if ($self->{chrnorm}) {
 			$frag_command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
 				$opts{chrapply});
-			# count command gets scaled below
 		}
-		
-		# add count commands
-		for my $i (0 .. $#{$self->{control_use_bams}} ) {
-			# add filenames
-			my $command = $count_command . sprintf("--in %s --out %s ", 	
-				$self->{control_use_bams}->[$i], $self->{control_count_bw}->[$i]);
-			# add scaling as necessary
-			unless ($opts{rawcounts}) {
-				$command .= "--rpm --format 3 ";
-				if ($self->{chrnorm}) {
-					# chromosome-specific scaling
-					$count_command .= sprintf("--chrnorm %s --chrapply %s ", 
-						$self->{chrnorm}, $opts{chrapply});
-				}
-				if ($self->{control_scale}) {
-					$command .= sprintf("--scale %.4f ", 
-						$opts{targetdep} * $self->{control_scale}->[$i] );
-				}
-				else {
-					# we always scale the count by the target depth
-					$command .= sprintf("--scale %d ", $opts{targetdep})
-				}
-			}
-			my $log = $self->{control_count_bw}->[$i];
-			$log =~ s/bw$/out.txt/;
-			$command .= " 2>&1 > $log";
-			push @commands, [$command, $self->{control_count_bw}->[$i], $log];
-		}
-		
 		
 		## now duplicate the base command for each size lambda control
 		
@@ -2024,7 +2046,17 @@ sub generate_bam2wig_commands {
 		if ($self->{control_scale}) {
 			$command1 .= sprintf("--scale %s ", join(',', @{$self->{control_scale}} ) );
 		}
-		$command1 .= sprintf("--bin %s --out %s ", $opts{chipbin}, $self->{d_control_bdg});
+		else {
+			$command1 .= "--rpm ";
+		}
+		# regenerate command 1 with program and input/output files
+		$command1 = sprintf("%s --out %s %s --bin %s --in %s ", 
+			$opts{bam2wig}, 
+			$self->{d_control_bdg}, 
+			$command1, 
+			$opts{chipbin}, 
+			$control_bam_string
+		);
 		my $log = $self->{d_control_bdg};
 		$log =~ s/bdg$/out.txt/;
 		$command1 .= " 2>&1 > $log";
@@ -2039,9 +2071,20 @@ sub generate_bam2wig_commands {
 				my @scales = map {sprintf("%.4f", $_ * $scale)} @{$self->{control_scale}};
 				$scale = join(',', @scales);
 			}
-			$command2 .= sprintf("--cspan --extval %s --scale %s --bin %s --out %s ",
-				$opts{slocal}, $scale, $opts{slocalbin}, 
-				$self->{s_control_bdg});
+			else {
+				# standard scaling
+				$command2 .= "--rpm "; 
+			}
+			# regenerate command 2 with program and input/output files
+			$command2 = sprintf("%s --out %s %s --cspan --extval %s --scale %s --bin %s --in %s ", $opts{bam2wig}, 
+				$opts{bam2wig}, 
+				$self->{s_control_bdg}, 
+				$command2, 
+				$opts{slocal}, 
+				$scale, 
+				$opts{slocalbin}, 
+				$control_bam_string
+			);
 			$log = $self->{s_control_bdg};
 			$log =~ s/bdg$/out.txt/;
 			$command2 .= " 2>&1 > $log";
@@ -2056,9 +2099,20 @@ sub generate_bam2wig_commands {
 				my @scales = map {sprintf("%.4f", $_ * $scale)} @{$self->{control_scale}};
 				$scale = join(',', @scales);
 			}
-			$command3 .= sprintf("--cspan --extval %s --scale %s --bin %s --out %s ",
-				$opts{llocal}, $scale, $opts{llocalbin}, 
-				$self->{l_control_bdg});
+			else {
+				# standard scaling
+				$command3 .= "--rpm "; 
+			}
+			# regenerate command 3 with program and input/output files
+			$command3 = sprintf("%s --out %s %s --cspan --extval %s --scale %s --bin %s --in %s ", $opts{bam2wig}, 
+				$opts{bam2wig}, 
+				$self->{l_control_bdg}, 
+				$command3, 
+				$opts{llocal}, 
+				$scale, 
+				$opts{llocalbin}, 
+				$control_bam_string
+			);
 			$log = $self->{l_control_bdg};
 			$log =~ s/bdg$/out.txt/;
 			$command3 .= " 2>&1 > $log";
@@ -2078,85 +2132,188 @@ sub generate_bam2wig_commands {
 		
 		# fragment command
 		my $frag_command = sprintf(
-			"%s --in %s --out %s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --rpm --mean --bdg ", 
+			"%s --out %s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --mean --bdg ", 
 			$opts{bam2wig}, 
-			$control_bam_string, 
 			$self->{lambda_bdg},
 			$opts{mapq},
 			$opts{cpu}
-		);
-		
-		# count command
-		my $count_command = sprintf(
-			"%s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --bw --bwapp %s ", 
-			$opts{bam2wig}, 
-			$opts{mapq},
-			$opts{cpu},
-			$opts{wig2bw}
 		);
 		
 		# single or paired options
 		if ($opts{paired}) {
 			$frag_command .= sprintf("--span --pe --minsize %s --maxsize %s --bin %s ", 
 				$opts{minsize}, $opts{maxsize}, $opts{chipbin});
-			$count_command .= sprintf("--mid --pe --minsize %s --maxsize %s ", 
-				$opts{minsize}, $opts{maxsize});
 		}
 		else {
 			$frag_command .= sprintf("--extend --extval %s --shiftval %0.0f --bin %s ", 
 				$opts{fragsize}, $opts{shiftsize}, $opts{chipbin});
+		}
+		
+		# scaling for the fragment command only
+		if ($self->{control_scale}) {
+			$frag_command .= sprintf("--scale %s ", join(',', @{$self->{control_scale}} ) );
+		}
+		else {
+			# standard scaling
+			$frag_command .= "--rpm ";
+		}
+		
+		# additional filters
+		if ($opts{blacklist}) {
+			$frag_command .= sprintf("--blacklist %s ", $opts{blacklist});
+		}
+		if ($opts{chrskip}) {
+			$frag_command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
+		}
+		# chromosome-specific scaling
+		if ($self->{chrnorm}) {
+			$frag_command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
+				$opts{chrapply});
+		}
+		# finish command
+		$frag_command .= "--in $control_bam_string ";
+		my $log = $self->{lambda_bdg};
+		$log =~ s/bdg$/out.txt/;
+		$frag_command .= " 2>&1 > $log";
+		push @commands, [$frag_command, $self->{lambda_bdg}, $log];
+		
+		# record that we've done this bam
+		# we store the lambda bedgraph name because it might be reused again for another job
+		$name2done->{$control_bam_string} = $self->{lambda_bdg};
+	}
+	
+	# finished
+	return @commands;
+}
+
+sub generate_bam2wig_count_commands {
+	my $self = shift;
+	my $name2done = shift;
+	croak("no bam2wig.pl script in path!\n") unless $opts{bam2wig} =~ /\w+/;
+	my @commands;
+	
+	### ChIP bams
+	if (scalar @{$self->{chip_use_bams}}) {
+		# we have bam files to count
+		
+		# base count command
+		my $count_command = sprintf(
+			"--qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --bw --bwapp %s ", 
+			$opts{mapq},
+			$opts{cpu},
+			$opts{wig2bw}
+		);
+		# paired or single options
+		if ($opts{paired}) {
+			$count_command .= sprintf("--pe --mid --minsize %s --maxsize %s ", 
+				$opts{minsize}, $opts{maxsize});
+		}
+		else {
+			$count_command .= sprintf("--start --shiftval %0.0f ", 
+				($opts{fragsize} / 2) + $opts{shiftsize} );
+		}
+		# additional filtering
+		if ($opts{blacklist}) {
+			$count_command .= sprintf("--blacklist %s ", $opts{blacklist});
+		}
+		if ($opts{chrskip}) {
+			$count_command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
+		}
+		
+		# finish count commands
+		for my $i (0 .. $#{$self->{chip_use_bams}} ) {
+			my $command = $count_command;
+			# add scaling as necessary
+			unless ($opts{rawcounts}) {
+				if ($self->{chip_scale}) {
+					$command .= sprintf("--scale %s ", $self->{chip_scale}->[$i]);
+				}
+				else {
+					# we scale the count back up to target depth
+					$command .= sprintf("--rpm --scale %d ", $opts{targetdep})
+				}
+				if ($self->{chrnorm}) {
+					# chromosome-specific scaling
+					$count_command .= sprintf("--chrnorm %s --chrapply %s ", 
+						$self->{chrnorm}, $opts{chrapply});
+				}
+				$count_command .= "--format 3 "; # always limit digits
+			}
+			# regenerate command with file names
+			$command = sprintf("%s --out %s %s --in %s ", 	
+				$opts{bam2wig}, 
+				$self->{chip_count_bw}->[$i], 
+				$command,
+				$self->{chip_use_bams}->[$i]
+			);
+			# output log
+			my $log = $self->{chip_count_bw}->[$i];
+			$log =~ s/bw$/out.txt/;
+			$command .= " 2>&1 > $log";
+			push @commands, [$command, $self->{chip_count_bw}->[$i], $log];
+		}
+	}
+	
+	### Control bams
+	# we only process this if we haven't done them yet
+	my $control_bam_string = join(',', @{$self->{control_use_bams}});
+	if (scalar @{$self->{control_use_bams}} and 
+		not exists $name2done->{$control_bam_string}
+	) {
+		
+		# base count command
+		my $count_command = sprintf(
+			"--qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --bw --bwapp %s ", 
+			$opts{mapq},
+			$opts{cpu},
+			$opts{wig2bw}
+		);
+		
+		# general paired options, restrict size for all
+		if ($opts{paired}) {
+			$count_command .= sprintf("--pe --mid --minsize %s --maxsize %s ", 
+				$opts{minsize}, $opts{maxsize});
+		}
+		else {
 			$count_command .= sprintf("--start --shiftval %0.0f ", 
 				($opts{fragsize} / 2) + $opts{shiftsize});
 		}
 		
 		# additional filters
 		if ($opts{blacklist}) {
-			$frag_command .= sprintf("--blacklist %s ", $opts{blacklist});
 			$count_command .= sprintf("--blacklist %s ", $opts{blacklist});
 		}
 		if ($opts{chrskip}) {
-			$frag_command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
 			$count_command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
 		}
-		# chromosome-specific scaling
-		if ($self->{chrnorm}) {
-			$frag_command .= sprintf("--chrnorm %s --chrapply %s ", $self->{chrnorm}, 
-				$opts{chrapply});
-			# count command gets scaled below
-		}
-		# scaling for the fragment command only, count below
-		if ($self->{control_scale}) {
-			$frag_command .= sprintf("--scale %s ", join(',', @{$self->{control_scale}} ) );
-		}
 		
-		# add frag command
-		my $log = $self->{lambda_bdg};
-		$log =~ s/bdg$/out.txt/;
-		$frag_command .= " 2>&1 > $log";
-		push @commands, [$frag_command, $self->{lambda_bdg}, $log];
-		
-		# add count command
+		# add count commands
 		for my $i (0 .. $#{$self->{control_use_bams}} ) {
-			# add filenames
-			my $command = $count_command . sprintf("--in %s --out %s ", 	
-				$self->{control_use_bams}->[$i], $self->{control_count_bw}->[$i]);
+			my $command = $count_command;
 			# add scaling as necessary
 			unless ($opts{rawcounts}) {
-				$command .= "--rpm --format 3 ";
+				if ($self->{control_scale}) {
+					$command .= sprintf("--scale %s ", $self->{control_scale}->[$i]);
+				}
+				else {
+					# we scale the count back up to target depth
+					$command .= sprintf("--rpm --scale %d ", $opts{targetdep})
+				}
 				if ($self->{chrnorm}) {
 					# chromosome-specific scaling
 					$count_command .= sprintf("--chrnorm %s --chrapply %s ", 
 						$self->{chrnorm}, $opts{chrapply});
 				}
-				if ($self->{control_scale}) {
-					$command .= sprintf("--scale %.4f ", 
-						$opts{targetdep} * $self->{control_scale}->[$i] );
-				}
-				else {
-					# we always scale the count by the target depth
-					$command .= sprintf("--scale %d ", $opts{targetdep})
-				}
+				$command .= "--format 3 ";
 			}
+			# regenerate command with file names
+			$command = sprintf("%s --out %s %s --in %s ", 	
+				$opts{bam2wig}, 
+				$self->{control_count_bw}->[$i], 
+				$command,
+				$self->{control_use_bams}->[$i]
+			);
+			# output log
 			my $log = $self->{control_count_bw}->[$i];
 			$log =~ s/bw$/out.txt/;
 			$command .= " 2>&1 > $log";
@@ -2164,8 +2321,7 @@ sub generate_bam2wig_commands {
 		}
 		
 		# record that we've done this bam
-		# we store the lambda bedgraph name because it might be reused again for another job
-		$name2done->{$control_bam_string} = $self->{lambda_bdg};
+		$name2done->{$control_bam_string} = 1;
 	}
 	
 	# finished
