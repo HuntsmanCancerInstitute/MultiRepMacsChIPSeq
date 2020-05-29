@@ -207,13 +207,13 @@ Options:
   --broadcut  number            Q-value cutoff for linking broad regions ($opts{broadcut})
   --broadgap  integer           Maximum link size between peaks in broad calls (4 x size bp)
   --nolambda                    Skip lambda control, compare ChIP directly with control
-  --rawcounts                   Use unscaled raw counts for re-scoring peaks
   --savebdg                     Save q-value bdg files for further custom calling
   
  Peak scoring
   --binsize   integer           Size of bins in 10 flanking peak bins for profile (peak/5)
   --window    integer           Collect counts across genome in given window size
   --discard   number            Discard genome windows with replicate sum below number ($opts{discard})
+  --rawcounts                   Use unscaled raw counts for re-scoring peaks
   --repmean                     Combine replicate counts as mean for each sample set
   --noplot                      Do not plot figures of results
   
@@ -322,13 +322,17 @@ GetOptions(
 	'mandata=s'             => \$opts{mandata},
 	'wig2bw=s'              => \$opts{wig2bw},
 	'bw2bdg=s'              => \$opts{bw2bdg},
-	'bedtools=s'            => \$opts{bedtools},
+	'printchr=s'            => \$opts{printchr},
+	'data2wig=s'            => \$opts{data2wig},
 	'getdata=s'             => \$opts{getdata},
 	'getrel=s'              => \$opts{getrel},
 	'geteff=s'              => \$opts{geteff},
-	'printchr=s'            => \$opts{printchr},
 	'meanbdg=s'             => \$opts{meanbdg},
+	'bedtools=s'            => \$opts{bedtools},
 	'intersect=s'           => \$opts{intersect},
+	'combrep=s'             => \$opts{combrep},
+	'plotpeak=s'            => \$opts{plotpeak},
+	'rscript=s'             => \$opts{rscript},
 ) or die "unrecognized option(s)!\n";
 
 if ($help) {
