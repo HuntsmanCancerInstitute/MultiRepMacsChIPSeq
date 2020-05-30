@@ -886,7 +886,7 @@ sub run_bam_fragment_conversion {
 		my %bam2count;
 		foreach my $com (@commands) {
 			my $log = $com->[2];
-			my $fh = IO::File->open($log) or  # this should open!!!!
+			my $fh = IO::File->new($log, 'r') or  # this should open!!!!
 				die "something is wrong! Job completed but unable to open $log!? $!";
 			
 			my @files; # there may be one or more files processed here
@@ -1540,7 +1540,7 @@ sub finish {
 		}
 		else {
 			# push log contents to combined output
-			my $fh = IO::File->new($log) or next;
+			my $fh = IO::File->new($log, 'r') or next;
 			push @combined_output, <$fh>;
 			push @combined_output, "\n";
 			$fh->close;
@@ -2402,7 +2402,7 @@ sub generate_lambda_control_commands {
 	my $background = sprintf("%.4f", ( 1_000_000 * $opts{fragsize} ) / $opts{genome} );
 	my $background_bdg = $self->{lambda_bdg};
 	$background_bdg =~ s/lambda_control/background/;
-	my $infh = IO::File->new($chromofile) or  # use the chromosome file as source
+	my $infh = IO::File->new($chromofile, 'r') or  # use the chromosome file as source
 		die "unable to open chromosome file '$chromofile'!\n";
 	my $outfh = IO::File->new($background_bdg, "w");
 	while (my $line = $infh->getline) {
