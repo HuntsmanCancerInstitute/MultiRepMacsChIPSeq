@@ -352,10 +352,10 @@ my $progress_file = File::Spec->catfile($opts{dir}, $opts{out} . '.progress.txt'
 my %progress = check_progress_file();
 my $chromofile = generate_chr_file();
 run_dedup();
-check_bams();
+run_bam_check();
 run_bam_fragment_conversion();
 run_bam_count_conversion();
-check_control();
+run_lambda_control();
 run_bw_conversion();
 run_bdgcmp();
 run_call_peaks();
@@ -365,7 +365,7 @@ run_peak_merge();
 run_rescore();
 run_efficiency();
 run_plot_peaks();
-finish();
+run_cleanup();
 run_organize();
 
 # final statement
@@ -495,6 +495,7 @@ MESSAGE
 	$opts{chipscale} = join(", ", @chip_scales);
 	$opts{controlscale} = join(", ", @control_scales);
 	$opts{chrnorms} = join(", ", @chrnorms);
+	
 }
 
 sub print_start {
@@ -631,92 +632,22 @@ sub check_progress_file {
 	return %p;
 }
 
-sub run_dedup {
-	return unless ($opts{dedup});
-	print "\n\n======= De-duplicating bam files\n";
-	if ($progress{deduplication}) {
-		print "\nStep is completed\n";
-		return;
+sub generate_chr_file {
+	my @bams = split(',', $chips[0]);
+	my $example = shift @bams;
+		# this will work regardless if example is bam or bigWig
+	my $chromofile = File::Spec->catfile($opts{dir},"chrom_sizes.temp.txt");
+	return $chromofile if $opts{dryrun}; # just pretend
+	if (-e $chromofile) {
+		return $chromofile;
 	}
-	
-	### Run de-duplication
-	my @commands;
-	my %name2done;
-	foreach my $Job (@Jobs) {
-		push @commands, $Job->generate_dedup_commands(\%name2done);
+	unless ($opts{printchr}) {
+		die "no print_chromosome_lengths.pl script in path!\n";
 	}
-	if (@commands) {
-		execute_commands(\@commands);
-		return if $opts{dryrun};
-	}
-	else {
-		update_progress_file('deduplication');
-		return;
-	}
-	
-	### Collect deduplication statistics
-	my @dedupstats;
-	push @dedupstats, join("\t", qw(File TotalCount OpticalDuplicateCount DuplicateCount
-		NonDuplicateCount DuplicationRate RetainedDuplicateCount));
-	foreach my $c (@commands) {
-		# initialize counts
-		my $total   = 0; # total count
-		my $optdup  = 0; # optical duplicate count
-		my $nondup  = 0; # non-duplicate count
-		my $dup     = 0; # duplicate count
-		my $retdup  = 0; # retained duplicate count
-		my $duprate = 0; # duplication rate
-	
-		# open log file and collect stats
-		next if (not -e $c->[2]);
-		my $fh = IO::File->new($c->[2], 'r');
-		while (my $line = $fh->getline) {
-			if ($line =~  /^  Total mapped:\s+(\d+)$/) {
-				# bam_partial_dedup
-				$total = $1;
-			}
-			elsif ($line =~ /^  Non-duplicate count:\s+(\d+)$/) {
-				$nondup = $1;
-			}
-			elsif ($line =~ /^  Optical duplicate count:\s+(\d+)$/) {
-				# optical bam_partial_dedup
-				$optdup = $1;
-			}
-			elsif ($line =~ /^  Non-optical duplicate count:\s+(\d+)$/) {
-				# non-optical bam_partial_dedup
-				$dup = $1;
-			}
-			elsif ($line =~ /^  Non-optical duplication rate:\s+(\d\.\d+)$/) {
-				# non-optical bam_partial_dedup
-				$duprate = $1;
-			}
-			elsif ($line =~ /^  Retained non-optical duplicate count:\s+(\d+)\s*$/) {
-				# bam_partial_dedup
-				# oops, there may be a space at the end
-				$retdup = $1;
-			}
-		}
-		$fh->close;
-	
-		# name of bam file, extracted from log file
-		my (undef, undef, $name) = File::Spec->splitpath($c->[2]);
-		$name =~ s/\.dedup\.out\.txt$//;
-	
-		# store in array
-		push @dedupstats, join("\t", $name, $total, $optdup, $dup, $nondup, $duprate, 
-			$retdup);
-	}
-
-	# print duplicate stats file
-	my $dedupfile = File::Spec->catfile($opts{dir}, $opts{out} . '.dedup-stats.txt');
-	my $fh = IO::File->new($dedupfile, 'w');
-	foreach (@dedupstats) {
-		$fh->print("$_\n");
-	}
-	$fh->close;
-	print "\n Wrote deduplication report $dedupfile\n";
-	
-	update_progress_file('deduplication');
+	system(sprintf("%s --db %s --chrskip '%s' --out %s", 
+		$opts{printchr}, $example, $opts{chrskip}, $chromofile));
+	die "chromosome file $chromofile could not be generated!\n" unless -e $chromofile;
+	return $chromofile;
 }
 
 sub execute_commands {
@@ -849,7 +780,95 @@ sub update_progress_file {
 	return 1;
 }
 
-sub check_bams {
+sub run_dedup {
+	return unless ($opts{dedup});
+	print "\n\n======= De-duplicating bam files\n";
+	if ($progress{deduplication}) {
+		print "\nStep is completed\n";
+		return;
+	}
+	
+	### Run de-duplication
+	my @commands;
+	my %name2done;
+	foreach my $Job (@Jobs) {
+		push @commands, $Job->generate_dedup_commands(\%name2done);
+	}
+	if (@commands) {
+		execute_commands(\@commands);
+		return if $opts{dryrun};
+	}
+	else {
+		update_progress_file('deduplication');
+		return;
+	}
+	
+	### Collect deduplication statistics
+	my @dedupstats;
+	push @dedupstats, join("\t", qw(File TotalCount OpticalDuplicateCount DuplicateCount
+		NonDuplicateCount DuplicationRate RetainedDuplicateCount));
+	foreach my $c (@commands) {
+		# initialize counts
+		my $total   = 0; # total count
+		my $optdup  = 0; # optical duplicate count
+		my $nondup  = 0; # non-duplicate count
+		my $dup     = 0; # duplicate count
+		my $retdup  = 0; # retained duplicate count
+		my $duprate = 0; # duplication rate
+	
+		# open log file and collect stats
+		next if (not -e $c->[2]);
+		my $fh = IO::File->new($c->[2], 'r');
+		while (my $line = $fh->getline) {
+			if ($line =~  /^  Total mapped:\s+(\d+)$/) {
+				# bam_partial_dedup
+				$total = $1;
+			}
+			elsif ($line =~ /^  Non-duplicate count:\s+(\d+)$/) {
+				$nondup = $1;
+			}
+			elsif ($line =~ /^  Optical duplicate count:\s+(\d+)$/) {
+				# optical bam_partial_dedup
+				$optdup = $1;
+			}
+			elsif ($line =~ /^  Non-optical duplicate count:\s+(\d+)$/) {
+				# non-optical bam_partial_dedup
+				$dup = $1;
+			}
+			elsif ($line =~ /^  Non-optical duplication rate:\s+(\d\.\d+)$/) {
+				# non-optical bam_partial_dedup
+				$duprate = $1;
+			}
+			elsif ($line =~ /^  Retained non-optical duplicate count:\s+(\d+)\s*$/) {
+				# bam_partial_dedup
+				# oops, there may be a space at the end
+				$retdup = $1;
+			}
+		}
+		$fh->close;
+	
+		# name of bam file, extracted from log file
+		my (undef, undef, $name) = File::Spec->splitpath($c->[2]);
+		$name =~ s/\.dedup\.out\.txt$//;
+	
+		# store in array
+		push @dedupstats, join("\t", $name, $total, $optdup, $dup, $nondup, $duprate, 
+			$retdup);
+	}
+
+	# print duplicate stats file
+	my $dedupfile = File::Spec->catfile($opts{dir}, $opts{out} . '.dedup-stats.txt');
+	my $fh = IO::File->new($dedupfile, 'w');
+	foreach (@dedupstats) {
+		$fh->print("$_\n");
+	}
+	$fh->close;
+	print "\n Wrote deduplication report $dedupfile\n";
+	
+	update_progress_file('deduplication');
+}
+
+sub run_bam_check {
 	print "\n\n======= Checking bam files\n";
 	foreach my $Job (@Jobs) {
 		$Job->find_dedup_bams;
@@ -960,7 +979,7 @@ sub run_bam_count_conversion {
 	update_progress_file('count');
 }
 
-sub check_control {
+sub run_lambda_control {
 	my @commands;
 	my %name2done;
 	print "\n\n======= Generating control files\n";
@@ -1050,24 +1069,6 @@ sub run_bdg_conversion {
 	}
 	execute_commands(\@commands);
 	update_progress_file('bdg2bw');
-}
-
-sub generate_chr_file {
-	my @bams = split(',', $chips[0]);
-	my $example = shift @bams;
-		# this will work regardless if example is bam or bigWig
-	my $chromofile = File::Spec->catfile($opts{dir},"chrom_sizes.temp.txt");
-	return $chromofile if $opts{dryrun}; # just pretend
-	if (-e $chromofile) {
-		return $chromofile;
-	}
-	unless ($opts{printchr}) {
-		die "no print_chromosome_lengths.pl script in path!\n";
-	}
-	system(sprintf("%s --db %s --chrskip '%s' --out %s", 
-		$opts{printchr}, $example, $opts{chrskip}, $chromofile));
-	die "chromosome file $chromofile could not be generated!\n" unless -e $chromofile;
-	return $chromofile;
 }
 
 sub run_peak_merge {
@@ -1523,7 +1524,7 @@ sub run_plot_peaks {
 }
 
 
-sub finish {
+sub run_cleanup {
 	return if $opts{dryrun};
 	print "\n\n======= Combining log files\n";
 	
