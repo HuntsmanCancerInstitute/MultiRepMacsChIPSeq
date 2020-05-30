@@ -1651,7 +1651,7 @@ sub run_organize {
 	if ($opts{savebam} and $opts{dedup}) {
 		my $bamdir = File::Spec->catfile($opts{dir}, 'DeDupBam');
 		make_path($bamdir);
-		foreach (glob(File::Spec->catfile($opts{dir}, '*.dedup.ba?')) ) {
+		foreach (glob(File::Spec->catfile($opts{dir}, '*.dedup.bam*')) ) {
 			move($_, $bamdir);
 		}
 	}
