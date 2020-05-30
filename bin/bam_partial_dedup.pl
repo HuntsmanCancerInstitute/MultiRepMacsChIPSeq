@@ -29,7 +29,7 @@ eval {
 	$parallel = 1;
 };
 
-my $VERSION = 3;
+my $VERSION = 3.1;
 
 unless (@ARGV) {
 	print <<END;
@@ -409,7 +409,7 @@ sub count_alignments {
 	}
 	
 	# check maximum
-	if (defined $max and $max >= 1 and $maxObserved <= $max) {
+	elsif (defined $max and $max >= 1 and $maxObserved <= $max and not $fraction) {
 		print " Maximum observed depth is less than maximum allowed. \n";
 		# check for optical rate
 		if ($do_optical and $opticalRate > $max_optical_rate) {
@@ -430,7 +430,7 @@ sub count_alignments {
 	# either by maximum depth or random
 	
 	# calculate fractions
-	if ($fraction and not $random) {
+	elsif ($fraction and not $random) {
 		my $rate;
 		foreach (my $i = 0; $i <= $#depths; $i++) {
 			my $depth = $depths[$i];
