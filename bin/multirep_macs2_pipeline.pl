@@ -2110,7 +2110,7 @@ sub generate_bam2wig_frag_commands {
 				$command2 .= "--rpm "; 
 			}
 			# regenerate command 2 with program and input/output files
-			$command2 = sprintf("%s --out %s %s --cspan --extval %s --scale %s --bin %s --in %s ", $opts{bam2wig}, 
+			$command2 = sprintf("%s --out %s %s --cspan --extval %s --scale %s --bin %s --in %s ", 
 				$opts{bam2wig}, 
 				$self->{s_control_bdg}, 
 				$command2, 
@@ -2138,7 +2138,7 @@ sub generate_bam2wig_frag_commands {
 				$command3 .= "--rpm "; 
 			}
 			# regenerate command 3 with program and input/output files
-			$command3 = sprintf("%s --out %s %s --cspan --extval %s --scale %s --bin %s --in %s ", $opts{bam2wig}, 
+			$command3 = sprintf("%s --out %s %s --cspan --extval %s --scale %s --bin %s --in %s ", 
 				$opts{bam2wig}, 
 				$self->{l_control_bdg}, 
 				$command3, 
