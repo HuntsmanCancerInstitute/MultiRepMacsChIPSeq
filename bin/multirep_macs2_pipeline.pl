@@ -486,11 +486,6 @@ MESSAGE
 	unless (defined $opts{binsize}) {
 		$opts{binsize} = int( $opts{peaksize} / 5);
 	}
-	# plotting
-	if ($opts{plot} and scalar(@names) == 1) {
-		# no sense plotting figures if we only have one ChIP set
-		$opts{plot} = 0;
-	}
 	# add parameters to option hash for printing configuration
 	$opts{chipscale} = join(", ", @chip_scales);
 	$opts{controlscale} = join(", ", @control_scales);
