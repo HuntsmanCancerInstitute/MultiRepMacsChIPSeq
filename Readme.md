@@ -24,14 +24,16 @@ multiple window sizes, and more.
 
 However, Macs2 does not deal with replicates well (it simply adds replicates), which can 
 introduce biases towards samples with greater sample depth. Comparing multiple conditions 
-requires careful execution with identical parameters. New techniques for normalization, 
-such as reference genomes, are not supported. 
+requires careful execution with identical parameters. Controlling duplicate reads depths to 
+maximize ChIP signal, rather than discarding duplicates and ChIP signal, increases 
+sensitivity between ChIP conditions.
 
 This package aims to automate Macs2 ChIPSeq peak calling with support for multiple 
 replicas and conditions while supporting newer normalization methods. Importantly, it 
 will output normalized, processed bigWig enrichment files for subsequent genic analysis 
 using, for example, [BioToolBox](https://github.com/tjparnell/biotoolbox) or 
-[deepTools](https://deeptools.readthedocs.io/en/develop/). 
+[deepTools](https://deeptools.readthedocs.io/en/develop/). Several analysis and QC 
+metric plots are generated after the run.
 
 
 ## Normalization methods
@@ -76,13 +78,6 @@ Below are some of the methods used for normalizing samples prior to peak calling
     This wrapper allows these regions or chromosomes to be skipped without editing your 
     bam file or altering alignment strategies.
     
-- Reference genome normalization
-
-    Including a reference genome in your ChIP samples, for example mixing reference Drosophila 
-    chromatin with human chromatin, allows one to normalize the pull-down efficiency and 
-    compensate for increased or decreased affinity. This wrapper includes genome-wide 
-    normalization factors on a per sample basis.
-
 - Chromosome-specific normalization
 
     ChIP targets on transfected vectors can have different enrichment levels compared to 
@@ -116,9 +111,9 @@ Below is a general overview of the pipeline.
     To facilitate generating count matrices later, point data (shifted start
     positions or paired fragment midpoints) count bigWig files are generated using
     [bam2wig](https://metacpan.org/pod/bam2wig.pl) for each sample replicate. By
-    default, replicates are depth-normalized and scaled to the target depth, taking
-    into account any special normalization factors, or counts may be left "raw" (no
-    scaling whatsoever).
+    default, replicates are depth-normalized and scaled to the target depth (calculated 
+    automatically as the minimum observed depth of all provided Bam files), or counts 
+    may be left "raw" (no scaling whatsoever).
 
 - Generate enrichment files
 
@@ -399,36 +394,8 @@ complexity. See the Pysano folder for example scripts.
     All tracks are generated as Read (Fragment) Per Million (or RPM) depth-normalized 
     values. Multiple replicates are mean averaged and reported as a single track.
 
-- Genome or chromosome normalization
+- Chromosome normalization
 
-    When normalizing for reference genomes, such as including _Drosophila_ chromatin in 
-    your ChIP assay of human chromatin as described in 
-    [Orlando et al](https://doi.org/10.1016/j.celrep.2014.10.018), include the 
-    normalization factor. This can be calculated by summing the number of alignments to 
-    the reference genome, and calculate with the following formula:
-    
-        factor = 1 / (reference_count / 1000000)
-    
-    or simply 
-    	
-    	factor = 1000000 / reference_count
-    
-    This factor will normalize the fragment coverage as reads-per-million reference-genome 
-    mapped. It is essential to do this for _both_ ChIP and Input; shared input for 
-    multiple biological replicates is generally not recommended. Provide the normalization
-    factor for each replicate. 
-    
-        --chip file1.bam,file2.bam,file3.bam \
-        --chscale 0.692933,1.820191,0.814981 \
-        --control file4.bam,file5.bam,file6.bam \
-        --coscale 0.262140,0.301934,0.286234 \
-    
-    **NOTE:** It's best to try the pipeline twice, with and without genome
-    normalization. Large disparities in the normalization factors between ChIP
-    and Input (for example, antibody doesn't work well in _Drosophila_) might
-    result in aberrant peak calling. Typically, scaled factors are better used
-    in post-processing analysis, rather than peak calling.
-    
     For chromosome-specific normalizations, calculate the sum of alignments on the 
     chromosome of interest across all reference control (input chromatin) replicates; 
     don't use the ChIP bam as any enrichment will influence the calculation!  
@@ -455,17 +422,9 @@ complexity. See the Pysano folder for example scripts.
 
     Two enrichment tracks are generated: a log2 fold enrichment (log2FE) and a q-value 
     (FDR) statistical enrichment track, suitable for visualization and peak calling. 
-    Since the fragment tracks are expressed as RPM depth-normalized, the number of 
-    alignments from the replicates should be reported as the desired target depth. 
-    Ideally, this should represent the minimum number of alignments across all replicates 
-    and conditions, as down-scaling higher depths is preferable over up-scaling very 
-    low sequence depths. Express this as a rounded number of millions of reads. For 
-    example, if the minimum depth is 16,768,123 reads, set target depth as
-    
-        --tdep 17 \
-
-    Note that the target depth greatly affects the q-value calculation used by Macs2. 
-    In general, higher target depths require higher q-value thresholds. 
+    Since the fragment tracks are expressed as RPM depth-normalized, they are scaled 
+    automatically up to the minimum observed depth (in millions) amongst all of the 
+    provided bam files. This number may be overridden with the advanced option `--tdep`.
 
 - Peak detection
 
@@ -620,6 +579,15 @@ Alternatively, run the
 	--first chip1 --second chip2 \
 	--min 100 --threshold 0.001 --output differential_chip1_chip2 
 
+The script [generate_differential](applications.md#generate_differentialpl) will generate 
+a differential track between two log2FE or coverage bigWig (or bedGraph) files by 
+subtracting the second from the first. Both tracks set a minimum value before subtraction, 
+to avoid regions that are not initially enriched. Enriched peaks from each respective 
+ChIP may be called by defining an absolute delta difference (no statistical call is made).
+
+	generate_differential.pl --in1 chip1.log2FE.bw --in2 chip2.log2FE.bw \
+	--min 0.5 --delta 1 --len 200 --gap 50
+
 Macs2 also has a differential analysis mode. This uses four input files, the fragment 
 pileup and lambda control files for both ChIPs. 
 
@@ -655,6 +623,20 @@ of the pipeline). Adjust accordingly for your situation.
 In the above example, be sure to edit the `_samples.txt` file to reflect the new 
 samples, if necessary. Also, 
 
+## Reference genome scaling
+
+Using a reference genome for controlling enrichment between conditions, such as 
+including _Drosophila_ chromatin in your ChIP assay of human chromatin as described in 
+[Orlando et al](https://doi.org/10.1016/j.celrep.2014.10.018), is an advanced technique 
+of analysis. Unfortunately, this normalization scale can not be used in peak calling, 
+since it artificially skews the coverage depth and breaks the assumptions of equality 
+(null hypothesis) between ChIP and control required for making a statistically confident 
+peak call. It is best to call peaks without normalization, preferably in a normal or wild 
+type situation, and then assay those peaks with external-genome normalized coverage tracks 
+in subsequent analysis. 
+
+Earlier versions of this pipeline included options for scaling. These options remain as 
+advanced options but are not detailed.
 
 # Installation
 
