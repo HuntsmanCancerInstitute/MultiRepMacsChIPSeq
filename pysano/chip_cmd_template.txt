@@ -23,9 +23,8 @@ multirep_macs2_pipeline.pl \
 --dir ChIPSeq \
 --pe \
 --optdist 10000 \
---dupfrac 0.03 \
+--dupfrac 0.05 \
 --cutoff 2 \
---tdep 25 \
 --peaksize 500 \
 --peakgap 200 \
 --species human \
