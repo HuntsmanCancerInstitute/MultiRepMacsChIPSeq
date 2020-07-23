@@ -31,13 +31,14 @@ For narrowPeak files, two files will be written:
 	a 5-column BED file of peak intervals, including original score value
 	a 4-column BED file of calculated summit position
 Files will use the same path and base name, but change the extension to 
-'.bed' and '_summit.bed', respectively.
+'.bed' and '.summit.bed', respectively.
 
-For gappedPeak files, only one file will be written, a 12-column bed file.
+For gappedPeak files, only one file will be written, a 12-column bed file, 
+with extension '.gapped.bed'.
 
 No options are available.
 
-USAGE: narrowpeak2bed.pl peak1.narrowPeak peak2.gappedPeak ....
+USAGE: narrowpeak2bed.pl peak1.narrowPeak [peak1.gappedPeak] ....
 
 DOC
 
