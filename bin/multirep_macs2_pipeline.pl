@@ -2394,19 +2394,22 @@ sub generate_lambda_control_commands {
 	
 	# generate background lambda bedgraph
 	# go ahead and do this immediately because it's so simple
-	my $background = sprintf("%.4f", ( 1_000_000 * $opts{fragsize} ) / $opts{genome} );
-	my $background_bdg = $self->{lambda_bdg};
-	$background_bdg =~ s/lambda_control/background/;
-	my $infh = IO::File->new($chromofile, 'r') or  # use the chromosome file as source
-		die "unable to open chromosome file '$chromofile'!\n";
-	my $outfh = IO::File->new($background_bdg, "w");
-	while (my $line = $infh->getline) {
-		chomp $line;
-		my ($chr, $end) = split /\s/, $line;
-		$outfh->printf("%s\t0\t%s\t%s\n", $chr, $end, $background);
+	my $background_bdg;
+	unless ($opts{dryrun}) {
+		my $background = sprintf("%.4f", ( 1_000_000 * $opts{fragsize} ) / $opts{genome} );
+		$background_bdg = $self->{lambda_bdg};
+		$background_bdg =~ s/lambda_control/background/;
+		my $infh = IO::File->new($chromofile, 'r') or  # use the chromosome file as source
+			die "unable to open chromosome file '$chromofile'!\n";
+		my $outfh = IO::File->new($background_bdg, "w");
+		while (my $line = $infh->getline) {
+			chomp $line;
+			my ($chr, $end) = split /\s/, $line;
+			$outfh->printf("%s\t0\t%s\t%s\n", $chr, $end, $background);
+		}
+		$infh->close;
+		$outfh->close;
 	}
-	$infh->close;
-	$outfh->close;
 	
 	my $log = $self->{lambda_bdg};
 	$log =~ s/bdg$/out.txt/;
@@ -2582,8 +2585,8 @@ sub generate_cleanpeak_commands {
 	}
 	# gappedPeak
 	if (
-		($opts{broad} and -e $self->{gappeak}) or 
-		$opts{dryrun}
+		$opts{broad} and 
+		(-e $self->{gappeak} or $opts{dryrun})
 	) {
 		# generate the command only if the gapped peak file exists
 		# or we're in dry run mode
