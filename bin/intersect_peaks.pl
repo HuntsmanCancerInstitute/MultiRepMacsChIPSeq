@@ -18,9 +18,12 @@ use File::Spec;
 use File::Which;
 use Bio::ToolBox 1.65;
 
+my $VERSION = 2;
+
 # variables
 my $tool = which('bedtools');
 my $outfile;
+my $peak_basename;
 my @files;
 my $help;
 
@@ -32,6 +35,7 @@ A script to intersect two or more peak files. This is a wrapper around the bedto
 program.
 
 It will first merge all of the peak files into a single representative bed file.
+Peak intervals will be renamed to the given name. 
 
 It will then run the bedtools Jaccard statistic pairwise across all of the peak 
 files and write out a merged table of the results. The Jaccard statistic measures 
@@ -53,6 +57,7 @@ USAGE: intersect_peaks.pl --out <basename> peak1.narrowPeak peak2.narrowPeak ...
 
 OPTIONS:
     --out basename          Provide the output basename
+    --name text             Provide text to rename the merged peakss
     --bed path              Path to bedtools ($tool)
     --help                  Print documentation
 DOC
@@ -61,8 +66,13 @@ DOC
 
 
 ### Options
+unless (@ARGV) {
+	print $docs;
+	exit;
+}
 GetOptions(
 	'out=s'             => \$outfile,
+	'name=s'            => \$peak_basename,
 	'bed=s'             => \$tool,
 	'help!'             => \$help,
 ) or die "unrecognized option!\n";
@@ -72,13 +82,13 @@ if ($help) {
 	print $docs;
 	exit;
 }
-unless (@ARGV) {
-	print $docs;
-	exit;
-}
 die "must provide output base name!\n" unless $outfile;
 die "bedtools not in your PATH!\n" unless $tool;
 $outfile =~ s/\.(?:bed|narrowPeak)$//i; # strip any existing extension if provided
+unless ($peak_basename) {
+	# use the outfile basename
+	(undef, undef, $peak_basename) = File::Spec->splitpath($outfile);
+}
 
 # inputs
 my @files = @ARGV;
@@ -96,10 +106,27 @@ foreach my $f (@files) {
 
 ### Merge the peaks
 print " Merging peak files....\n";
-my $command = sprintf("cat %s | %s sort -i - | %s merge -c 4,5 -o distinct,mean -i - > %s",
-	join(" ", @files), $tool, $tool, $outfile . '.bed' );
+my $merge_peak_file = $outfile . '.bed';
+my $command = sprintf("cat %s | %s sort -i - | %s merge -c 5 -o mean -i - > %s",
+	join(" ", @files), $tool, $tool, $merge_peak_file);
 if (system($command)) {
 	die "something went wrong! command:\n $command\n";
+}
+
+# Clean up the merged peaks
+if (-e $merge_peak_file and -s _ ) {
+	my $Data = Bio::ToolBox->load_file($merge_peak_file) or 
+		die "unable to open $merge_peak_file!";
+	
+	# sort the file correctly, not asciibetically
+	$Data->gsort_data;
+	
+	# rename
+	$Data->iterate( sub {
+		my $row = shift;
+		$row->value(3, sprintf("%s.%d", $peak_basename, $row->row_index));
+	});
+	$Data->save;
 }
 
 
