@@ -205,7 +205,7 @@ Options:
   --savebdg                     Save q-value bdg files for further custom calling
   
  Peak scoring
-  --binsize   integer           Size of bins in 10 flanking peak bins for profile (peak/5)
+  --binsize   integer           Size of bins in 25 flanking peak bins for profile (peak/10)
   --window    integer           Collect counts across genome in given window size
   --discard   number            Discard genome windows with replicate sum below number ($opts{discard})
   --rawcounts                   Use unscaled raw counts for re-scoring peaks
@@ -486,7 +486,7 @@ MESSAGE
 		$opts{broadgap} = 4 * $opts{fragsize};
 	}
 	unless (defined $opts{binsize}) {
-		$opts{binsize} = int( $opts{peaksize} / 5);
+		$opts{binsize} = int( $opts{peaksize} / 10);
 	}
 	# add parameters to option hash for printing configuration
 	$opts{chipscale} = join(", ", @chip_scales);
@@ -1190,9 +1190,9 @@ sub run_rescore {
 		$opts{getdata}, $opts{cpu}, $input, $output2);
 	my $command3 = sprintf("%s --method sum --cpu %s --in %s --out %s --format 0 ",
 		$opts{getdata}, $opts{cpu}, $input, $output3);
-	my $command4 = sprintf("%s --method mean --cpu %s --in %s --out %s --win %s --num 10 --pos m --long --format 3 --groups --sum ",
+	my $command4 = sprintf("%s --method mean --cpu %s --in %s --out %s --win %s --num 25 --pos m --long --format 3 --groups --sum ",
 		$opts{getrel}, $opts{cpu}, $input, $output4, $opts{binsize});
-	my $command5 = sprintf("%s --method mean --cpu %s --in %s --out %s --win %s --num 10 --pos m --long --format 3 --groups --sum ",
+	my $command5 = sprintf("%s --method mean --cpu %s --in %s --out %s --win %s --num 25 --pos m --long --format 3 --groups --sum ",
 		$opts{getrel}, $opts{cpu}, $input, $output5, $opts{binsize});
 	my $command6 = sprintf("%s --method sum --cpu %s --feature genome --win %d --discard %s --out %s --format 0 ",
 		$opts{getdata}, $opts{cpu}, $opts{window}, $opts{discard}, $output6);
