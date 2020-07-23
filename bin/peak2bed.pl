@@ -95,7 +95,7 @@ foreach my $f (@files) {
 			# write summit
 			# easier to do it ourselves here than specify everything to the bed string function
 			my $start = $row->start + $row->value(9); # start will be 1-based here
-			$summit_fh->printf("%s\t%d\t%d\t%s\n", $row->chromosome, $start - 1, $start, $name);
+			$summit_fh->printf("%s\t%d\t%d\t%s\n", $row->seq_id, $start - 1, $start, $name);
 		});
 	
 		# Finish
