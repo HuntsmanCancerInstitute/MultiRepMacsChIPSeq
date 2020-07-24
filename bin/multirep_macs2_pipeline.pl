@@ -1088,8 +1088,8 @@ sub run_peak_merge {
 	my $count_check = 0;
 	foreach my $Job (@Jobs) {
 		if (
-			($Job->{clean_peak} and -e $Job->{clean_peak} and -s _ > 0) or 
-			$opts{dryrun}
+			$Job->{clean_peak} and 
+			( (-e $Job->{clean_peak} and -s _ > 0) or $opts{dryrun} )
 		) {
 			# only add the file if it exists and non-zero in length
 			# or just fake it if we're running a dry run
@@ -1119,8 +1119,8 @@ sub run_peak_merge {
 		
 		foreach my $Job (@Jobs) {
 			if (
-				($Job->{clean_gappeak} and -e $Job->{clean_gappeak} and -s _  > 0) or 
-				$opts{dryrun}
+				($Job->{clean_gappeak} and 
+				( (-e $Job->{clean_gappeak} and -s _  > 0) or $opts{dryrun} )
 			) {
 				# only add the file if it exists and non-zero in length
 				# or just fake it if we're running a dry run
