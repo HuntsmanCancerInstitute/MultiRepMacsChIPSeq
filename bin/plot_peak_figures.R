@@ -281,6 +281,9 @@ if(file.exists(jaccardfile)) {
     jdata <- read.table(jaccardfile,header=TRUE,sep="\t", row.names = 1, check.names = F)
     pheatmap(jdata, col=colorRampPalette(brewer.pal(9, 'Blues'))(255), 
              main = "Spatial Overlap Between Peaks", 
+             breaks = seq(0,1,length=255),
+             display_numbers = TRUE, number_format = "%.2f",
+             number_color = 'yellow',
              filename = paste0(opt$input, '.jaccard.', opt$format), 
              width = 8, height = 8)
 }
@@ -292,8 +295,12 @@ intersectfile <- paste0(opt$input,'.n_intersection.txt')
 if(file.exists(intersectfile)) {
     ndata <- read.table(intersectfile,header=TRUE,sep="\t", 
                         row.names = 1, check.names = F)
+    maxval <- max(ndata)
     pheatmap(ndata, col=colorRampPalette(brewer.pal(9, 'Greens'))(255), 
              main = "Number of Peak Intersections", 
+             breaks = seq(0,maxval,length=255),
+             display_numbers = TRUE, number_format = "%.1e",
+             number_color = 'yellow',
              filename = paste0(opt$input, '.n_intersection.', opt$format), 
              width = 8, height = 8)
 }
