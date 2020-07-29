@@ -1119,7 +1119,7 @@ sub run_peak_merge {
 		
 		foreach my $Job (@Jobs) {
 			if (
-				($Job->{clean_gappeak} and 
+				$Job->{clean_gappeak} and 
 				( (-e $Job->{clean_gappeak} and -s _  > 0) or $opts{dryrun} )
 			) {
 				# only add the file if it exists and non-zero in length
