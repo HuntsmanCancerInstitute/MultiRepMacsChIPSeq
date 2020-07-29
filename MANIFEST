@@ -7,6 +7,7 @@ bin/get_chip_efficiency.pl
 bin/install_R_packages.R
 bin/intersect_peaks.pl
 bin/multirep_macs2_pipeline.pl
+bin/peak2bed.pl
 bin/plot_shift_models.R
 bin/plot_peak_figures.R
 bin/print_chromosome_lengths.pl

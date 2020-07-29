@@ -32,6 +32,7 @@ my $VERSION = 2;
 my $input1;
 my $input2;
 my $minimum = 0;
+my $scale;
 my $keepdiff = 0;
 my $delta;
 my $length;
@@ -81,6 +82,8 @@ OPTIONS:
   
   Differential
     --min <float>           Set the minimum value to keep in input (0)
+    --scale <float>         If necessary, optional scaling factor for RPM files
+                               only used for converting input, not output
     --keepdiff              Keep the differential file
   
   Re-call peaks (optional)
@@ -116,6 +119,7 @@ GetOptions(
 	'1|in1=s'           => \$input1,
 	'2|in2=s'           => \$input2,
 	'min=f'             => \$minimum,
+	'scale=f'           => \$scale,
 	'keepdiff!'         => \$keepdiff,
 	'delta=f'           => \$delta,
 	'len=i'             => \$length,
