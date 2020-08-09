@@ -29,7 +29,7 @@ eval {
 	$parallel = 1;
 };
 
-my $VERSION = 3.1;
+my $VERSION = 4;
 
 unless (@ARGV) {
 	print <<END;
@@ -93,40 +93,43 @@ are skipped in both counting and writing.
 USAGE:  bam_partial_dedup.pl --in in.bam
         bam_partial_dedup.pl --frac 0.xx --rand --in in.bam --out out.bam
         bam_partial_dedup.pl --m X -i in.bam -o out.bam
+
+VERSION: $VERSION
        
 OPTIONS:
-  --in <file>      The input bam file, should be sorted and indexed
-  --out <file>     The output bam file containing unique and retained 
-                   duplicates; optional if you're just checking the 
-                   duplication rate.
-  --pe             Bam files contain paired-end alignments and only 
-                   properly paired duplicate fragments will be checked for 
-                   duplication. 
-  --mark           Write non-optical duplicate alignments to output marked 
-                   with flag bit 0x400.
-  --random         Randomly subsamples duplicate alignments so that the  
-                   final duplication rate will match target duplication 
-                   rate. Must set --frac option. 
-  --frac <float>   Decimal fraction representing the target duplication 
-                   rate in the final file. 
-  --max <int>      Integer representing the maximum number of duplicates 
-                   at each position
-  --optical        Enable optical duplicate checking
-  --distance       Set optical duplicate distance threshold.
-                   Use 100 for unpatterned flowcell (HiSeq) or 
-                   10000 for patterned flowcell (NovaSeq). Default 100.
-                   Setting this value automatically sets --optical.
-  --keepoptical    Keep optical duplicates in output as marked 
-                   duplicates with flag bit 0x400. Optical duplicates 
-                   are not differentiated from non-optical duplicates.
-  --coord <string> Provide the tile:X:Y integer 1-base positions in the 
-                   read name for optical checking. For Illumina CASAVA 1.8 
-                   7-element names, this is 5:6:7 (default)
-  --blacklist <file> Provide a bed/gff/text file of repeat regions to skip
-  --chrskip <regex> Provide a regex for skipping certain chromosomes
-  --seed <int>     Provide an integer to set the random seed generator to 
-                   make the subsampling consistent (non-random).
-  --cpu <int>      Specify the number of threads to use (4) 
+  --in <file>         The input bam file, should be sorted and indexed
+  --out <file>        The output bam file containing unique and retained 
+                        duplicates; optional if you're just checking the 
+                        duplication rate.
+  --pe                Bam files contain paired-end alignments and only 
+                        properly paired duplicate fragments will be checked for 
+                        duplication. 
+  --mark              Write non-optical duplicate alignments to output marked 
+                        with flag bit 0x400.
+  --random            Randomly subsamples duplicate alignments so that the  
+                        final duplication rate will match target duplication 
+                        rate. Must set --frac option. 
+  --frac <float>      Decimal fraction representing the target duplication 
+                        rate in the final file. 
+  --max <int>         Integer representing the maximum number of duplicates 
+                        at each position
+  --optical           Enable optical duplicate checking
+  --distance          Set optical duplicate distance threshold.
+                        Use 100 for unpatterned flowcell (HiSeq) or 
+                        10000 for patterned flowcell (NovaSeq). Default 100.
+                        Setting this value automatically sets --optical.
+  --report            Write duplicate distance report files only, no de-duplication
+  --keepoptical       Keep optical duplicates in output as marked 
+                        duplicates with flag bit 0x400. Optical duplicates 
+                        are not differentiated from non-optical duplicates.
+  --coord <string>    Provide the tile:X:Y integer 1-base positions in the 
+                        read name for optical checking. For Illumina CASAVA 1.8 
+                        7-element names, this is 5:6:7 (default)
+  --blacklist <file>  Provide a bed/gff/text file of repeat regions to skip
+  --chrskip <regex>   Provide a regex for skipping certain chromosomes
+  --seed <int>        Provide an integer to set the random seed generator to 
+                        make the subsampling consistent (non-random).
+  --cpu <int>         Specify the number of threads to use (4) 
 
 END
 	exit;
@@ -135,13 +138,14 @@ END
 ### Get Options
 my ($fraction, $max, $infile, $outfile, $do_optical, $optical_thresh, $keep_optical, 
 	$mark, $random, $paired, $chr_exclude, $black_list, $seed, $cpu, $tilepos, $xpos, $ypos, 
-	$name_coordinates, $no_sam);
+	$name_coordinates, $report_distance, $no_sam);
 my @program_options = @ARGV;
 GetOptions( 
 	'in=s'       => \$infile, # the input bam file path
 	'o|out=s'    => \$outfile, # name of output file 
 	'optical!'   => \$do_optical, # check for optical duplicates
 	'distance=i' => \$optical_thresh, # optical threshold distance
+	'report!'    => \$report_distance, # write duplicate distance report
 	'keepoptical!' => \$keep_optical, # include optical duplicates in output
 	'mark!'      => \$mark, # mark the duplicates
 	'random!'    => \$random, # flag to random downsample duplicates
@@ -167,6 +171,12 @@ if ($max and $fraction and not $random) {
 }
 if ($fraction and $fraction !~ /^0\.\d+$/) {
 	die "unrecognized fraction '$fraction'. Should be decimal (0.x)\n";
+}
+if ($report_distance) {
+	# optical must be on
+	print "enabling optical duplicate checking when reporting\n" if not $do_optical;
+	$do_optical = 1;
+	$optical_thresh ||= 100;
 }
 if ($optical_thresh) {
 	$do_optical = 1;
@@ -195,7 +205,6 @@ else {
 if ($parallel and not defined $cpu) {
 	$cpu = 4;
 }
-$outfile .= '.bam' unless $outfile =~ /\.bam$/i;
 
 
 
@@ -249,10 +258,11 @@ if ($fraction > 0 or not defined $max) {
 }
 
 
-
 ### Write out new bam file with specified number of targets
-exit 0 unless ($outfile);
+exit 0 unless $outfile;
+exit 0 if $report_distance;
 exit 0 unless ($max > 0 or $chance > 0);
+$outfile .= '.bam' unless $outfile =~ /\.bam$/i;
 my ($counts, $outbam) = deduplicate();
 
 
@@ -320,11 +330,13 @@ sub count_alignments {
 	}
 	
 	# count the alignments in single or multi-thread
-	my ($totalCount, $opticalCount, $depth2count);
+	my ($totalCount, $opticalCount, $depth2count, $dupmatrix, $distance2count);
 	if ($parallel and $cpu > 1) {
-		($totalCount, $opticalCount, $depth2count) = count_alignments_multithread();
+		($totalCount, $opticalCount, $depth2count, $dupmatrix, $distance2count) = 
+			count_alignments_multithread();
 	} else {
-		($totalCount, $opticalCount, $depth2count) = count_alignments_singlethread();
+		($totalCount, $opticalCount, $depth2count, $dupmatrix, $distance2count) = 
+			count_alignments_singlethread();
 	}
 	
 	# report duplication statistics
@@ -350,6 +362,52 @@ sub count_alignments {
   Mean position depth: %17.4f\n", 
 		$totalCount, $opticalCount, $opticalRate, $workingCount, 
 		$dupCount, $dupRate, $nondupCount, $maxObserved, $workingCount / $nondupCount;
+	
+	# write distance reports
+	if ($report_distance) {
+		# first get the limits of the matrix
+		my @xvalues;
+		my @yvalues;
+		while (my ($x, $yhash) = each %$dupmatrix) {
+			push @xvalues, $x;
+			push @yvalues, max(keys %$yhash);
+		}
+		my $xlimit = min(max(@xvalues), 50000);
+		my $ylimit = min(max(@yvalues), 50000);
+		print "   setting report maximums to X=$xlimit and Y=$ylimit\n";
+		
+		# write matrix to file
+		my $matrixfile = $outfile || 'report';
+		$matrixfile =~ s/\.bam$//;
+		$matrixfile .= '.dup-distance.matrix.txt';
+		my $fh = IO::File->new($matrixfile, '>') or 
+			die "unable to write to file $matrixfile! $!";
+		$fh->print("# duplicate delta pixel distances for $infile\n");
+		$fh->print("# number is duplicate count observed at X and Y delta distance from previous\n");
+		$fh->printf("Y\t%s\n", join("\t", map {$_ * 50} (0..$xlimit)));
+		foreach my $i (0..$ylimit) {
+			$fh->printf("%d\t%s\n", $i * 50, 
+				join("\t", map { $dupmatrix->{$_}{$i} || 0 } (0..$xlimit) ) 
+			);
+		}
+		$fh->close;
+		print "  wrote duplicate delta distance matrix to $matrixfile\n";
+		
+		# write max distance hash to file
+		my $histogramfile = $outfile || 'report';
+		$histogramfile =~ s/\.bam$//;
+		$histogramfile .= '.maxdup-distance.txt';
+		my $fh = IO::File->new($histogramfile, '>') or 
+			die "unable to write to file $histogramfile! $!";
+		$fh->print("# maximum absolute x or y duplicate delta pixel distances for $infile\n");
+		$fh->print("Distance\t$infile\n");
+		my $nlimit = max($xlimit, $ylimit);
+		for my $i (0..$nlimit) {
+			$fh->printf("%d\t%d\n", $i * 50, $distance2count->{$i} || 0);
+		}
+		$fh->close;
+		print "  wrote maximum duplicate delta distance histogram to $histogramfile\n";
+	}
 	
 	# check if we need to continue
 	if ($fraction and $dupRate <= $fraction) {
@@ -488,18 +546,22 @@ sub count_alignments_singlethread {
 	my $opticalCount = 0;
 	my %depth2count; # for generating a histogram of duplicate numbers
 				   # key=depth, value=number of bases with this depth
+	my %dupmatrix; # xy matrix for duplicate reporting
+	my %distance2count; # single axis distance histogram reporting
 	
 	# count each chromosome one at a time
 	for my $tid (@tid_list) {
 	
 		# prepare callback data structure
 		my $data = {
-			position    => -1, # a non-coordinate
-			totalCount  => 0,  # total count of reads
-			optCount    => 0, # optical count
-			black_list  => undef,
-			depth2count => {}, # depth to count hash
-			reads       => [], # temp buffer for collecting reads
+			position       => -1, # a non-coordinate
+			totalCount     => 0,  # total count of reads
+			optCount       => 0, # optical count
+			black_list     => undef,
+			depth2count    => {}, # depth to count hash
+			dupmatrix      => {}, # duplicate x,y coordinates for reporting
+			distance2count => {}, # max distance to count hash
+			reads          => [], # temp buffer for collecting reads
 		};
 	
 		# process black lists for this chromosome
@@ -530,8 +592,23 @@ sub count_alignments_singlethread {
 		while (my ($d, $c) = each %{ $data->{depth2count} } ) {
 			$depth2count{$d} += $c;
 		}
+		
+		# duplicate distances
+		if ($report_distance) {
+			# duplicate x,y matrix
+			foreach my $x (keys %{ $data->{dupmatrix} }) {
+				$dupmatrix{$x} ||= {};
+				foreach my $y ( keys %{ $data->{dupmatrix}{$x} } ) {
+					$dupmatrix{$x}{$y} += $data->{dupmatrix}{$x}{$y};
+				}
+			}
+			# distance to key hash
+			while (my ($d, $c) = each %{ $data->{distance2count} }) {
+				$distance2count{$d} += $c;
+			}
+		}
 	}
-	return ($totalCount, $opticalCount, \%depth2count);
+	return ($totalCount, $opticalCount, \%depth2count, \%dupmatrix, \%distance2count);
 }
 
 
@@ -540,6 +617,8 @@ sub count_alignments_multithread {
 	my $opticalCount = 0;
 	my %depth2count; # for generating a histogram of duplicate numbers
 				   # key=depth, value=number of bases with this depth
+	my %dupmatrix; # xy matrix for duplicate reporting
+	my %distance2count; # single axis distance histogram reporting
 	
 	# set up manager
 	my $pm = Parallel::ForkManager->new($cpu);
@@ -550,6 +629,19 @@ sub count_alignments_multithread {
 		$opticalCount += $data->{optCount};
 		while (my ($d, $c) = each %{ $data->{depth2count} } ) {
 			$depth2count{$d} += $c;
+		}
+		if ($report_distance) {
+			# duplicate x,y matrix
+			foreach my $x (keys %{ $data->{dupmatrix} }) {
+				$dupmatrix{$x} ||= {};
+				foreach my $y ( keys %{ $data->{dupmatrix}{$x} } ) {
+					$dupmatrix{$x}{$y} += $data->{dupmatrix}{$x}{$y};
+				}
+			}
+			# distance to key hash
+			while (my ($d, $c) = each %{ $data->{distance2count} }) {
+				$distance2count{$d} += $c;
+			}
 		}
 	});
 	
@@ -564,12 +656,14 @@ sub count_alignments_multithread {
 		
 		# prepare callback data structure
 		my $data = {
-			position    => -1, # a non-coordinate
-			totalCount  => 0,  # total count of reads
-			optCount    => 0, # optical count
-			black_list  => undef,
-			depth2count => {}, # depth to count hash
-			reads       => [], # temp buffer for collecting reads
+			position       => -1, # a non-coordinate
+			totalCount     => 0,  # total count of reads
+			optCount       => 0, # optical count
+			black_list     => undef,
+			depth2count    => {}, # depth to count hash
+			dupmatrix      => {}, # duplicate x,y coordinates for reporting
+			distance2count => {}, # max distance to count hash
+			reads          => [], # temp buffer for collecting reads
 		};
 	
 		# process black lists for this chromosome
@@ -601,7 +695,8 @@ sub count_alignments_multithread {
 		$pm->finish(0, $data); 
 	}
 	$pm->wait_all_children;
-	return ($totalCount, $opticalCount, \%depth2count);
+	
+	return ($totalCount, $opticalCount, \%depth2count, \%dupmatrix, \%distance2count);
 }
 
 
@@ -692,7 +787,7 @@ sub count_up_se_alignments {
 	foreach my $pos (keys %fends) {
 		# count up based on optical test
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($fends{$pos});
+			my ($nondup, $dup) = identify_optical_duplicates($fends{$pos}, $data);
 			$data->{depth2count}{scalar @$nondup} += 1;
 			$data->{optCount} += scalar @$dup;
 		}
@@ -704,7 +799,7 @@ sub count_up_se_alignments {
 	foreach my $pos (keys %rends) {
 		# count up based on optical test
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($rends{$pos});
+			my ($nondup, $dup) = identify_optical_duplicates($rends{$pos}, $data);
 			$data->{depth2count}{scalar @$nondup} += 1;
 			$data->{optCount} += scalar @$dup;
 		}
@@ -732,7 +827,7 @@ sub count_up_pe_alignments {
 	foreach my $s (keys %sizes) {
 		# count up based on optical test
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($sizes{$s});
+			my ($nondup, $dup) = identify_optical_duplicates($sizes{$s}, $data);
 			$data->{depth2count}{scalar @$nondup} += 1;
 			$data->{optCount} += scalar @$dup;
 		}
@@ -748,6 +843,7 @@ sub count_up_pe_alignments {
 ### Identify optical duplicates
 sub identify_optical_duplicates {
 	my $alignments = shift;
+	my $data = shift || undef; # this is only for reporting distances
 	
 	# check for only one alignment and quickly return
 	if (scalar @$alignments == 1) {
@@ -760,7 +856,7 @@ sub identify_optical_duplicates {
 	my @nondups;
 	foreach my $a (@$alignments) {
 		my @bits = split(':', $a->qname);
-		my $rg = $a->aux_get("RG") || '';
+		my $rg = $a->aux_get("RG") || '1';
 		my $rgtile = join('.', $rg, $bits[$tilepos]);
 		$tile2alignment{$rgtile} ||= [];
 		# each item in the array is another array of [x, y, $a]
@@ -780,9 +876,31 @@ sub identify_optical_duplicates {
 			# sort by increasing X coordinate
 			my @spots = sort {$a->[0] <=> $b->[0]} @$rgtile_alnts;
 			# collect the deltas from one spot to the next on the X axis
+			# start with second sorted spot and subtract the one before it
 			my @xdiffs = map { $spots[$_]->[0] - $spots[$_-1]->[0] } (1..$#spots);
 			
-			# check 
+			if ($report_distance) {
+				# we need to generate a report, so take the extra time to calculate the
+				# absolute y deltas using the same sorted order of spots
+				my @ydiffs = map { abs($spots[$_]->[1] - $spots[$_-1]->[1]) } (1..$#spots);
+				for my $i (0..$#xdiffs) {
+					# note that we're recording based on xdiffs array, not spots array
+					# therefore we're not recording the first spot in the spots array
+					# i.e. one non-duplicate will be left out
+					my $x = int($xdiffs[$i] / 50);
+					my $y = int($ydiffs[$i] / 50);
+					$data->{dupmatrix}{$x} ||= {};
+					$data->{dupmatrix}{$x}{$y} += 1;
+					my $m = max($x,$y);
+					$data->{distance2count}{$m} += 1;
+				}
+			}
+			
+			
+			## Check 
+			# working on the assumption here that by definition an optical cluster is 
+			# going to be below the threshold on both axes, and not just one axis
+			# therefore we only need to check the x axis first
 			if (min(@xdiffs) > $optical_thresh) {
 				# everything is ok
 				foreach (@spots) {
