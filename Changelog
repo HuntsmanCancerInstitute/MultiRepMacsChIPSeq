@@ -1,0 +1,433 @@
+######## MultiRepMacsChIPSeq Revision History #############
+
+v14.1
+	multirep_macs2_pipeline.pl
+	- Change the relative data collection from peak midpoint to smaller bin sizes 
+	  (peak_size/10) and more bins (25).
+	
+	peak2bed.pl
+	- Added new helper script to convert raw Macs2 peak files to simple Bed 
+	  interval and summit files. It also renames and properly sorts the intervals.
+	  This replaces complicated code in main pipeline.
+	
+	bam_partial_dedup.pl
+	- Add new option to report the pixel distances observed with duplicates to get 
+	  a better idea of optical duplicates. Report is for informative purposes only 
+	  and de-duplication is turned off when the report is enabled. 
+	- Add command line to bam header, but only when using the external samtools 
+	  command. The Perl HTS Bam adapter still has unreliable behavior with different 
+	  versions.
+	
+	plot_peak_figures.R
+	- Tweak the plots for Jaccard and Number of Intersections. Reset the scale from 0 
+	  to max, and write the value in the boxes. 
+	
+	run_DESeq2.R
+	- Turn off log2fc shrink. Takes a long time and not clear if absolutely necessary
+	  with ChIPSeq
+
+v14.0
+	multirep_macs2_pipeline.pl
+	- Calculate target sequence depth for scaling by empirically collecting the 
+	  information from the fragment RPM bedgraph generation. This separates 
+	  fragment and count bam2wig commands separately. This is much more reliable than 
+	  explicit user input values, since partial deduplication can really throw off 
+	  the original estimates. Manual control is still allowed but warned.
+	- Remove documentation for external scaling ChIP and control depths. The code is 
+	  still present, but issues stern warnings if used. This effectively 
+	  removes support for external genome calibration. Basically, scaling depths 
+	  independently breaks all assumptions in the statistical test for calling peaks. 
+	  In other words, it doesn't work.
+	- Change file names for lambda control and collected scores. Collected scores are 
+	  now "mean" to reflect what they truly are, and not imply something else.
+	- Bug fixes
+	
+	generate_differential.pl
+	- Major change to generate only one differential file with Macs2, and split based 
+	  on sign. Also allow to set minimum value of input files to discard, allowing
+	  fold enrichment files to be used as well as statistical files.
+
+v13.5
+	multirep_macs2_pipeline.pl
+	- Fix bug where command-line specified cutoff value wasn't being used properly
+	
+	run_DESeq2.R
+	- Better handling of input files
+	
+	generate_differential.pl
+	- Bug fix in directory creation
+
+v13.4
+	multirep_macs2_pipeline.pl
+	- More safety checks to handle exceptions when no peaks are identified, rather 
+	  than simply crashing.
+	
+	plot_peak_figures.R
+	- Update plot titles
+
+v13.3
+	multirep_macs2_pipeline.pl
+	- Fix bug with organizing Bam files, handle situations where no peak files are 
+	  found, and make organizing files and generating plots default to true.
+	
+	bam_partial_dedup.pl
+	- Include Read Group ID in calculation of identifying duplicate reads. 
+	  This ensures that alignments derived from different flow 
+	  cells don't get mis-classified as an optical duplicate. Empirical tests on 
+	  sample data suggest there could be 0.1% mis-classification.
+	
+	generate_differential.pl
+	- Added new script to calculate differential tracks and optionally identify 
+	  regions of differential enrichment. Intended to be used with log Fold 
+	  Enrichment bedGraph or bigWig files.
+	
+	plot_peak_figures.R
+	- Use the same color palette for all the plots, and make it user definable.
+	
+	combine_std_chipstats.pl.
+	- Better handling of multiple input files with the same GNomEx Identifier in 
+
+v13.2
+	multirep_macs2_pipeline.pl
+	- Bug and efficiency fixes
+	
+	plot_peak_figures.R
+	- Invert colors for Pearson and Spearman correlation plots
+	- Filter spatial Venn categories to only plot top categories
+	
+	run_DESeq2.R
+	- Add option to report all results
+
+v13.1
+	multirep_macs2_pipeline.pl
+	- Bug fixes for running de-duplication 
+
+v13.0
+	multirep_macs2_pipeline.pl
+	- Change the "dup" option to "dedup". This is confusing too many people.
+	- Add new dry run option, which should print out every job command that would 
+	  be run in during normal execution, making assumptions when actual decisions 
+	  or file results are not calculable or present.
+	- Collect de-duplication results into a single summary file.
+	- Clean narrowPeak and gappedPeak files into simple bed files, since the Macs2
+	  bdgpeakcall and bdgbroadcall functions do not calculate the statistical 
+	  p-value and q-value scores. Also rename the peaks - I hate it's naming scheme.
+	- Run BioToolBox get_relative_data.pl script to collect relative data around the 
+	  midpoint of called merged called peaks for plotting. Collects 10 bins on either 
+	  side, with bin size determined as a fraction of peak size. Collects both log2FE 
+	  and fragment coverage.
+	- Add option to organize all the result files into subdirectories rather than 
+	  leave as a jumbled mess for manual cleanup.
+	- Combine all individual output log files into one
+	- Make Parallel::ForkManager required
+	- Bug fixes
+	
+	get_chip_efficiency.pl
+	- Add new script to collect ChIP efficiencies by calculating the fraction of 
+	  alignment counts for each sample replicate over its respective called peak.
+	
+	plot_peak_figures.R
+	- Massive overhaul to plot 13 sets of quality control and analytical plots. 
+	  New additional plots for deduplication results, ChIP efficiency, spatial 
+	  Venn, relative occupancy. 
+	
+	run_normR_enrichment.R
+	- add option to report all results
+	
+	install_R_packages.R
+	- Add simple script to install R dependencies
+	
+v12.4
+	multirep_macs2_pipeline.pl
+	- Fix bug with handling multiple control files and lamba control not being 
+	  properly generated.
+	- Add proper help command line option
+	- Print entire command, not just app name, for clearer debugging purposes
+	
+v12.3
+	multirep_macs2_pipeline.pl
+	- Fix bug with handling single control Bam files, which got broken in 12.0
+	- Improve error messages
+
+v12.2
+	multirep_macs2_pipeline.pl
+	- Fix critical bug where lambda control was no longer enabled by default
+	- Bug fix in log redirection
+
+v12.1
+	multirep_macs2_pipeline.pl
+	- Safety check of left over command line options - there shouldn't be any
+	- Fix bug with processing progress file
+	- Bug fixes
+
+v12.0
+	multirep_macs2_pipeline.pl
+	- Add progress tracking file. This should help with restarting the pipeline
+	  so that jobs are not needlessly re-executed.
+	- Improve checking whether job commands executed successfully by checking for 
+	  output files.
+	- Add full crash reporter for each ChIPJob data object so that errors can be 
+	  tracked more completely.
+	- Improve handling when provided a single control reference bigWig file
+	- Avoid expensive forking for simple remove commands
+
+v11.6
+	multirep_macs2_pipeline.pl
+	- Fix bug with default de-duplication argument not being set properly
+	- Add log file to wigToBigWig commands to catch errors
+
+v11.5
+	multirep_macs2_pipeline.pl
+	- When executing with no-lambda enabled, the reference control coverage should 
+	  be shifted just as with the ChIP samples
+	- The reference control d fragment generation should be treated the same as the 
+	  ChIP fragments and extended and shifted in the same manner as the ChIP samples.
+	  This, I think, deviates slightly from how the standard Macs2 callpeak function 
+	  operates, but should be more appropriate. However, it shouldn't really change 
+	  results by very much.
+	- Add explicit Rscript path command line option
+
+v11.4
+	multirep_macs2_pipeline.pl
+	- Add option to de-duplicate a Bam file as paired-end, but otherwise treat as a 
+	  single-end file for fragment and count file generation. This enables users to 
+	  analyze ATACSeq data as cut-site only, but avoid issues with over de-duplication 
+	  by still including pair information.
+
+v11.3
+	multirep_macs2_pipeline.pl
+	- Fix bedtools command line bug
+	
+v11.2
+	multirep_macs2_pipeline.pl
+	- Fix bugs with handling the no-lambda option and no control files
+	- Fix bug with getting genomic window counts
+	
+	combine_std_chipstats.pl
+	- Fix bug so that sample names are always present
+
+v11.1
+	multirep_macs2_pipeline.pl
+	- Fix bugs with running bedtools and manipulate_wig commands
+	
+	combine_std_chipstats.pl
+	- Now allows processing given files, rather than only allowing parsing Pysano 
+	  stderr and stdout job files
+	
+	intersect_peaks.pl
+	- Clean up sample names to make plots simpler
+
+v11.0
+	multirep_macs2_pipeline.pl
+	- Use bedtools and BiotoolBox data2wig.pl for generating control lambda bedGraph
+	  rather than running four sequential Macs2 commands. This should be substantially 
+	  faster.
+	- Add new options for collecting data over genomic windows for use in subsequent 
+	  analysis programs (like DESeq2 or normR), as well as combining replicate data. 
+	- Always use an external chromosome file
+	
+	run_normR_difference.R
+	run_normR_enrichment.R
+	run_DESeq2.R
+	- Add new scripts for running DESeq2 or normR for enrichment or differential analysis
+	
+	combine_replicate_data.pl
+	- Add new script for easily combining replicate count data for use in programs that 
+	  don't natively handle replicates (normR).
+	
+	intersect_peaks.pl
+	- Run bedtools multi-intersection tool, great for calculating spatial Venn diagrams.
+	
+	plot_peak_figures.R
+	- Update correlation plots
+	
+v10.2
+	multirep_macs2_pipeline.pl
+	- Check that all indicated input files are present
+	- Add option to run the plot_peak_figures.R script automatically, but not enabled 
+	  by default, in case R libraries aren't available
+	- Change sample file format
+	
+	bam_partial_dedup.pl
+	- Make sure deduplication still occurs when optical duplicates are present but 
+	  regular duplicates are below action threshold
+	
+	print_chromosome_lengths.pl
+	- Add support for skipping chromosomes
+
+v10.1
+	multirep_macs2_pipeline.pl
+	- Added ability to use the global ChIP fragment mean when no reference Bam file is 
+	  available
+	
+	generate_mean_bedGraph.pl
+	- change output filename	
+	
+	bam_partial_dedup.pl
+	- Fix bug to mark alignments
+	
+	plot_peak_figures.R
+	- Cluster sample columns
+	
+v10.0
+	multirep_macs2_pipeline.pl
+	- Add support for handling optical duplicates
+	
+	bam_partial_dedup.pl
+	- Add critical support for detecting and processing optical duplicates. These are 
+	  sequencing artifacts, notably from Illumina sequencers with patterned flow cells 
+	  such as Nextseq and Novaseq. They are can severely inflate the duplicate count 
+	  artificially, which could be detrimental when trying to normalize duplicate levels.
+	
+	combine_std_chipstats.pl
+	- Include optical duplicates in reporting
+	
+v9
+	multirep_macs2_pipeline.pl
+	- Fix bugs pertaining to deduplication when sharing reference control files 
+	  between ChIP samples
+	- Add basic broad (gapped) peak calling. No data collection or QC analysis is 
+	  done with these files, just the narrow peak files.
+	
+	intersect_peaks.pl
+	- Fix bug where script dies before printing help
+
+v8
+	multirep_macs2_pipeline.pl
+	- Count bigWigs now include fractional counts, rather than integers. This had the 
+	  side effect of undercounting reads in peaks due to rounding.
+	- Add option to use either raw counts or scaled counts
+	- Add option to save q-value bedGraph files
+
+v7
+	multirep_macs2_pipeline.pl
+	- Inprove handling of duplicate, but not universal, reference control files. For 
+	  example, when the same Input is used for 2 out of 3 ChIP samples.
+	- Improve handling of control file naming scheme to avoid errors
+	- Improve handling of situations where we have an output file but no log file
+	 
+v6.2
+	multirep_macs2_pipeline.pl
+	- Add a pseudo count of 1 when generating fold enrichment when no lambda is enabled.
+	- Improve handling and fix bugs when combining log output files
+	- Numerous bug fixes with naming count bigWig files, merging peak calls, printing 
+	  commands
+
+v6.1
+	multirep_macs2_pipeline.pl
+	- Fix bugs with scaling
+	
+	combine_std_chipstats.pl
+	- Handle UMI de-duplication reporting changes
+	
+	plot_peak_figures.R
+	- Ignore Name column from collected data
+	- Convert null values to zeroes
+
+v6.0
+	multirep_macs2_pipeline.pl
+	- Add option to explicitly turn off lambda control, or just use small or large 
+	  lambda only.
+	- Generate properly scaled count bigWig files for data collection.
+	- Add checks to check with individual command jobs have completed or not. This 
+	  will help with re-starting a failed pipeline by not having to repeat successfully 
+	  completed commands.
+	- Add option to save deduplicated bam files, which are automatically deleted upon 
+	  completion
+	
+	intersect_peaks.pl
+	- New external helper script to handle intersecting peak files and generating 
+	  intersection reports.
+	
+	combine_std_chipstats.pl
+	- Add support for reporting actual de-duplication numbers
+
+	plot_peak_figures.R
+	- New script for plotting peak comparison figures, including heat maps of collected 
+	  mean log2FE and q-values, number of peak intersections, and Jaccard intersection.
+	
+	plot_shift_models.R
+	- New script for plotting the calculated, empirical, single-end alignment shift 
+	  models from the BioToolBox bam2wig.pl application.
+	
+	combine_std_chipstats.pl
+	- New script for collecting alignment, bam2wig emprical 
+	
+	Add a proper Module::Build script
+	
+v5.2
+	multirep_macs2_pipeline.pl
+	- Add support for chromosome-specific normalization, for example, multi-copy 
+	  plasmids, viral episomes, or sex chromosomes
+	
+	bam_partial_dedup.pl
+	- Use external samtools application for concatenating child chromosome bam files 
+	  for a significant speed-boost over doing it in Perl
+	
+v5.1
+	multirep_macs2_pipeline.pl
+	- Add a shift option for fragment processing, specifically to support centering 
+	  ATACSeq coverage over the endpoint or cut site.
+
+v5.0
+	multirep_macs2_pipeline.pl
+	- Look up helper application paths using module File::Which
+	- Bug fixes
+	
+	generate_mean_bedGraph.pl
+	- Add new helper script to generate chromosomal mean bedGraph file that supports 
+	  using the libBigWig adapter, and not the old UCSC adapter, for bigWig files.
+
+v4
+	multirep_macs2_pipeline.pl
+	- Add support for no Input reference control file, and use a calculated global 
+	  mean value instead.
+
+v3
+	multirep_macs2_pipeline.pl
+	- Add support for parallel processing of bam deduplication
+	
+	bam_partial_dedup.pl
+	- Major update to support parallel processing to dramatically increase processing 
+	  time
+	- Add blacklist and chromosome skipping
+
+v2
+	multirep_macs2_pipeline.pl
+	- Add support for external scaling factors, particularly when using an external 
+	  reference genome for calibration of ChIPSeq, such as the ChIP-Rx technique. 
+	  Scales may be provided independently for both ChIP and control.
+
+v1
+	multirep_macs2_pipeline.pl
+	- New script to process the pipeline using Perl, my de facto language. This gives 
+	  much better command line processing, as well as multiple job and parallel 
+	  processing control. Yippee!!!! Entirely moving away from the old cumbersome Bash 
+	  shell script. Yuck!
+
+v2.1
+	multirep_macs2_pipeline.sh
+	- Handle paired-end ChIPs
+	- Switch to using wigToBigWig instead of bedGraphToBigWig
+
+v2
+	multirep_macs2_pipeline.sh
+	- Restructure bash script to put user variables closer to top instead of embedded 
+	  throughout
+
+v1
+	multirep_macs2_pipeline.sh
+	- First version of wrapper script to handle custom execution of Macs2
+
+	bam_partial_dedup.pl
+	- There were multiple versions around before this was moved into this project as its
+	  final home. Lots of improvements, like using end-position as well as start to 
+	  identify duplicates, random sub sampling, paired-end alignment support, agnostic 
+	  Bam file adapter support (to support the newer Bio::DB::HTS and old Bio::DB::Sam), 
+	  etc. 
+	
+	If you've made it this far, congratulations! You are dedicated!!!! Anyway, this is 
+	basically the beginning. Thanks for tripping down memory lane with me!!!
+
+
+
