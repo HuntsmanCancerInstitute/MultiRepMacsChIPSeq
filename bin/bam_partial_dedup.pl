@@ -14,6 +14,7 @@
 use strict;
 use Getopt::Long;
 use File::Which;
+use IO::File;
 use List::Util qw(sum min max);
 use Bio::ToolBox::db_helper 1.50 qw(
 	open_db_connection 
@@ -235,9 +236,6 @@ my $items = $paired ? 'properly paired fragments' : 'alignments';
 my $write_out_alignments; # subroutine reference for writing out alignments
 my $callback;
 my $chance; # probability for subsampling
-# my $htext = $header->text;
-# $htext .= sprintf("\@PG\tID:bam_partial_dedup\tVN:%s\tCL:%s\n", 
-# 	$VERSION, join(' ', $0, @program_options));
 my $black_list_hash = process_black_list();
 
 # chromosome list
@@ -263,6 +261,22 @@ exit 0 unless $outfile;
 exit 0 if $report_distance;
 exit 0 unless ($max > 0 or $chance > 0);
 $outfile .= '.bam' unless $outfile =~ /\.bam$/i;
+# update header
+my $htext = $header->text;
+$htext .= sprintf("\@PG\tID:bam_partial_dedup\tVN:%s\tCL:%s", $VERSION, $0);
+$htext .= " --pe" if $paired;
+$htext .= " --max=$max" if ($max);
+$htext .= " --frac=$fraction" if ($fraction);
+$htext .= " --random" if ($random);
+$htext .= " --seed=$seed" if $seed;
+$htext .= " --mark" if $mark;
+$htext .= " --optical --distance=$optical_thresh " if ($do_optical);
+$htext .= " --keepoptical" if $keep_optical;
+$htext .= " --chrskip=$chr_exclude" if $chr_exclude;
+$htext .= " --blacklist=$black_list" if $black_list;
+$htext .= " --coord $name_coordinates" if $name_coordinates;
+$htext .= " --bam $BAM_ADAPTER --in $infile --out $outfile\n";
+
 my ($counts, $outbam) = deduplicate();
 
 
@@ -1044,9 +1058,6 @@ sub deduplicate_singlethread {
 	my $outbam = Bio::ToolBox::db_helper::write_new_bam_file($outfile) or 
 		die "unable to open output bam file $outfile! $!";
 		# using an unexported subroutine imported as necessary depending on bam availability
-# 	my $outheader = $header->new; # make a new header object
-# 	$outheader->text($htext); # add updated header text
-# 	$outbam->header_write($outheader);
 	$outbam->header_write($header);
 	
 	# set the random seed
@@ -1214,13 +1225,19 @@ sub deduplicate_multithread {
 	# this should be faster than going through Perl and bam adapters
 	my $sam_app = which('samtools');
 	if ($sam_app and not $no_sam) {
-		my $command = sprintf "%s cat -o %s ", $sam_app, $outfile;
+		my $samfile = $outfile;
+		$samfile =~ s/\.bam$/temp.sam/;
+		my $fh = IO::File->new($samfile, '>') or 
+			die "unable to write temporary sam file\n";
+		$fh->print($htext);
+		$fh->close;
+		my $command = sprintf "%s cat -h %s -o %s ", $sam_app, $samfile, $outfile;
 		$command .= join(' ', map { $targetfiles{$_} } @tid_list);
 		print " executing $sam_app cat to merge children...\n";
 		if (system($command)) {
 			die "something went wrong with command '$command'!\n";
 		}
-		unlink values(%targetfiles);
+		unlink $samfile, values(%targetfiles);
 		return (\%counts, $outbam);
 	}
 	
@@ -1229,11 +1246,6 @@ sub deduplicate_multithread {
 	my $outbam = Bio::ToolBox::db_helper::write_new_bam_file($outfile) or 
 		die "unable to open output bam file $outfile! $!";
 		# using an unexported subroutine imported as necessary depending on bam availability
-# 	my $href = ref($header);
-# 	my $outheader = $href->new; # make a new header object
-# 	$outheader->text($htext); # add updated header text
-# 	$outbam->header_write($outheader);
-# 	$header->text($htext); # add updated header text
 	$outbam->header_write($header);
 	
 	# now remerge all the child files and write to main bam file
