@@ -117,7 +117,7 @@ dds <- DESeq(dds)
 ddsResults1 <- results(dds, alpha = opt$threshold, contrast = c('condition', opt$first, opt$second))
 
 # shrink log fold changes - is this necessary?
-ddsResults1 <- lfcShrink(dds=dds, res=ddsResults1, contrast= c('condition', opt$first, opt$second))
+# ddsResults1 <- lfcShrink(dds=dds, res=ddsResults1, contrast= c('condition', opt$first, opt$second))
 
 
 # write all results
