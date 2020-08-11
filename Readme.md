@@ -647,49 +647,23 @@ the appropriate command line option in the script. For convenience, it may
 be best to install everything in a [modules](https://modules.readthedocs.io/en/latest/) 
 environment, a Docker image, or similar.
 
+See the associated [Install](INSTALL.md) document for details on manually installing.
+
 ### HCI users
 
 HCI users running the pipeline on local servers can simply load the packages into your 
-environment using a module command
+environment using a module command. This can also be used with [Pysano](pysano/Readme.md).
 
     $ module load multirepchipseq
     $ multirep_macs2_pipeline.pl
     $ module unload multirepchipseq
 
-### External library packages
-The Perl and R scripts require additional software library packages, including the 
-following:
-
-- Perl [Bio::ToolBox](https://metacpan.org/pod/Bio::ToolBox)
-  
-- Perl [Bio::DB::HTS](https://metacpan.org/pod/Bio::DB::HTS)
-
-- Perl [Bio::DB::Big](https://metacpan.org/pod/Bio::DB::Big)
-
-- Perl [Set::IntervalTree](https://metacpan.org/pod/Set::IntervalTree)
-
-- Perl [Parallel::ForkManager](https://metacpan.org/pod/Parallel::ForkManager)
-
-- R [bioconductor](https://bioconductor.org/install/)
-
-- R [normR](https://bioconductor.org/packages/release/bioc/html/normr.html)
-
-- R [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html)
-
-- R [ggplot2](https://ggplot2.tidyverse.org)
-
-- R [pheatmap](https://cran.r-project.org/web/packages/pheatmap)
-
-- External [Macs2](http://github.com/taoliu/MACS/)
-
-- External [BedTools](https://github.com/arq5x/bedtools2). 
-
 ### Package Installation
 
-A standard [Module::Build](https://metacpan.org/pod/Module::Build) script is also 
-provided for semi-automated installation of the Perl and R scripts. Installation 
-instructions for BioToolBox and Perl packages can be found at the 
-[Bio::ToolBox repository](https://github.com/tjparnell/biotoolbox).
+A standard [Module::Build](https://metacpan.org/pod/Module::Build) Perl script is 
+provided for semi-automated installation of the Perl components. However, this does not 
+handle external applications and dependencies. See the [Install](INSTALL.md) document 
+for details.
 
     $ perl ./Build.PL
     $ ./Build
