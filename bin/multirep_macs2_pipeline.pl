@@ -23,7 +23,7 @@ use Getopt::Long;
 use Parallel::ForkManager;
 use Bio::ToolBox::utility qw(simplify_dataset_name);
 
-my $VERSION = 14.1;
+my $VERSION = 14.2;
 
 # parameters
 my %opts = (
@@ -1082,8 +1082,8 @@ sub run_peak_merge {
 	
 	# narrowPeaks
 	my $merge_file = File::Spec->catfile($opts{dir}, $opts{out});
-	my $command = sprintf("%s --name %s_merge --bed %s --out %s ", $opts{intersect}, 
-		$opts{out}, $opts{bedtools}, $merge_file);
+	my $command = sprintf("%s --name %s_merge --bed %s --out %s --genome %s ", 
+		$opts{intersect}, $opts{out}, $opts{bedtools}, $merge_file, $chromofile);
 	my $command_check = length($command);
 	my $count_check = 0;
 	foreach my $Job (@Jobs) {
@@ -1112,8 +1112,8 @@ sub run_peak_merge {
 	# broadPeaks
 	if ($opts{broad}) {
 		my $merge2_file = File::Spec->catfile($opts{dir}, $opts{out} . "_broad");
-		my $command2 = sprintf("%s --name %s_gapmerge --bed %s --out %s ", 
-			$opts{intersect}, $opts{out}, $opts{bedtools}, $merge2_file);
+		my $command2 = sprintf("%s --name %s_gapmerge --bed %s --out %s --genome %s ", 
+			$opts{intersect}, $opts{out}, $opts{bedtools}, $merge2_file, $chromofile);
 		my $command2_check = length($command2);
 		my $count2_check = 0;
 		
