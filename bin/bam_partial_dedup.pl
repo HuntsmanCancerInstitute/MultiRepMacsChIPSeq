@@ -79,10 +79,11 @@ recommended for patterned flow cells from Illumina NovaSeq or NextSeq. Set a
 distance of 100 pixels for unpatterned (Illumina HiSeq) or at least 10000 for  
 patterned (NovaSeq). By default, optical duplicate alignments are not written 
 to output. To ONLY filter for optical duplicates, set --max to a very high number.
+Note that tile-edge duplicates are not counted as such.
 
 Bam files representing multiple sequence lanes that are identified properly by 
 unique read groups are de-deduplicated separately with regard to optical 
-duplicates, but not coordinate duplicates. (New as version 3)
+duplicates, but not coordinate duplicates. (New as of version 3)
 
 Existing alignment duplicate marks (bit flag 0x400) are ignored. 
 
@@ -388,10 +389,9 @@ sub count_alignments {
 		}
 		my $xlimit = min(max(@xvalues), 50000);
 		my $ylimit = min(max(@yvalues), 50000);
-		print "   setting report maximums to X=$xlimit and Y=$ylimit\n";
 		
 		# write matrix to file
-		my $matrixfile = $outfile || 'report';
+		my $matrixfile = $outfile || $infile;
 		$matrixfile =~ s/\.bam$//;
 		$matrixfile .= '.dup-distance.matrix.txt';
 		my $fh = IO::File->new($matrixfile, '>') or 
@@ -405,22 +405,25 @@ sub count_alignments {
 			);
 		}
 		$fh->close;
-		print "  wrote duplicate delta distance matrix to $matrixfile\n";
+		print "  wrote duplicate delta distance matrix to file $matrixfile\n";
 		
 		# write max distance hash to file
-		my $histogramfile = $outfile || 'report';
+		my $histogramfile = $outfile || $infile;
 		$histogramfile =~ s/\.bam$//;
-		$histogramfile .= '.maxdup-distance.txt';
+		$histogramfile .= '.dup-threshold.txt';
 		my $fh = IO::File->new($histogramfile, '>') or 
 			die "unable to write to file $histogramfile! $!";
-		$fh->print("# maximum absolute x or y duplicate delta pixel distances for $infile\n");
+		$fh->print("# Fraction of observed duplicates at the given pixel distance threshold\n");
+		my $dup_sum = sum(values %$distance2count);
+		$fh->print("# Total observed duplicates: $dup_sum\n");
+		my $current_dup_sum = $dup_sum;
 		$fh->print("Distance\t$infile\n");
-		my $nlimit = max($xlimit, $ylimit);
-		for my $i (0..$nlimit) {
-			$fh->printf("%d\t%d\n", $i * 50, $distance2count->{$i} || 0);
+		for my $i (0..400) {
+			$fh->printf("%d\t%0.04f\n", $i * 50, ($current_dup_sum/$dup_sum));
+			$current_dup_sum -= $distance2count->{$i} || 0;
 		}
 		$fh->close;
-		print "  wrote maximum duplicate delta distance histogram to $histogramfile\n";
+		print "  wrote table of duplicate fraction at each pixel distance to file $histogramfile\n";
 	}
 	
 	# check if we need to continue
@@ -905,8 +908,15 @@ sub identify_optical_duplicates {
 					my $y = int($ydiffs[$i] / 50);
 					$data->{dupmatrix}{$x} ||= {};
 					$data->{dupmatrix}{$x}{$y} += 1;
-					my $m = max($x,$y);
-					$data->{distance2count}{$m} += 1;
+					
+					# record at what pixel cutoff this would be considered a duplicate
+					my $m = min($x, $y);
+					# a possible duplicate would be at least this distance in both axes
+					# looking at up to 20000 pixels is reasonable range to check
+					if ($m <= 400) {
+						$data->{distance2count}{$m} += 1;
+					}
+					
 				}
 			}
 			
