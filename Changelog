@@ -1,5 +1,25 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
+v14.2
+	multirep_macs2_pipeline.pl
+	- Add support for genome files in intersect_peaks.pl
+	- Fix bug with detecting single- and paired-end counts from bam2wig
+	
+	bam_partial_dedup.pl
+	- Change pixel distance reporting to report the fraction of observed 
+	  duplicates at a given pixel distance, rather than maximum distance, 
+	  which should be more useful in determining cutoff distance.
+	- Use input bam file base name as default report file name.
+	
+	intersect_peaks.pl
+	- Add genome file command line option to use with bedtools jaccard, which 
+	  can fail when one file is not represented on chromosomes relative to the 
+	  second file, or files aren't sorted the same. Improve error reporting 
+	  and checking files before starting.
+	
+	install_R_packages.R
+	- Change shebang.
+
 v14.1
 	multirep_macs2_pipeline.pl
 	- Change the relative data collection from peak midpoint to smaller bin sizes 
