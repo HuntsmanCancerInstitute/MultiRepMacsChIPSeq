@@ -18,12 +18,13 @@ use File::Spec;
 use File::Which;
 use Bio::ToolBox 1.65;
 
-my $VERSION = 2;
+my $VERSION = 3;
 
 # variables
 my $tool = which('bedtools');
 my $outfile;
 my $peak_basename;
+my $genome_file;
 my @files;
 my $help;
 
@@ -57,7 +58,8 @@ USAGE: intersect_peaks.pl --out <basename> peak1.narrowPeak peak2.narrowPeak ...
 
 OPTIONS:
     --out basename          Provide the output basename
-    --name text             Provide text to rename the merged peakss
+    --name text             Provide text to rename the merged peaks
+    --genome path           Provide a genome file for consistency
     --bed path              Path to bedtools ($tool)
     --help                  Print documentation
 DOC
@@ -73,6 +75,7 @@ unless (@ARGV) {
 GetOptions(
 	'out=s'             => \$outfile,
 	'name=s'            => \$peak_basename,
+	'genome=s'          => \$genome_file,
 	'bed=s'             => \$tool,
 	'help!'             => \$help,
 ) or die "unrecognized option!\n";
@@ -96,11 +99,16 @@ die "must provide 2 or more files!\n" unless scalar(@files) > 1;
 my @names;
 foreach my $f (@files) {
 	# strip path and extension
+	unless (-e $f and -r _ ) {
+		die " Input file '$f' not present or readable!\n";
+	}
 	my (undef, $dir, $name) = File::Spec->splitpath($f);
 	$name =~ s/\.(?:bed|narrowpeak|gappedpeak|broadpeak)(?:\.gz)?$//i;
 	push @names, $name;
 }
-
+if ($genome_file and (not -e $genome_file or not -r _ )) {
+	die " Genome file '$genome_file' not present or readable!\n";
+}
 
 
 
@@ -135,6 +143,9 @@ if (-e $merge_peak_file and -s _ ) {
 print " Calculating Jaccard overlap....\n";
 my $JaccardData = Bio::ToolBox->new_data('File', @names);
 my $IntersectionData = Bio::ToolBox->new_data('File', @names);
+my $jaccard_cmdbase = "$tool jaccard ";
+$jaccard_cmdbase .= "-g $genome_file " if -e $genome_file;
+my $jaccard_warn;
 
 for my $f1 (0..$#names) {
 	my $j = $JaccardData->add_row();
@@ -144,14 +155,29 @@ for my $f1 (0..$#names) {
 	$IntersectionData->value($i, 0, $names[$f1]);
 	
 	for my $f2 (0..$#names) {
-		my $result = `$tool jaccard -a $files[$f1] -b $files[$f2]`;
-		my @lines = split("\n", $result);
-		my (undef, undef, $jaccard, $number) = split(/\s+/, $lines[1]);
-		$JaccardData->value($j, $f2 + 1, $jaccard);
-		$IntersectionData->value($i, $f2 + 1, $number);
+		my $result = qx($jaccard_cmdbase -a $files[$f1] -b $files[$f2] 2>&1);
+		if ($result =~ /ERROR/) {
+			# there was some sort of error - the most likely is lexicographic 
+			# the user needs a genome file because the bed files are either not 
+			# sorted properly or intervals are not present on all the chromosomes
+			printf "   jaccard between %s and %s failed!!\n", $names[$f1], $names[$f2];
+			$jaccard_warn = $result;
+			$JaccardData->value($j, $f2 + 1, '.');
+			$IntersectionData->value($i, $f2 + 1, '.');
+		}
+		else {
+			# likely worked
+			printf "   jaccard between %s and %s succeeded\n", $names[$f1], $names[$f2];
+			my @lines = split("\n", $result);
+			my (undef, undef, $jaccard, $number) = split(/\s+/, $lines[1]);
+			$JaccardData->value($j, $f2 + 1, $jaccard);
+			$IntersectionData->value($i, $f2 + 1, $number);
+		}
 	}
 }
-
+if ($jaccard_warn) {
+	print "  Jaccard calculations are incomplete!!! This was the last error:\n$jaccard_warn";
+}
 $JaccardData->save("$outfile\.jaccard.txt");
 $IntersectionData->save("$outfile\.n_intersection.txt");
 
