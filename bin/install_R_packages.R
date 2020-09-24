@@ -1,4 +1,4 @@
-#!/usr/bin/R --no-save --no-restore  
+#!/usr/bin/env Rscript --no-save --no-restore  
 
 install.packages(c("optparse","RColorBrewer","reshape2","ggplot2","pheatmap"), repos="http://cran.r-project.org")
 
