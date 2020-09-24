@@ -912,7 +912,7 @@ sub run_bam_fragment_conversion {
 					# the names of files
 					@files = split(/, /, $1);
 				}
-				elsif ($line =~ /^ Normalizing depth based on ([\d,]+) total counted fragments$/) {
+				elsif ($line =~ /^ Normalizing depth based on ([\d,]+) total counted (?:alignments|fragments)$/) {
 					# only one file was processed
 					# need to grab the name from the list
 					my $count = $1;
@@ -921,7 +921,8 @@ sub run_bam_fragment_conversion {
 						$bam2count{$files[0]} = sprintf "%.1f", $count / 1_000_000;
 					}
 				}
-				elsif ($line =~ /^  (.+) had ([\d,]+) total counted fragments$/) {
+				elsif ($line =~ /^  (.+) had ([\d,]+) total counted (?:alignments|fragments)$/) {
+					# multiple files were processed
 					my $file = $1;
 					my $count = $2;
 					unless (exists $bam2count{$file}) {
@@ -941,7 +942,7 @@ sub run_bam_fragment_conversion {
 		
 		# Calculate minimum target depth to use
 		my $targetdep = int( min(values %bam2count) );
-		$targetdep ||= 1; # just in case!
+		$targetdep ||= 10; # just in case!
 		if (defined $opts{targetdep}) {
 			printf "\n WARNING!!! Calculated target sequence depth of %d Million is overridden by manually set value %d\n",
 				$targetdep, $opts{targetdep};
