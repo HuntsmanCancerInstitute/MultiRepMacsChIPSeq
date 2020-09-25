@@ -942,7 +942,7 @@ sub run_bam_fragment_conversion {
 		
 		# Calculate minimum target depth to use
 		my $targetdep = int( min(values %bam2count) );
-		$targetdep ||= 10; # just in case!
+		$targetdep ||= 1; # just in case!
 		if (defined $opts{targetdep}) {
 			printf "\n WARNING!!! Calculated target sequence depth of %d Million is overridden by manually set value %d\n",
 				$targetdep, $opts{targetdep};
