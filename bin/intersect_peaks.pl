@@ -17,8 +17,10 @@ use Getopt::Long;
 use File::Spec;
 use File::Which;
 use Bio::ToolBox 1.65;
+use List::Util qw(min max);
+use Statistics::Descriptive;
 
-my $VERSION = 3;
+my $VERSION = 4;
 
 # variables
 my $tool = which('bedtools');
@@ -35,10 +37,13 @@ my $docs = <<DOC;
 A script to intersect two or more peak files. This is a wrapper around the bedtools 
 program.
 
-It will first merge all of the peak files into a single representative bed file.
+It will first calculate a number of descriptive statistics for the interval lengths 
+for each input file, including count, sum, standard deviation, and quartiles.
+
+It will merge all of the peak files into a single representative bed file.
 Peak intervals will be renamed to the given name. 
 
-It will then run the bedtools Jaccard statistic pairwise across all of the peak 
+It will run the bedtools Jaccard statistic pairwise across all of the peak 
 files and write out a merged table of the results. The Jaccard statistic measures 
 the amount of spatial overlap between two peak files (intersection/union) reported 
 as a fraction between 0 and 1.
@@ -47,19 +52,20 @@ Finally, it will run bedtools multiinter tool to perform a multi-way intersectio
 and calculate the intervals for each category of overlap. This is parsed into a 
 summary file suitable for drawing a Venn diagram based on spatial overlap.
 
-Five files will be written:
+Six files will be written:
     basename.bed                    the merged peaks
     basename.jaccard.txt            the Jaccard results in a table
     basename.n_intersection.txt     the number of intersections in a table
     basename.multi.txt              data file from multi-intersection 
     basename.spatialVenn.txt        summary of spatial overlap for each category
+    basename.lengthStats.txt        interval length statistics for each file
 
 USAGE: intersect_peaks.pl --out <basename> peak1.narrowPeak peak2.narrowPeak ....
 
 OPTIONS:
     --out basename          Provide the output basename
     --name text             Provide text to rename the merged peaks
-    --genome path           Provide a genome file for consistency
+    --genome path           Provide a genome file for sort consistency
     --bed path              Path to bedtools ($tool)
     --help                  Print documentation
 DOC
@@ -96,27 +102,78 @@ unless ($peak_basename) {
 # inputs
 my @files = @ARGV;
 die "must provide 2 or more files!\n" unless scalar(@files) > 1;
-my @names;
-foreach my $f (@files) {
-	# strip path and extension
-	unless (-e $f and -r _ ) {
-		die " Input file '$f' not present or readable!\n";
-	}
-	my (undef, $dir, $name) = File::Spec->splitpath($f);
-	$name =~ s/\.(?:bed|narrowpeak|gappedpeak|broadpeak)(?:\.gz)?$//i;
-	push @names, $name;
-}
 if ($genome_file and (not -e $genome_file or not -r _ )) {
 	die " Genome file '$genome_file' not present or readable!\n";
 }
+
+
+### Interval length statistics
+print " Collecting descriptive statistics on peak lengths...\n";
+my @numcols; # remember how many columns each input file has
+my @names;
+my $LengthStats = Bio::ToolBox->new_data('File', 'Count', 'Sum', 
+	'Mean', 'StandardDev', 'Min', 'Percentile5','FirstQuartile', 'Median', 
+	'ThirdQuartile', 'Percentile95', 'Max');
+for my $file (@files) {
+	
+	# open file
+	print "   $file\n";
+	my $Data = Bio::ToolBox->load_file(file => $file)
+		or die "unable to open '$file' $!"; 
+	unless ($Data->bed) {
+		die "file '$file' does not appear to be a BED file format!\n";
+	}
+	
+	# remember stuff about this file
+	push @names, $Data->basename;
+	push @numcols, $Data->number_columns;
+	
+	# collect length numbers
+	my $Stat = Statistics::Descriptive::Full->new();
+	$Data->iterate( sub {
+		my $feature = shift;
+		$Stat->add_data( $feature->length );
+	} );
+	
+	# record stats
+	$LengthStats->add_row( [
+		$Data->basename,
+		$Stat->count,
+		$Stat->sum,
+		sprintf("%.0f", $Stat->mean),
+		sprintf("%.0f", $Stat->standard_deviation),
+		$Stat->min,
+		sprintf("%.0f", $Stat->percentile(5)),
+		sprintf("%.0f", $Stat->quantile(1)),
+		sprintf("%.0f", $Stat->quantile(2)), # median
+		sprintf("%.0f", $Stat->quantile(3)),
+		sprintf("%.0f", $Stat->percentile(95)),
+		$Stat->max
+	] );
+}
+$LengthStats->save("$outfile\.lengthStats.txt");
 
 
 
 ### Merge the peaks
 print " Merging peak files....\n";
 my $merge_peak_file = $outfile . '.bed';
-my $command = sprintf("cat %s | %s sort -i - | %s merge -c 5 -o mean -i - > %s",
-	join(" ", @files), $tool, $tool, $merge_peak_file);
+my $command = sprintf("cat %s | ", join(" ", @files));
+if (min(@numcols) != max(@numcols)) {
+	# unequal columns, must trim excess columns
+	$command .= sprintf("cut -f%d-%d | ", 1, min(@numcols));
+}
+$command .= sprintf("%s sort ", $tool);
+if ($genome_file) {
+	$command .= "-faidx $genome_file ";
+}
+$command .= sprintf("-i - | %s merge ", $tool);
+if (min(@numcols) >= 5) {
+	# record an average score
+	$command .= "-c 5 -o mean ";
+}
+$command .= sprintf("-i - > %s", $merge_peak_file);
+# print "   Executing $command\n";
 if (system($command)) {
 	die "something went wrong! command:\n $command\n";
 }
@@ -126,10 +183,13 @@ if (-e $merge_peak_file and -s _ ) {
 	my $Data = Bio::ToolBox->load_file($merge_peak_file) or 
 		die "unable to open $merge_peak_file!";
 	
-	# sort the file correctly, not asciibetically
+	# sort the file correctly, not asciibetically - necessary????
 	$Data->gsort_data;
 	
-	# rename
+	# rename intervals
+	if ($Data->number_columns == 3) {
+		$Data->add_column('Name'); 
+	}
 	$Data->iterate( sub {
 		my $row = shift;
 		$row->value(3, sprintf("%s.%d", $peak_basename, $row->row_index));
@@ -144,7 +204,7 @@ print " Calculating Jaccard overlap....\n";
 my $JaccardData = Bio::ToolBox->new_data('File', @names);
 my $IntersectionData = Bio::ToolBox->new_data('File', @names);
 my $jaccard_cmdbase = "$tool jaccard ";
-$jaccard_cmdbase .= "-g $genome_file " if -e $genome_file;
+$jaccard_cmdbase .= "-g $genome_file " if $genome_file;
 my $jaccard_warn;
 
 for my $f1 (0..$#names) {
@@ -156,7 +216,7 @@ for my $f1 (0..$#names) {
 	
 	for my $f2 (0..$#names) {
 		my $result = qx($jaccard_cmdbase -a $files[$f1] -b $files[$f2] 2>&1);
-		if ($result =~ /ERROR/) {
+		if ($result =~ /error/i) {
 			# there was some sort of error - the most likely is lexicographic 
 			# the user needs a genome file because the bed files are either not 
 			# sorted properly or intervals are not present on all the chromosomes
