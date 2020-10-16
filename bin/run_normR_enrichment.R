@@ -111,7 +111,7 @@ write.table(data.frame(seqnames(targets),start(targets),end(targets),getEnrichme
             sep = "\t", row.names = F, quote = F, col.names = F)
 
 # write all results
-if (opt$all != "NA"){
+if (opt$all == TRUE){
     allresults <- data.frame(
       Chromosome = seqnames(targets),
       Start = start(targets),
