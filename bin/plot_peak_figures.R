@@ -350,6 +350,52 @@ if(file.exists(efffile)) {
 
 
 
+# peak length statistics
+lengthfile <- paste0(opt$input, '.lengthStats.txt')
+if(file.exists(lengthfile)) {
+  lengthdata <- read.table(lengthfile, header=TRUE, sep = "\t",
+                           check.names = FALSE, na.strings = '.')
+  if (file.exists(samplefile)) {
+    sampledata <- read.table(samplefile, header=TRUE, sep="\t", row.names = 1, 
+                             check.names = FALSE)
+    lengthdata <- cbind(lengthdata, sampledata)
+  }
+  else {
+    lengthdata$Dataset <- lengthdata$File
+  }
+  
+  # peak number
+  p <- ggplot(lengthdata, aes(x = File, y = Count)) + 
+    geom_col(aes(fill = Dataset)) +
+    scale_fill_brewer(palette=opt$palette) +
+    theme(axis.text.x = element_text(angle = 90)) +
+    ggtitle("Number of peaks")
+  ggsave(plot = p, filename = paste0(opt$input, '.peak_number.', opt$format), 
+         width = 6, height = 4)
+  
+  # total peak space
+  p <- ggplot(lengthdata, aes(x = File, y = Sum)) + 
+    geom_col(aes(fill = Dataset)) +
+    scale_fill_brewer(palette=opt$palette) +
+    theme(axis.text.x = element_text(angle = 90)) +
+    ggtitle("Total genomic space of peaks (peak length sum)")
+  ggsave(plot = p, filename = paste0(opt$input, '.peak_space.', opt$format), 
+         width = 6, height = 4)
+  
+  # peak length distribution
+  p <- ggplot(lengthdata, aes(x = File)) + 
+    geom_boxplot(aes(ymin = Percentile5, lower = FirstQuartile, middle = Median, 
+                     upper = ThirdQuartile, ymax = Percentile95, colour = Dataset),
+                 stat = "identity") + 
+    scale_colour_brewer(palette=opt$palette) +
+    theme(axis.text.x = element_text(angle = 90)) +
+    ggtitle("Peak length distribution (5-95% range)")
+  ggsave(plot = p, filename = paste0(opt$input, '.peak_lengths.', opt$format), 
+         width = 6, height = 4)
+}
+
+
+
 # deduplication plot
 ddupfile <- paste0(opt$input, '.dedup-stats.txt')
 if(file.exists(ddupfile)) {
