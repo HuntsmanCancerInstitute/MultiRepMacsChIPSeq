@@ -30,7 +30,7 @@ eval {
 	$parallel = 1;
 };
 
-my $VERSION = 4;
+my $VERSION = 4.1;
 
 unless (@ARGV) {
 	print <<END;
@@ -106,6 +106,7 @@ OPTIONS:
   --pe                Bam files contain paired-end alignments and only 
                         properly paired duplicate fragments will be checked for 
                         duplication. 
+  --qual <int>        Skip alignments below indicated mapping quality (0)
   --mark              Write non-optical duplicate alignments to output marked 
                         with flag bit 0x400.
   --random            Randomly subsamples duplicate alignments so that the  
@@ -139,8 +140,8 @@ END
 
 ### Get Options
 my ($fraction, $max, $infile, $outfile, $do_optical, $optical_thresh, $keep_optical, 
-	$mark, $random, $paired, $chr_exclude, $black_list, $seed, $cpu, $tilepos, $xpos, $ypos, 
-	$name_coordinates, $report_distance, $no_sam);
+	$mark, $random, $paired, $min_mapq, $chr_exclude, $black_list, $seed, $cpu, $tilepos, 
+	$xpos, $ypos, $name_coordinates, $report_distance, $no_sam);
 my @program_options = @ARGV;
 GetOptions( 
 	'in=s'       => \$infile, # the input bam file path
@@ -154,6 +155,7 @@ GetOptions(
 	'frac=f'     => \$fraction, # target fraction of duplicates
 	'max=i'      => \$max, # the maximum number of alignments per position
 	'pe!'        => \$paired, # treat as paired-end alignments
+	'qual|mapq=i' => \$min_mapq, # minimum mapping quality
 	'chrskip=s'  => \$chr_exclude, # skip chromosomes
 	'blacklist=s' => \$black_list, # file of high copy repeat regions to avoid
 	'seed=i'     => \$seed, # seed for non-random random subsampling
@@ -207,7 +209,11 @@ else {
 if ($parallel and not defined $cpu) {
 	$cpu = 4;
 }
-
+if ($min_mapq) {
+	unless ($min_mapq > 0 and $min_mapq < 256) {
+		die "invalid minimum mapping quality! Must be an integer between 0-255!\n";
+	}
+}
 
 
 ### Open bam files
@@ -722,6 +728,9 @@ sub count_alignments_multithread {
 sub count_se_callback {
 	my ($a, $data) = @_;
 	
+	# mapping quality
+	return if ($min_mapq and $a->qual < $min_mapq); # mapping quality
+	
 	# filter black listed regions
 	if (defined $data->{black_list}) {
 		my $results = $data->{black_list}->fetch($a->pos, $a->calend);
@@ -756,6 +765,7 @@ sub count_pe_callback {
 	return if $a->reversed; # count only forward alignments
 	return unless $a->mreversed;
 	return if $a->isize < 0; # wierd RF pair, a F alignment should only have + isize
+	return if ($min_mapq and $a->qual < $min_mapq); # mapping quality
 	if (defined $data->{black_list}) {
 		# filter black listed regions
 		my $results = $data->{black_list}->fetch($a->pos, $a->calend);
@@ -1297,6 +1307,9 @@ sub deduplicate_multithread {
 sub write_se_callback {
 	my ($a, $data) = @_;
 	
+	# mapping quality
+	return if ($min_mapq and $a->qual < $min_mapq); # mapping quality
+	
 	# filter black listed regions
 	if (defined $data->{black_list}) {
 		my $results = $data->{black_list}->fetch($a->pos, $a->calend);
@@ -1327,6 +1340,7 @@ sub write_pe_callback {
 	my ($a, $data) = @_;
 	return unless $a->proper_pair; # consider only proper pair alignments
 	return unless $a->tid == $a->mtid;
+	return if ($min_mapq and $a->qual < $min_mapq); # mapping quality
 	if (defined $data->{black_list}) {
 		# filter black listed regions
 		my $results = $data->{black_list}->fetch($a->pos, $a->calend);
