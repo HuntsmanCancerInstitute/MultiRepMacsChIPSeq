@@ -23,7 +23,7 @@ use Getopt::Long;
 use Parallel::ForkManager;
 use Bio::ToolBox::utility qw(simplify_dataset_name);
 
-my $VERSION = 14.2;
+my $VERSION = 14.3;
 
 # parameters
 my %opts = (
@@ -713,12 +713,8 @@ sub check_command_finished {
 	my ($command, $talk) = @_;
 	# returns true if command appears finished
 	
-	# command
+	# command bits
 	my ($command_string, $command_out, $command_log) = @$command;
-	my $command_app;
-	if ($command_string =~ m/^([\w\_\.\/]+) /) {
-		$command_app = $1;
-	}
 	
 	# check
 	if (length($command_out) and length($command_log)) {
@@ -728,7 +724,7 @@ sub check_command_finished {
 			return 1;
 		}
 		elsif (not -e $command_out and -e $command_log and 
-			$command_app eq $opts{bamdedup}) 
+			index($command_string, $opts{bamdedup}) == 0) 
 		{
 			# the deduplication command will not write out a bam file if the actual 
 			# duplication rate is below the target rate
@@ -748,7 +744,7 @@ sub check_command_finished {
 			return 4;
 		}
 	}
-	elsif ($command_app eq 'rm') {
+	elsif (substr($command_string, 0, 2) eq 'rm') {
 		# remove command doesn't leave an output (duh!) or log file
 		# gotta check each one
 		my $check = 0; 
