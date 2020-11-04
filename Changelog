@@ -1,5 +1,27 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
+v14.3
+	multirep_macs2_pipeline.pl
+	- put summit bed files in separate directory when organizing
+	- improve checking finished commands
+	
+	bam_partial_dedup.pl
+	- Handle and report alignments missing tile and pixel coordinates when 
+	  checking for optical duplicates. Disables optical deduplication if 
+	  errors are too high.
+	- Change pixel distance reporting (again) as fraction of total duplicates 
+	  at maximum observed distance.
+	- Add minimum mapping quality filter
+	
+	intersect_peaks.pl
+	- New version that now collects basic peak length statistics of all the 
+	  input peak files for comparison and contrast.
+	- Properly handle differing input file formats.
+	
+	plot_peak_figures.R
+	- Generate three new plots for peak length distribution, peak number, and 
+	  total peak area
+
 v14.2
 	multirep_macs2_pipeline.pl
 	- Add support for genome files in intersect_peaks.pl
