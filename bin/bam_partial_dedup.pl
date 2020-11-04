@@ -353,13 +353,13 @@ sub count_alignments {
 	}
 	
 	# count the alignments in single or multi-thread
-	my ($totalCount, $opticalCount, $depth2count, $dupmatrix, $distance2count);
+	my ($totalCount, $opticalCount, $coordErrorCount, $depth2count, $dupmatrix, $distance2count);
 	if ($parallel and $cpu > 1) {
-		($totalCount, $opticalCount, $depth2count, $dupmatrix, $distance2count) = 
-			count_alignments_multithread();
+		($totalCount, $opticalCount, $coordErrorCount, $depth2count, $dupmatrix, 
+			$distance2count) = count_alignments_multithread();
 	} else {
-		($totalCount, $opticalCount, $depth2count, $dupmatrix, $distance2count) = 
-			count_alignments_singlethread();
+		($totalCount, $opticalCount, $coordErrorCount, $depth2count, $dupmatrix,
+			 $distance2count) = count_alignments_singlethread();
 	}
 	
 	# report duplication statistics
@@ -385,6 +385,17 @@ sub count_alignments {
   Mean position depth: %17.4f\n", 
 		$totalCount, $opticalCount, $opticalRate, $workingCount, 
 		$dupCount, $dupRate, $nondupCount, $maxObserved, $workingCount / $nondupCount;
+	
+	# warning about optical duplicate errors
+	if ($coordErrorCount) {
+		printf "  WARNING: %d Alignments did not have read name pixel coordinates for optical detection!\n",
+			$coordErrorCount;
+		if ( $coordErrorCount > int($totalCount/10) ) {
+			# this count is greater than 10%, optical de-duplication not reliable
+			print "   Error count is > 10%, turning off optical deduplication\n";
+			$do_optical = 0;
+		}
+	}
 	
 	# write distance reports
 	if ($report_distance) {
@@ -569,6 +580,7 @@ sub count_alignments {
 sub count_alignments_singlethread {
 	my $totalCount = 0;
 	my $opticalCount = 0;
+	my $coordErrorCount = 0;
 	my %depth2count; # for generating a histogram of duplicate numbers
 				   # key=depth, value=number of bases with this depth
 	my %dupmatrix; # xy matrix for duplicate reporting
@@ -582,6 +594,7 @@ sub count_alignments_singlethread {
 			position       => -1, # a non-coordinate
 			totalCount     => 0,  # total count of reads
 			optCount       => 0, # optical count
+			coordError     => 0, # pixel coordinate errors
 			black_list     => undef,
 			depth2count    => {}, # depth to count hash
 			dupmatrix      => {}, # duplicate x,y coordinates for reporting
@@ -632,14 +645,19 @@ sub count_alignments_singlethread {
 				$distance2count{$d} += $c;
 			}
 		}
+		
+		# pixel coordinate errors
+		$coordErrorCount += $data->{coordError};
 	}
-	return ($totalCount, $opticalCount, \%depth2count, \%dupmatrix, \%distance2count);
+	return ($totalCount, $opticalCount, $coordErrorCount, \%depth2count, 
+		\%dupmatrix, \%distance2count);
 }
 
 
 sub count_alignments_multithread {
 	my $totalCount = 0;
 	my $opticalCount = 0;
+	my $coordErrorCount = 0;
 	my %depth2count; # for generating a histogram of duplicate numbers
 				   # key=depth, value=number of bases with this depth
 	my %dupmatrix; # xy matrix for duplicate reporting
@@ -652,6 +670,7 @@ sub count_alignments_multithread {
 		# add child counts to global values
 		$totalCount += $data->{totalCount};
 		$opticalCount += $data->{optCount};
+		$coordErrorCount += $data->{coordError};
 		while (my ($d, $c) = each %{ $data->{depth2count} } ) {
 			$depth2count{$d} += $c;
 		}
@@ -684,6 +703,7 @@ sub count_alignments_multithread {
 			position       => -1, # a non-coordinate
 			totalCount     => 0,  # total count of reads
 			optCount       => 0, # optical count
+			coordError     => 0, # pixel coordinate errors
 			black_list     => undef,
 			depth2count    => {}, # depth to count hash
 			dupmatrix      => {}, # duplicate x,y coordinates for reporting
@@ -721,7 +741,8 @@ sub count_alignments_multithread {
 	}
 	$pm->wait_all_children;
 	
-	return ($totalCount, $opticalCount, \%depth2count, \%dupmatrix, \%distance2count);
+	return ($totalCount, $opticalCount, $coordErrorCount, \%depth2count, 
+		\%dupmatrix, \%distance2count);
 }
 
 
@@ -816,9 +837,11 @@ sub count_up_se_alignments {
 	foreach my $pos (keys %fends) {
 		# count up based on optical test
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($fends{$pos}, $data);
+			my ($nondup, $dup, $coord_error) = 
+				identify_optical_duplicates($fends{$pos}, $data);
 			$data->{depth2count}{scalar @$nondup} += 1;
 			$data->{optCount} += scalar @$dup;
+			$data->{coordError} += $coord_error;
 		}
 		else {
 			# blindly take everything
@@ -828,9 +851,11 @@ sub count_up_se_alignments {
 	foreach my $pos (keys %rends) {
 		# count up based on optical test
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($rends{$pos}, $data);
+			my ($nondup, $dup, $coord_error) = 
+				identify_optical_duplicates($rends{$pos}, $data);
 			$data->{depth2count}{scalar @$nondup} += 1;
 			$data->{optCount} += scalar @$dup;
+			$data->{coordError} += $coord_error;
 		}
 		else {
 			# blindly take everything
@@ -856,9 +881,10 @@ sub count_up_pe_alignments {
 	foreach my $s (keys %sizes) {
 		# count up based on optical test
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($sizes{$s}, $data);
+			my ($nondup, $dup, $coord_error) = identify_optical_duplicates($sizes{$s}, $data);
 			$data->{depth2count}{scalar @$nondup} += 1;
 			$data->{optCount} += scalar @$dup;
+			$data->{coordError} += $coord_error;
 		}
 		else {
 			# blindly take everything
@@ -883,14 +909,37 @@ sub identify_optical_duplicates {
 	my %tile2alignment;
 	my @dups;
 	my @nondups;
+	my $coord_error = 0;
 	foreach my $a (@$alignments) {
 		my @bits = split(':', $a->qname);
-		my $rg = $a->aux_get("RG") || '1';
-		my $rgtile = join('.', $rg, $bits[$tilepos]);
-		$tile2alignment{$rgtile} ||= [];
-		# each item in the array is another array of [x, y, $a]
-		push @{$tile2alignment{$rgtile}}, [$bits[$xpos], $bits[$ypos], $a];
+		if (
+			$#bits < $ypos or (
+				not defined $bits[$tilepos] and 
+				not defined $bits[$xpos] and 
+				not defined $bits[$ypos]
+			)
+		) {
+			# not able to identify coordinates in the alignment name
+			# record error count and place in nondups array
+			$coord_error++;
+			push @nondups, $a;
+		}
+		else {
+			my $rg = $a->aux_get("RG") || '1';
+			my $rgtile = join('.', $rg, $bits[$tilepos]);
+			$tile2alignment{$rgtile} ||= [];
+			# each item in the array is another array of [x, y, $a]
+			push @{$tile2alignment{$rgtile}}, [$bits[$xpos], $bits[$ypos], $a];
+		}
 	}
+	
+	# check whether we have actionable alignments
+	if (scalar keys %tile2alignment == 0) {
+		# couldn't find any coordinates!
+		return (\@nondups, \@dups, $coord_error);
+	}
+	
+	
 	
 	# walk through each read-group tile
 	while (my ($rgtile, $rgtile_alnts) = each %tile2alignment) {
@@ -1028,7 +1077,7 @@ sub identify_optical_duplicates {
 	}
 	
 	# finished
-	return (\@nondups, \@dups);
+	return (\@nondups, \@dups, $coord_error);
 }
 
 
@@ -1405,7 +1454,7 @@ sub write_out_max_se_alignments {
 		# collect the non-optical duplicate reads
 		my $reads;
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($ends);
+			my ($nondup, $dup, $coord_error) = identify_optical_duplicates($ends);
 			$reads = $nondup;
 			$data->{optical} += scalar @$dup;
 			if ($keep_optical and scalar(@$dup)) {
@@ -1448,7 +1497,7 @@ sub write_out_max_se_alignments {
 		# collect the non-optical duplicate reads
 		my $reads;
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($ends);
+			my ($nondup, $dup, $coord_error) = identify_optical_duplicates($ends);
 			$reads = $nondup;
 			$data->{optical} += scalar @$dup;
 			if ($keep_optical and scalar(@$dup)) {
@@ -1512,7 +1561,7 @@ sub write_out_max_pe_alignments {
 		# collect the non-optical duplicate reads
 		my @reads;
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($f_sizes{$s});
+			my ($nondup, $dup, $coord_error) = identify_optical_duplicates($f_sizes{$s});
 			@reads = @$nondup;
 			$data->{optical} += scalar @$dup;
 			if ($keep_optical and scalar(@$dup)) {
@@ -1599,7 +1648,7 @@ sub write_out_random_se_alignments {
 		# collect the non-optical duplicate reads
 		my @reads;
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($fends{$pos});
+			my ($nondup, $dup, $coord_error) = identify_optical_duplicates($fends{$pos});
 			@reads = @$nondup;
 			$data->{optical} += scalar @$dup;
 			if ($keep_optical and scalar(@$dup)) {
@@ -1632,7 +1681,7 @@ sub write_out_random_se_alignments {
 		# collect the non-optical duplicate reads
 		my @reads;
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($rends{$pos});
+			my ($nondup, $dup, $coord_error) = identify_optical_duplicates($rends{$pos});
 			@reads = @$nondup;
 			$data->{optical} += scalar @$dup;
 			if ($keep_optical and scalar(@$dup)) {
@@ -1727,7 +1776,7 @@ sub write_out_random_pe_alignments {
 		# collect the non-optical duplicate reads
 		my @reads;
 		if ($do_optical) {
-			my ($nondup, $dup) = identify_optical_duplicates($f_sizes{$s});
+			my ($nondup, $dup, $coord_error) = identify_optical_duplicates($f_sizes{$s});
 			@reads = @$nondup;
 			$data->{optical} += scalar @$dup;
 			if ($keep_optical and scalar(@$dup)) {
