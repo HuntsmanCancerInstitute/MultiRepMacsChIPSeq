@@ -30,7 +30,7 @@ eval {
 	$parallel = 1;
 };
 
-my $VERSION = 4.1;
+my $VERSION = 4.2;
 
 unless (@ARGV) {
 	print <<END;
@@ -420,8 +420,8 @@ sub count_alignments {
 		my $fh = IO::File->new($histogramfile, '>') or 
 			die "unable to write to file $histogramfile! $!";
 		$fh->print("# Fraction of observed duplicates at the given pixel distance threshold\n");
-		my $dup_sum = sum(values %$distance2count);
-		$fh->print("# Total observed duplicates: $dup_sum\n");
+		my $dup_sum = $opticalCount + $dupCount;
+		$fh->print("# Total observed duplicates for $infile: $dup_sum\n");
 		my $current_dup_sum = $dup_sum;
 		$fh->print("Distance\t$infile\n");
 		for my $i (0..400) {
@@ -919,10 +919,10 @@ sub identify_optical_duplicates {
 					$data->{dupmatrix}{$x} ||= {};
 					$data->{dupmatrix}{$x}{$y} += 1;
 					
-					# record at what pixel cutoff this would be considered a duplicate
-					my $m = min($x, $y);
-					# a possible duplicate would be at least this distance in both axes
-					# looking at up to 20000 pixels is reasonable range to check
+					# record at what pixel cutoff this would be considered an optical duplicate
+					my $m = max($x, $y);
+					# an optical duplicate would be within this distance in both axes
+					# looking at up to 20,000 pixels is reasonable range to check
 					if ($m <= 400) {
 						$data->{distance2count}{$m} += 1;
 					}
