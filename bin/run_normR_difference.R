@@ -28,7 +28,9 @@ opts <-  list(
   make_option(c("-t","--threshold"), default=0.001,
               help="Threshold Q-value for filtering, default 0.001"),
   make_option(c("-m","--min"), default=50,
-              help="Minimum interval count sum, default 50")
+              help="Minimum interval count sum, default 50"),
+  make_option(c("--all"), action="store_true", default=FALSE,
+              help="Report all windows, not just significant")
 )
 
 parser <- OptionParser(option_list=opts, description = "
@@ -108,6 +110,29 @@ write.table(data.frame(seqnames(targets),start(targets),end(targets),
                        round(getEnrichment(d1),3)),
             file=paste0(opt$output,"_logDifference.bdg"),
             sep = "\t", row.names = F, quote = F, col.names = F)
+
+# write all results
+if (opt$all == TRUE){
+    allresults <- data.frame(
+      Chromosome = seqnames(targets),
+      Start = start(targets),
+      End = end(targets),
+      ChIP1Count = getCounts(d1)$treatment,
+      ChIP2Count = getCounts(d1)$control,
+      Enrichment = getEnrichment(d1),
+      Pvalue = getPvalues(d1),
+      QValue = getQvalues(d1)
+    )
+    # check for name and add it if present
+    if (length(namecol)) {
+      allresults$Name <- counts[,namecol]
+      allresults <- allresults[,c(1,2,3,9,4:8)]
+    }
+    # write results
+    write.table(allresults,file=paste0(opt$output,".all.txt"),
+                sep = "\t", row.names = F, quote = F, col.names = T)
+
+}
 
 
 # get significant results
