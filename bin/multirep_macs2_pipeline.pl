@@ -1577,6 +1577,7 @@ sub run_organize {
 	my $countdir = File::Spec->catfile($opts{dir}, 'Count');
 	my $qdir     = File::Spec->catfile($opts{dir}, 'QValue');
 	my $peakdir  = File::Spec->catfile($opts{dir}, 'Peaks');
+	my $sumitdir = File::Spec->catfile($opts{dir}, 'PeakSummits');
 	my $analdir  = File::Spec->catfile($opts{dir}, 'Analysis');
 	foreach ($fragdir, $log2dir, $countdir, $qdir, $peakdir, $analdir) {
 		make_path($_);
@@ -1617,6 +1618,9 @@ sub run_organize {
 	}
 	
 	# merged peak
+	foreach (glob(File::Spec->catfile($opts{dir}, '*.summit.bed')) ) {
+		move($_, $sumitdir);
+	}
 	foreach (glob(File::Spec->catfile($opts{dir}, '*.bed')) ) {
 		move($_, $peakdir);
 	}
