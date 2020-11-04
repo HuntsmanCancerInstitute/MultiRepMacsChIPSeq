@@ -117,7 +117,7 @@ OPTIONS:
   --max <int>         Integer representing the maximum number of duplicates 
                         at each position
   --optical           Enable optical duplicate checking
-  --distance          Set optical duplicate distance threshold.
+  --distance <int>    Set optical duplicate distance threshold.
                         Use 100 for unpatterned flowcell (HiSeq) or 
                         10000 for patterned flowcell (NovaSeq). Default 100.
                         Setting this value automatically sets --optical.
@@ -178,16 +178,18 @@ if ($fraction and $fraction !~ /^0\.\d+$/) {
 }
 if ($report_distance) {
 	# optical must be on
-	print "enabling optical duplicate checking when reporting\n" if not $do_optical;
+	print " Enabling optical duplicate checking when reporting\n" if not $do_optical;
 	$do_optical = 1;
-	$optical_thresh ||= 100;
 }
 if ($optical_thresh) {
 	$do_optical = 1;
 }
 if ($do_optical) {
 	# default for HiSeq non-patterned flow cells, perhaps we should use 2500 for NovaSeq
-	$optical_thresh ||= 100; 
+	unless ($optical_thresh) {
+		print " Setting optical distance default to 100 pixels\n";
+		$optical_thresh = 100;
+	}
 }
 if ($name_coordinates) {
 	if ($name_coordinates =~ /(\d):(\d):(\d)/) {
