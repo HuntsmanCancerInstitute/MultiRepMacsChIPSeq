@@ -1579,7 +1579,7 @@ sub run_organize {
 	my $peakdir  = File::Spec->catfile($opts{dir}, 'Peaks');
 	my $sumitdir = File::Spec->catfile($opts{dir}, 'PeakSummits');
 	my $analdir  = File::Spec->catfile($opts{dir}, 'Analysis');
-	foreach ($fragdir, $log2dir, $countdir, $qdir, $peakdir, $analdir) {
+	foreach ($fragdir, $log2dir, $countdir, $qdir, $peakdir, $sumitdir, $analdir) {
 		make_path($_);
 	}
 	
