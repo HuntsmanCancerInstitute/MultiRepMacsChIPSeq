@@ -33,6 +33,7 @@ my %opts = (
 	species     => 'human',
 	paired      => 0,
 	mapq        => 0,
+	fraction    => 0,
 	minsize     => 50,
 	maxsize     => 500,
 	dedup       => 1,
@@ -164,6 +165,7 @@ Options:
   --pe                          Bam files are paired-end, default treat as single-end
   --min       integer           Minimum paired-end size allowed ($opts{minsize} bp)
   --max       integer           Maximum paired-end size allowed ($opts{maxsize} bp)
+  --fraction                    Record multiple-hit alignments as fraction of hits
  
  Bam filtering options
   --chrskip   "text"            Chromosome skip regex ($opts{chrskip})
@@ -171,7 +173,7 @@ Options:
   
  Duplication filtering
   --nodedup                     Skip deduplication and take everything as is
-  --dupfrac   fraction          Minimum allowed fraction of duplicates ($opts{dupfrac})
+  --dupfrac   float             Minimum allowed fraction of duplicates ($opts{dupfrac})
   --maxdup    integer           Maximum allowed duplication depth ($opts{maxdup})
                                   set to 1 to remove all duplicates
   --optdist   integer           Maximum distance for optical duplicates ($opts{optdist})
@@ -190,8 +192,8 @@ Options:
   --llbin     integer           Large local lambda bin size ($opts{llocalbin} bp)
 
  Chromosome-specific normalization
-  --chrnorm   fraction          Specific chromosome normalization factor
-  --chrapply  "text"            Apply factor to specified chromosomes
+  --chrnorm   float             Specific chromosome normalization factor
+  --chrapply  "text"            Apply factor to specified chromosomes via regex
  
  Peak calling
   --cutoff    number            Threshold q-value for calling peaks ($opts{cutoff}) 
@@ -275,6 +277,7 @@ GetOptions(
 	'paired|pe!'            => \$opts{paired},
 	'min=i'                 => \$opts{minsize},
 	'max=i'                 => \$opts{maxsize},
+	'fraction!'             => \$opts{fraction},
 	'chrskip=s'             => \$opts{chrskip},
 	'blacklist=s'           => \$opts{blacklist},
 	'dedup!'                => \$opts{dedup},
@@ -1990,6 +1993,9 @@ sub generate_bam2wig_frag_commands {
 				if $opts{shiftsize};
 		}
 		# additional filtering
+		if ($opts{fraction}) {
+			$frag_command .= "--fraction ";
+		}
 		if ($opts{blacklist}) {
 			$frag_command .= sprintf("--blacklist %s ", $opts{blacklist});
 		}
@@ -2048,6 +2054,9 @@ sub generate_bam2wig_frag_commands {
 		}
 		
 		# additional filters
+		if ($opts{fraction}) {
+			$frag_command .= "--fraction ";
+		}
 		if ($opts{blacklist}) {
 			$frag_command .= sprintf("--blacklist %s ", $opts{blacklist});
 		}
@@ -2242,6 +2251,9 @@ sub generate_bam2wig_count_commands {
 				($opts{fragsize} / 2) + $opts{shiftsize} );
 		}
 		# additional filtering
+		if ($opts{fraction}) {
+			$count_command .= "--fraction ";
+		}
 		if ($opts{blacklist}) {
 			$count_command .= sprintf("--blacklist %s ", $opts{blacklist});
 		}
@@ -2309,6 +2321,9 @@ sub generate_bam2wig_count_commands {
 		}
 		
 		# additional filters
+		if ($opts{fraction}) {
+			$count_command .= "--fraction ";
+		}
 		if ($opts{blacklist}) {
 			$count_command .= sprintf("--blacklist %s ", $opts{blacklist});
 		}
