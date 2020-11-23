@@ -67,7 +67,7 @@ foreach my $f (@files) {
 	my $basename = $Input->basename;
 	
 	# Sort properly
-	$Input->gsort_data;
+	$Input->gsort_data if $Input->last_row > 1;
 
 	### NarrowPeak files
 	if ($Input->format eq 'narrowPeak') {
@@ -147,6 +147,12 @@ foreach my $f (@files) {
 		# Finish
 		$peak_fh->close;
 		printf " Wrote %d peaks to $peak_file\n", $Input->last_row;
+	}
+	
+	### Empty file
+	elsif ($Input->last_row <= 1) {
+		warn "File '$f' is empty!\n";
+		next;
 	}
 	
 	
