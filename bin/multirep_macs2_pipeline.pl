@@ -598,7 +598,7 @@ sub generate_job_file_structure {
 				$universal_name .= '.lambda_control';
 			}
 			else {
-				$universal_name .= '.fragment_control';
+				$universal_name .= '.control_fragment';
 			}
 		}
 		elsif ($universal_control =~ /\.(?:bw|bigwig)$/i) {
@@ -1814,7 +1814,7 @@ sub run_organize {
 	foreach (glob(File::Spec->catfile($opts{dir}, '*.lambda_control.bw')) ) {
 		move($_, $fragdir);
 	}
-	foreach (glob(File::Spec->catfile($opts{dir}, '*.fragment_control.bw')) ) {
+	foreach (glob(File::Spec->catfile($opts{dir}, '*.control_fragment.bw')) ) {
 		move($_, $fragdir);
 	}
 	foreach (glob(File::Spec->catfile($opts{dir}, '*.fragment.global_mean.bw')) ) {
@@ -1900,6 +1900,7 @@ sub new {
 	    chip_count_bw       => [], # array of ChIP count bigWig file names
 	    control_count_bw    => [], # array of countrol count bigWig file names
 	    d_control_bdg       => undef, # d control pileup bedGraph
+	    d_control_bw        => undef, # d control pileup bigWig file name
 	    s_control_bdg       => undef, # small lambda control bedGraph file name
 	    l_control_bdg       => undef, # large lambda control bedGraph file name
 	    sld_control_file    => undef, # combined d, small, large lambda file
@@ -2002,13 +2003,14 @@ sub new {
 				$self->{lambda_bw} = $namepath . '.lambda_control.bw';
 			}
 			$self->{d_control_bdg} = "$control_base.dlocal.bdg";
+			$self->{d_control_bw}  = "$control_base.control_fragment.bw";
 			$self->{s_control_bdg} = "$control_base.slocal.bdg" if $opts{slocal};
 			$self->{l_control_bdg} = "$control_base.llocal.bdg" if $opts{llocal};
 			$self->{sld_control_file} = "$control_base.sldlocal.txt";
 		}
 		else {
 			# even with no lambda, we recycle the hash entries for simplicity
-			if ($namepath =~ /\.fragment_control/) {
+			if ($namepath =~ /\.control_fragment/) {
 				# the fragment control extension is already appended to the name
 				# as is the case with universal controls
 				$self->{lambda_bdg} = $namepath . '.bdg';
@@ -2016,8 +2018,8 @@ sub new {
 			}
 			else {
 				# append the fragment control extension
-				$self->{lambda_bdg} = $namepath . '.fragment_control.bdg';
-				$self->{lambda_bw} = $namepath . '.fragment_control.bw';
+				$self->{lambda_bdg} = $namepath . '.control_fragment.bdg';
+				$self->{lambda_bw} = $namepath . '.control_fragment.bw';
 			}
 		}
 		
@@ -2656,7 +2658,7 @@ sub generate_lambda_control_commands {
 		$command .= " 2>&1 >> $log ";
 		
 		# clean up
-		$command .= sprintf("&& rm %s %s %s %s %s ", $dfile, $sfile, $lfile, 
+		$command .= sprintf("&& rm %s %s %s %s ", $sfile, $lfile, 
 			$background_bdg, $self->{sld_control_file});
 	}
 	elsif ($sfile and not $lfile) {
@@ -2671,7 +2673,7 @@ sub generate_lambda_control_commands {
 		$command .= " 2>&1 >> $log ";
 		
 		# clean up
-		$command .= sprintf("&& rm %s %s %s %s ", $dfile, $sfile, 
+		$command .= sprintf("&& rm %s %s %s ", $sfile, 
 			$background_bdg, $self->{sld_control_file});
 	}
 	elsif (not $sfile and $lfile) {
@@ -2686,7 +2688,7 @@ sub generate_lambda_control_commands {
 		$command .= " 2>&1 >> $log ";
 		
 		# clean up
-		$command .= sprintf("&& rm %s %s %s %s ", $dfile, $lfile, 
+		$command .= sprintf("&& rm %s %s %s ", $lfile, 
 			$background_bdg, $self->{sld_control_file});
 	}
 	else {
@@ -2849,6 +2851,8 @@ sub generate_bdg2bw_commands {
 	my $self = shift;
 	my $chromofile = shift;
 	my $name2done = shift;
+	croak("no wigToBigWig application in path!\n") unless $opts{wig2bw} =~ /\w+/;
+	croak("no manipulate_wig.pl script in path!\n") unless $opts{manwig} =~ /\w+/;
 	
 	my @commands;
 	if ($self->{chip_bdg} and $self->{chip_bw}) {
@@ -2867,7 +2871,7 @@ sub generate_bdg2bw_commands {
 			$name2done->{$self->{lambda_bdg}} = 1;
 		}
 		else {
-			croak("no wigToBigWig application in path!\n") unless $opts{wig2bw} =~ /\w+/;
+			# lambda control bigWig
 			my $log = $self->{lambda_bw};
 			$log =~ s/bw$/out.txt/;
 			my $command = sprintf("%s %s %s %s 2>&1 > $log && rm %s", 
@@ -2877,12 +2881,23 @@ sub generate_bdg2bw_commands {
 				$self->{lambda_bw},
 				$self->{lambda_bdg},
 			);
-			push @commands, [$command, $self->{lambda_bw}, $log]
+			push @commands, [$command, $self->{lambda_bw}, $log];
+			
+			# d control fragment bigWig
+			$log = $self->{d_control_bw};
+			$log =~ s/bw$/out.txt/;
+			$command  = sprintf("%s %s %s %s 2>&1 > $log && rm %s", 
+				$opts{wig2bw},
+				$self->{d_control_bdg},
+				$chromofile,
+				$self->{d_control_bw},
+				$self->{d_control_bdg},
+			);
+			push @commands, [$command, $self->{d_control_bw}, $log];
 		}
 		$name2done->{$self->{lambda_bdg}} = 1; # remember it's done
 	}
 	if ($self->{qvalue_bdg} and $self->{qvalue_bw}) {
-		croak("no wigToBigWig application in path!\n") unless $opts{wig2bw} =~ /\w+/;
 		my $log = $self->{qvalue_bw};
 		$log =~ s/bw$/out.txt/;
 		my $command = sprintf("%s %s %s %s 2>&1 > $log ", 
@@ -2898,8 +2913,6 @@ sub generate_bdg2bw_commands {
 	}
 	if ($self->{fe_bdg}) {
 		# convert this to log2 Fold Enrichment because I like this better
-		croak("no wigToBigWig application in path!\n") unless $opts{wig2bw} =~ /\w+/;
-		croak("no manipulate_wig.pl script in path!\n") unless $opts{manwig} =~ /\w+/;
 		my $log = $self->{logfe_bw};
 		$log =~ s/bw$/out.txt/;
 		my $command = sprintf("%s --in %s --log 2 --place 4 --w2bw %s --chromo %s --out %s 2>&1 > $log ",
