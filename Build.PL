@@ -25,6 +25,7 @@ my $build = Module::Build->new(
 		'Bio::DB::Big'              => 0,
 		'Parallel::ForkManager'     => 0,
 		'Set::IntervalTree'         => 0,
+		'Set::IntSpan::Fast'        => 0,
 		'Statistics::Descriptive'   => 0,
 	},
 );
