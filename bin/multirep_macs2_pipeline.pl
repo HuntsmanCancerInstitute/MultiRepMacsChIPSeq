@@ -23,7 +23,7 @@ use Getopt::Long;
 use Parallel::ForkManager;
 use Bio::ToolBox::utility qw(simplify_dataset_name);
 
-my $VERSION = 14.3;
+my $VERSION = 15;
 
 # parameters
 my %opts = (
@@ -170,6 +170,7 @@ Options:
  Bam filtering options
   --chrskip   "text"            Chromosome skip regex ($opts{chrskip})
   --blacklist file              Bed file of repeats or hotspots to avoid
+                                  Determined empirically from control (Input) samples
   
  Duplication filtering
   --nodedup                     Skip deduplication and take everything as is
@@ -356,6 +357,7 @@ my @Jobs = generate_job_file_structure();
 my $progress_file = File::Spec->catfile($opts{dir}, $opts{out} . '.progress.txt');
 my %progress = check_progress_file();
 my $chromofile = generate_chr_file();
+run_input_peak_detection();
 run_dedup();
 run_bam_check();
 run_bam_fragment_conversion();
@@ -496,6 +498,11 @@ MESSAGE
 	$opts{controlscale} = join(", ", @control_scales);
 	$opts{chrnorms} = join(", ", @chrnorms);
 	
+	# exclusion list
+	if (not defined $opts{blacklist} and scalar(@controls)) {
+		$opts{blacklist} = 'input';
+	}
+	
 }
 
 sub print_start {
@@ -603,6 +610,7 @@ sub generate_job_file_structure {
 
 sub check_progress_file {
 	my %p = (
+		control_peak  => 0,
 		deduplication => 0,
 		fragment      => 0,
 		count         => 0,
@@ -774,6 +782,85 @@ sub update_progress_file {
 	$fh->print("$key\n");
 	$fh->close;
 	return 1;
+}
+
+sub run_input_peak_detection {
+	return unless ($opts{blacklist} =~ /^(?:input|control)$/i);
+	print "\n\n======= Generating exclusion list from reference control\n";
+	if ($progress{control_peak}) {
+		print "\nStep is completed\n";
+		return;
+	}
+	
+	# available reference bam files
+	my @refbams;
+	foreach my $Job (@Jobs) {
+		if ( defined $Job->{control_bams} and scalar( @{$Job->{control_bams}} ) ) {
+			push @refbams, @{$Job->{control_bams}};
+		}
+	}
+	if (@refbams) {
+		# we have at least one reference bam file to process
+		# set the name of the exclusion list file
+		$opts{blacklist} = File::Spec->catfile($opts{dir}, 
+			sprintf("%s.control_peak", $opts{out}) );
+	}
+	else {
+		# no reference bam files!
+		print " No control reference bam files to process. Skipping\n";
+		$opts{blacklist} = '';
+		update_progress_file('control_peak');
+		return;
+	}
+	
+	# generate bam2wig command
+	# very little filtering here - we basically want everything
+	my $command = sprintf(
+		"%s --out %s.bdg --nosecondary --noduplicate --nosupplementary --mean --bdg --bin %s --cpu %s ", 
+		$opts{bam2wig}, 
+		$opts{blacklist},
+		$opts{chipbin},
+		$opts{cpu} * $opts{job}, # give it everything we've got, single job
+	);
+	if ($opts{paired}) {
+		$command .= sprintf("--span --pe --minsize %s --maxsize %s ", 
+			$opts{minsize}, $opts{maxsize});
+	}
+	else {
+		$command .= sprintf("--extend --extval %s ", $opts{extval});
+	}
+	if ($opts{chrskip}) {
+		$command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
+	}
+	$command .= sprintf("--in %s ", join(',', @refbams));
+	my $logfile = sprintf("%s.out.txt", $opts{blacklist});
+	$command .= " 2>&1 > $logfile ";
+	
+	# add the mean bedgraph file
+	$command .= sprintf(" && %s %s.bdg 2>> $logfile ", $opts{meanbdg}, $opts{blacklist});
+	
+	# add the q-value conversion
+	$command .= sprintf(" && %s bdgcmp -t %s.bdg -c %s.global_mean.bdg -m qpois -o %s.qvalue.bdg 2>> $logfile ",
+		$opts{macs}, $opts{blacklist}, $opts{blacklist}, $opts{blacklist});
+	
+	# add the peak call
+	# we are using hard coded parameters for now, but I think these should be generic enough
+	$command .= sprintf(" && %s bdgpeakcall -i %s.qvalue.bdg -c 3 -l 250 -g 500 --no-trackline -o %s.narrowPeak 2>> $logfile",
+		$opts{macs}, $opts{blacklist}, $opts{blacklist});
+	
+	# add the peak conversion 
+	$command .= sprintf(" && %s %s.narrowPeak 2>&1 >> $logfile", $opts{peak2bed}, 
+		$opts{blacklist});
+	
+	# clean up
+	$command .= sprintf(" && rm -f %s.bdg %s.global_mean.bdg %s.qvalue.bdg %s.narrowPeak %s.summit.bed",
+		$opts{blacklist}, $opts{blacklist}, $opts{blacklist}, $opts{blacklist}, 
+		$opts{blacklist});
+	$opts{blacklist} .= '.bed'; # the actual output file
+	
+	# execute job
+	execute_commands( [ [$command, $opts{blacklist}, $logfile], ] );
+	update_progress_file('control_peak');
 }
 
 sub run_dedup {
