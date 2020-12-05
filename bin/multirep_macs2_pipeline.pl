@@ -30,7 +30,7 @@ my %opts = (
 	dir         => './',
 	out         => 'merged',
 	genome      => 0,
-	species     => 'human',
+	species     => '',
 	paired      => 0,
 	mapq        => 0,
 	fraction    => 0,
@@ -91,6 +91,7 @@ my %opts = (
 	combrep     => sprintf("%s", which 'combine_replicate_data.pl'),
 	plotpeak    => sprintf("%s", which 'plot_peak_figures.R'),
 	rscript     => sprintf("%s", which 'Rscript'),
+	reportmap   => sprintf("%s", which 'report_mappable_space.pl'),
 );
 my @names;
 my @chips;
@@ -157,8 +158,8 @@ Options:
   --out       file basename     Base filename for merged output files ($opts{out})
   
  Genome size
-  --species   [human,mouse,fish,fly,yeast]   Default ($opts{species})
-  --genome    integer           Alternatively give effective genome size
+  --genome    integer           Specify effective mappable genome size 
+                                  (default empirically determined)
   
  Bam options
   --mapq      integer           Minimum mapping quality, ($opts{mapq})
@@ -240,6 +241,7 @@ Options:
   --combrep   path             ($opts{combrep})
   --plotpeak  path             ($opts{plotpeak})
   --rscript   path             ($opts{rscript})
+  --reportmap path             ($opts{reportmap})
 DOC
 
 
@@ -332,6 +334,7 @@ GetOptions(
 	'combrep=s'             => \$opts{combrep},
 	'plotpeak=s'            => \$opts{plotpeak},
 	'rscript=s'             => \$opts{rscript},
+	'reportmap=s'           => \$opts{reportmap},
 ) or die "unrecognized option(s)!\n";
 
 if ($help) {
@@ -360,6 +363,7 @@ my $chromofile = generate_chr_file();
 run_input_peak_detection();
 run_dedup();
 run_bam_check();
+run_mappable_space_report();
 run_bam_fragment_conversion();
 run_bam_count_conversion();
 run_lambda_control();
@@ -446,14 +450,17 @@ MESSAGE
 	if (scalar(@chrnorms) > 1 and scalar(@controls) == 1) {
 		print "Using first chromosome normalization factor for universal control!\n";
 	}
-	if (not $opts{genome}) {
-		my $s = $opts{species};
-		$opts{genome} = $s eq 'human' ? 2700000000 : $s eq 'mouse' ? 1870000000 : 
-			$s eq 'zebrafish' ? 1300000000 : $s eq 'fly' ? 120000000 : 
-			$s eq 'celegens' ? 90000000 : $s eq 'yeast' ? 12100000 : 
-			$s eq 'sheep' ? 2587000000 : 0;
-		die "unknown species!\n" unless $opts{genome};
+	if ($opts{species}) {
+		print <<MESSAGE;
+
+WARNING: Specifiying species is now deprecated. The genome mappable size is 
+now determined empirically from all provided Bam files using the script 
+report_mappable_space.pl, or an explicit genome mappable size may be provided 
+with the --genome option. 
+
+MESSAGE
 	}
+	
 	# directory
 	unless ($opts{dryrun}) {
 		unless (-e $opts{dir} and -d _) {
@@ -612,6 +619,7 @@ sub check_progress_file {
 	my %p = (
 		control_peak  => 0,
 		deduplication => 0,
+		mappable_size => 0,
 		fragment      => 0,
 		count         => 0,
 		lambda        => 0,
@@ -957,6 +965,106 @@ sub run_bam_check {
 		$Job->find_dedup_bams;
 	}
 }
+
+sub run_mappable_space_report {
+	print "\n\n======= Determining mappable genome space\n";
+	
+	# check the user supplied value
+	if ($opts{genome} and not $opts{dryrun} and not $progress{mappable_size}) {
+		
+		# get the full genome size from the chromosome file
+		my $fh = IO::File->new($chromofile, 'r');
+		my $genome_size = 0;
+		while (my $line = $fh->getline) {
+			if ($line =~ /\s+(\d+)$/) {
+				$genome_size += $1;
+			}
+		}
+		$fh->close;
+		
+		# double-check the user value
+		my $ratio = $opts{genome} / $genome_size;
+		if ($ratio > 1) {
+			printf "\nUser supplied genome size (%d) is larger than actual genome size (%d)!!!\nDetermining actual empirical mappable size\n",
+				$opts{genome}, $genome_size;
+			$opts{genome} = 0;
+		}
+		elsif ($ratio < 0.6) {
+			printf "\nUser supplied genome size (%d) is considerably smaller than actual genome size (%d)!\nDetermining actual empirical mappable size\n",
+				$opts{genome}, $genome_size;
+			$opts{genome} = 0;
+		}
+		else {
+			# ratio is somewhere between 50-100% of actual genome size, so assume ok
+			printf "\nUsing user-specified size of %d\n", $opts{genome};
+			return;
+		}
+	}
+	elsif ($opts{genome} and $opts{dryrun}) {
+		printf "\nPretending that user supplied genome size is ok\n";
+		return;
+	}
+	
+	# the output logfile 
+	my $logfile = File::Spec->catfile($opts{dir}, 
+		sprintf("%s.mappable.out.txt", $opts{out}) );
+	
+	# check if command is finished, otherwise run it
+	if ($progress{mappable_size}) {
+		print "\nStep is completed\n";
+		# we will read the value below
+	}
+	else {
+		# collect all available bam files
+		my @bamlist;
+		foreach my $Job (@Jobs) {
+			push @bamlist, @{$Job->{control_use_bams}};
+			push @bamlist, @{$Job->{chip_use_bams}}
+		}
+		my $command = sprintf("%s --cpu %d ", $opts{reportmap}, $opts{cpu} * $opts{job});
+			# give the cpu everything we've got, there's only one job
+		if ($opts{chrskip}) {
+			$command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
+		}
+		$command .= join(" ", @bamlist);
+		$command .= " 2>&1 > $logfile";
+		
+		# execute
+		# the log file is the output
+		execute_commands( [ [$command, $logfile, $logfile] ] );
+	}
+	
+	# Collect results from output file
+	# do this regardless whether this was finished previously, since we have to 
+	# extract the value into memory anyway
+	if (-e $logfile) {
+		my $fh = IO::File->new($logfile, 'r') or 
+			die " unable to open mappable report file '$logfile'!";
+		while (my $line = $fh->getline) {
+			# we're going to use the all mappable space number
+			if ($line =~ /All mappable space: ([\d\.]+) Mb/) {
+				$opts{genome} = $1 * 1000000;
+				last;
+			}
+		}
+		$fh->close;
+		if ($opts{genome}) {
+			printf "\n Genome mappable space calculated to be %d bp\n", $opts{genome};
+		}
+		else {
+			die "\n Unable to extract genome mappable space from report '$logfile'!\n";
+		}
+	}
+	elsif ($opts{dryrun}) {
+		print "\n Artificially setting mappable genome size to 100000000 (100 Mb) for dry run purposes\n";
+	}
+	else {
+		die "\n Genome mappable report log file is not present! Unable to continue!\n";
+	}
+	
+	update_progress_file('mappable_size'); # might be redundant but that's ok
+}
+
 
 sub run_bam_fragment_conversion {
 	my @commands;
