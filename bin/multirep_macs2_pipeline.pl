@@ -185,7 +185,7 @@ Options:
   --savebam                     Save de-duplicated bam files
 
  Fragment coverage
-  --size      integer           Predicted fragment size (single-end only, $opts{fragsize} bp)
+  --size      integer           Predicted fragment size. REQUIRED for single-end
   --shift     integer           Shift the fragment, e.g. ATACSeq ($opts{shiftsize} bp)
   --slocal    integer           Small local lambda size ($opts{slocal} bp)
   --llocal    integer           Large local lambda size ($opts{llocal} bp)
@@ -199,8 +199,9 @@ Options:
  
  Peak calling
   --cutoff    number            Threshold q-value for calling peaks ($opts{cutoff}) 
-                                 Higher numbers are more significant, -1*log10(q)
-  --peaksize  integer           Minimum peak size to call (2 x size)
+                                  Higher numbers are more significant, -1*log10(q)
+  --peaksize  integer           Minimum peak size to call (2 x fragment size)
+                                  Required for paired-end alignments.
   --peakgap   integer           Maximum gap between peaks before merging (1 x size)
   --broad                       Also perform broad (gapped) peak calling
   --broadcut  number            Q-value cutoff for linking broad regions ($opts{broadcut})
@@ -488,18 +489,33 @@ MESSAGE
 	}
 	
 	# sizes
-	unless (defined $opts{peaksize}) {
-		$opts{peaksize} = 2 * $opts{fragsize};
+	if ($opts{fragsize}) {
+		$opts{peaksize} ||= 2 * $opts{fragsize};
+	}
+	else {
+		# no fragment size defined? might be ok
+		if ($opts{paired}) {
+			# paired fragments
+			if ($opts{peaksize}) {
+				print "\n WARNING! Setting minimum peak size to 500 bp, but this should be manually\n set based on mean alignment insert size and nature of experiment.\n";
+				$opts{peaksize} = 500;
+				$opts{fragsize} = 250; # for expected background normalization
+			}
+		}
+		else {
+			die " Must set an estimated mean fragment size for single-end alignments!\n  Run 'bam2wig.pl --shift --model' or 'macs2 predictd'\n";
+		}
 	}
 	unless (defined $opts{peakgap}) {
-		$opts{peakgap} = $opts{fragsize};
+		$opts{peakgap} = $opts{fragsize} ? $opts{fragsize} : int($opts{peaksize}/2);
 	}
 	unless (defined $opts{broadgap}) {
-		$opts{broadgap} = 4 * $opts{fragsize};
+		$opts{broadgap} = $opts{fragsize} ? 4 * $opts{fragsize} : 2 * $opts{peaksize};
 	}
 	unless (defined $opts{binsize}) {
 		$opts{binsize} = int( $opts{peaksize} / 10);
 	}
+	
 	# add parameters to option hash for printing configuration
 	$opts{chipscale} = join(", ", @chip_scales);
 	$opts{controlscale} = join(", ", @control_scales);
