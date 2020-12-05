@@ -137,7 +137,7 @@ fragment (or d in Macs2 parlance), small lambda (default $opts{slocal} bp), and
 large lambda (default $opts{llocal} bp) fragment coverage. If desired, either small or 
 local lambda may be turned off by setting to 0. To completely turn off lambda, set the 
 nolambda option, whereupon only the control fragment is directly used as reference. 
-If no control file is provided, then the chromosomal mean from the ChIP file is used 
+If no control file is provided, then the global mean from the ChIP file is used 
 as a (poor) substitute. 
 
 Advanced users may provide one processed bigWig file per ChIP or control sample. 
@@ -536,6 +536,8 @@ sub print_start {
 Some values are empirically determined during execution and are made up here.
 Some files may not be generated during actual execution, but commands should
 mostly be complete. No files will be generated.
+=======================
+
 DRYRUN
 	}
 	print "\n\n======= Samples\n";
@@ -2626,6 +2628,7 @@ sub generate_lambda_control_commands {
 	my $background_bdg;
 	unless ($opts{dryrun}) {
 		my $background = sprintf("%.4f", ( 1_000_000 * $opts{fragsize} ) / $opts{genome} );
+		printf " Calculating background for %s as $background\n", $self->{name};
 		$background_bdg = $self->{lambda_bdg};
 		$background_bdg =~ s/lambda_control/background/;
 		my $infh = IO::File->new($chromofile, 'r') or  # use the chromosome file as source
