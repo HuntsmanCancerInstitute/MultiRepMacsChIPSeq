@@ -2887,16 +2887,18 @@ sub generate_bdg2bw_commands {
 			push @commands, [$command, $self->{lambda_bw}, $log];
 			
 			# d control fragment bigWig
-			$log = $self->{d_control_bw};
-			$log =~ s/bw$/out.txt/;
-			$command  = sprintf("%s %s %s %s 2>&1 > $log && rm %s", 
-				$opts{wig2bw},
-				$self->{d_control_bdg},
-				$chromofile,
-				$self->{d_control_bw},
-				$self->{d_control_bdg},
-			);
-			push @commands, [$command, $self->{d_control_bw}, $log];
+			if ($self->{d_control_bdg} and $self->{d_control_bw}) {
+				$log = $self->{d_control_bw};
+				$log =~ s/bw$/out.txt/;
+				$command  = sprintf("%s %s %s %s 2>&1 > $log && rm %s", 
+					$opts{wig2bw},
+					$self->{d_control_bdg},
+					$chromofile,
+					$self->{d_control_bw},
+					$self->{d_control_bdg},
+				);
+				push @commands, [$command, $self->{d_control_bw}, $log];
+			}
 		}
 		$name2done->{$self->{lambda_bdg}} = 1; # remember it's done
 	}
