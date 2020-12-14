@@ -1088,84 +1088,84 @@ sub run_bam_fragment_conversion {
 	my @commands;
 	my %name2done;
 	print "\n\n======= Generating fragment coverage files\n";
-	if ($progress{fragment}) {
-		print "\nStep is completed\n";
-		return;
-	}
 	
-	# generate commands and run
-	# also collect read depth counts from each bam file
+	
+	# Generate commands for each job
+	# we need the command regardless of whether it needs to be run or not
 	foreach my $Job (@Jobs) {
 		push @commands, $Job->generate_bam2wig_frag_commands(\%name2done);
 	}
-	if (@commands) {
+	
+	# Execute as necessary
+	if ($progress{fragment}) {
+		print "\nStep is completed\n";
+	}
+	elsif (@commands) {
 		# run programs
 		execute_commands(\@commands);
-		
-		# skip counting results if dryrun
-		if ($opts{dryrun}) {
-			# artificially set target depth
-			print "\n Artificially setting target depth to 25 Million for dry run purposes\n";
-			$opts{targetdep} = 25;
-			return;
-		}
-		
-		# count results
-		my %bam2count;
-		foreach my $com (@commands) {
-			my $log = $com->[2];
-			my $fh = IO::File->new($log, 'r') or  # this should open!!!!
-				die "something is wrong! Job completed but unable to open $log!? $!";
-			
-			my @files; # there may be one or more files processed here
-			while (my $line = $fh->getline) {
-				chomp $line;
-				if ($line =~ /^ Processing files (.+)\.\.\.$/) {
-					# the names of files
-					@files = split(/, /, $1);
-				}
-				elsif ($line =~ /^ Normalizing depth based on ([\d,]+) total counted (?:alignments|fragments)$/) {
-					# only one file was processed
-					# need to grab the name from the list
-					my $count = $1;
-					unless (exists $bam2count{$files[0]}) {
-						$count =~ s/,//g; # remove commas
-						$bam2count{$files[0]} = sprintf "%.1f", $count / 1_000_000;
-					}
-				}
-				elsif ($line =~ /^  (.+) had ([\d,]+) total counted (?:alignments|fragments)$/) {
-					# multiple files were processed
-					my $file = $1;
-					my $count = $2;
-					unless (exists $bam2count{$file}) {
-						$count =~ s/,//g; # remove commas
-						$bam2count{$file} = sprintf "%.1f", $count / 1_000_000;
-					}
-				}
-			}
-			$fh->close;
-		}
-		
-		# print report
-		print "\n Total fragments accepted for analysis\n";
-		foreach my $f (sort {$a cmp $b} keys %bam2count) {
-			printf "  %6sM  $f\n", $bam2count{$f};
-		}
-		
-		# Calculate minimum target depth to use
-		my $targetdep = int( min(values %bam2count) );
-		$targetdep ||= 1; # just in case!
-		if (defined $opts{targetdep}) {
-			printf "\n WARNING!!! Calculated target sequence depth of %d Million is overridden by manually set value %d\n",
-				$targetdep, $opts{targetdep};
-		}
-		else {
-			$opts{targetdep} = $targetdep;
-			printf "\n Setting target sequence depth to %d Million\n", $opts{targetdep};
-		}
+		update_progress_file('fragment');
 	}
 	
-	update_progress_file('fragment');
+	# skip counting results if dryrun
+	if ($opts{dryrun}) {
+		# artificially set target depth
+		print "\n Artificially setting target depth to 25 Million for dry run purposes\n";
+		$opts{targetdep} = 25;
+		return;
+	}
+	
+	# count results
+	my %bam2count;
+	foreach my $com (@commands) {
+		my $log = $com->[2];
+		my $fh = IO::File->new($log, 'r') or  # this should open!!!!
+			die "something is wrong! Job completed but unable to open $log!? $!";
+		
+		my @files; # there may be one or more files processed here
+		while (my $line = $fh->getline) {
+			chomp $line;
+			if ($line =~ /^ Processing files (.+)\.\.\.$/) {
+				# the names of files
+				@files = split(/, /, $1);
+			}
+			elsif ($line =~ /^ Normalizing depth based on ([\d,]+) total counted (?:alignments|fragments)$/) {
+				# only one file was processed
+				# need to grab the name from the list
+				my $count = $1;
+				unless (exists $bam2count{$files[0]}) {
+					$count =~ s/,//g; # remove commas
+					$bam2count{$files[0]} = sprintf "%.1f", $count / 1_000_000;
+				}
+			}
+			elsif ($line =~ /^  (.+) had ([\d,]+) total counted (?:alignments|fragments)$/) {
+				# multiple files were processed
+				my $file = $1;
+				my $count = $2;
+				unless (exists $bam2count{$file}) {
+					$count =~ s/,//g; # remove commas
+					$bam2count{$file} = sprintf "%.1f", $count / 1_000_000;
+				}
+			}
+		}
+		$fh->close;
+	}
+	
+	# print report
+	print "\n Total fragments accepted for analysis\n";
+	foreach my $f (sort {$a cmp $b} keys %bam2count) {
+		printf "  %6sM  $f\n", $bam2count{$f};
+	}
+	
+	# Calculate minimum target depth to use
+	my $targetdep = int( min(values %bam2count) ) || 1; # just in case!
+	if (defined $opts{targetdep}) {
+		printf "\n WARNING!!! Calculated target sequence depth of %d Million is overridden by manually set value %d\n",
+			$targetdep, $opts{targetdep};
+	}
+	else {
+		$opts{targetdep} = $targetdep;
+		printf "\n Setting target sequence depth to %d Million\n", $opts{targetdep};
+	}
 }
 
 sub run_bam_count_conversion {
