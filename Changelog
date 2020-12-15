@@ -1,5 +1,32 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
+v15.0
+	multirep_macs2_pipeline.pl
+	- Calculate exclusion lists empirically from provided Input Bam files. 
+	  This reduces sources of false positives and duplicate alignments.
+	- Calculate mappable space empirically rather than use pre-defined values.
+	  This can still be overridden by explicitly setting the genome size. The 
+	  species option is deprecated, ignored, and a warning given if used.
+	- Retain the Control fragment bigWig in addition to the lambda_control.
+	- Require fragment size for single-end runs and peak-size for paired-end 
+	  runs. Default values are not reliable or appropriate.
+	- Add support for multiple-hit alignment fractional recording to reduce 
+	  signal at repetitive sequence genomic loci.
+	
+	report_mappable_space.pl
+	- New script to report the fraction of the reported genome with coverage  
+	  based on either all (map quality 0) or unique (map quality 10) 
+	  alignments. Allows for empirically determining the mappable genome size 
+	  by using the given Bam files.
+	
+	generate_mean_bedGraph.pl
+	- Rewrote the script as version 2 to generate a true global mean value 
+	  from either bigWig or bedGraph text files. Ignores zero coverage 
+	  regions. Should be more accurate than previous version.
+	
+	peak2bed.pl
+	- Handle empty files more gracefully.
+
 v14.3
 	multirep_macs2_pipeline.pl
 	- put summit bed files in separate directory when organizing
