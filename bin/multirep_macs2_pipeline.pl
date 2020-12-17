@@ -2599,12 +2599,11 @@ sub generate_lambda_control_commands {
 		not -e $self->{lambda_bdg}
 	) {
 		# no control bam files at all, need to use expected mean
-		# this has to be done after the ChIP fragment bigWig conversion, since it 
-		# enter a race condition if done with the other bam2wig jobs
+		# generate this from the existing ChIP fragment bigWig file
+		# no output file needed to be specified, it will automatically append .global_mean.bdg
 		my $log = $self->{lambda_bdg};
 		$log =~ s/bdg/out.txt/;
-		my $command = sprintf("%s %s %s 2>&1 > $log", $opts{meanbdg}, $self->{chip_bw}, 
-			$self->{lambda_bdg});
+		my $command = sprintf("%s %s 2>&1 > $log", $opts{meanbdg}, $self->{chip_bw});
 		$name2done->{ $self->{lambda_bdg} } = 1;
 		return [$command, $self->{lambda_bdg}, $log];
 	}
