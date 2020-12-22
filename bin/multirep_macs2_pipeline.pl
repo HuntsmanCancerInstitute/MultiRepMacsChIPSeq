@@ -853,7 +853,7 @@ sub run_input_peak_detection {
 			$opts{minsize}, $opts{maxsize});
 	}
 	else {
-		$command .= sprintf("--extend --extval %s ", $opts{extval});
+		$command .= sprintf("--extend --extval %s ", $opts{fragsize});
 	}
 	if ($opts{chrskip}) {
 		$command .= sprintf("--chrskip \'%s\' ", $opts{chrskip});
