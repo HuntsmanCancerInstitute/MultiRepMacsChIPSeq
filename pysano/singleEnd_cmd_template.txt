@@ -8,10 +8,15 @@ NAME=MYNAME
 # organism Novoalign index and mappable size in bp
 INDEX=/tomato/dev/data/Human/Hg38/hg38.standard.nov.illumina.nix
 BLACKLIST=/tomato/dev/data/Human/Hg38/hg38.blacklist.bed
-SIZE=2500000000
+SIZE=2800000000
+
+# mouse Novoalign index
+# INDEX=/tomato/dev/data/Mouse/Mm10/mm10.standard.nov.illumina.nix
+# BLACKLIST=/tomato/dev/data/Mouse/Mm10/mm10.blacklist.bed
+# SIZE=2500000000
 
 # optical distance
-# use 100 for HiSeq runs or 2500 for NovaSeq runs
+# use 100 for HiSeq runs or 10000 for NovaSeq runs
 OPTDISTANCE=100
 
 # application paths

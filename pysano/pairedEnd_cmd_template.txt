@@ -8,10 +8,9 @@ NAME=MYNAME
 INDEX=/tomato/dev/data/Human/Hg38/hg38.standard.nov.illumina.nix
 BLACKLIST=/tomato/dev/data/Human/Hg38/hg38.blacklist.bed
 
-# moust Novoalign index
+# mouse Novoalign index
 # INDEX=/tomato/dev/data/Mouse/Mm10/mm10.standard.nov.illumina.nix
 # BLACKLIST=/tomato/dev/data/Mouse/Mm10/mm10.blacklist.bed
-
 
 # optical distance
 # use 100 for HiSeq runs or 2500 for NovaSeq runs
