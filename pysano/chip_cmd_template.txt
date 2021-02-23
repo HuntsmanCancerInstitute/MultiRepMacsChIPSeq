@@ -22,14 +22,14 @@ multirep_macs2_pipeline.pl \
 --out all_chip \
 --dir ChIPSeq \
 --pe \
---optdist 10000 \
+--optdist 2500 \
 --dupfrac 0.05 \
+--size 300 \
+--fraction \
 --cutoff 2 \
 --peaksize 500 \
---peakgap 200 \
---species human \
---chrskip 'chrM' \
---blacklist /tomato/dev/data/Human/Hg38/hg38.blacklist.bed \
+--peakgap 300 \
+--chrskip 'chrM|MT' \
 --plot \
 --organize \
 --cpu 8 \

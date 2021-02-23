@@ -4,13 +4,18 @@
 
 NAME=MYNAME
 
-# organism Novoalign index
+# human Novoalign index
 INDEX=/tomato/dev/data/Human/Hg38/hg38.standard.nov.illumina.nix
 BLACKLIST=/tomato/dev/data/Human/Hg38/hg38.blacklist.bed
 
+# moust Novoalign index
+# INDEX=/tomato/dev/data/Mouse/Mm10/mm10.standard.nov.illumina.nix
+# BLACKLIST=/tomato/dev/data/Mouse/Mm10/mm10.blacklist.bed
+
+
 # optical distance
-# use 100 for HiSeq runs or 10000 for NovaSeq runs
-OPTDISTANCE=10000
+# use 100 for HiSeq runs or 2500 for NovaSeq runs
+OPTDISTANCE=2500
 
 ## Select the appropriate adaptors
 
@@ -23,22 +28,22 @@ ADATPR=AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT
 # ADATPR=CTGTCTCTTATACACATCT
 
 # application paths
-NOVO_APP=/tomato/dev/app/novoalign/4.00.01/novoalign
-SAM_APP=/tomato/dev/app/samtools/1.8/samtools
+NOVO_APP=/tomato/dev/app/novoalign/4.02.02/novoalign
+SAM_APP=/tomato/dev/app/samtools/1.10/samtools
 DEDUP_APP=/tomato/dev/app/modulesoftware/bam_partial_dedup
 BAMWIG_APP=/tomato/dev/app/modulesoftware/bam2wig
 MACS_APP=/tomato/dev/app/modulesoftware/macs2
-PICARD_APP=/tomato/dev/app/picard/2.18.26/picard.jar
+PICARD_APP=/tomato/dev/app/picard/2.23.3/picard.jar
 
 # align
 echo "=== aligning"
 $NOVO_APP \
 -d $INDEX \
+-a $ADAPTF $ADATPR \
 -o SAM \
--a $ADAPTF $ADAPTR \
 --tune NOVASEQ \
--f *.gz | \
-$SAM_APP view -b -o $NAME.raw.bam -
+-f *.gz \
+| $SAM_APP fixmate -r -m - $NAME.raw.bam
 
 # sort and index
 echo "=== sorting"
@@ -51,21 +56,22 @@ $SAM_APP idxstats $NAME.bam > $NAME.idxstats.txt
 
 # check duplicate level
 echo "=== duplication levels"
-$DEDUP_APP \
---pe \
---cpu $NCPU \
+$DEDUP_APP --pe --cpu 12 \
 --in $NAME.bam \
---optical \
---distance $OPTDISTANCE \
+--optical --distance $OPTDISTANCE \
 --blacklist $BLACKLIST \
---chrskip "chrM|MT"
+--chrskip 'chrM|MT' \
+--report
 
 
 # check insertion sizes
 echo "=== insertion sizes"
 java -jar $PICARD_APP CollectInsertSizeMetrics \
-I=$NAME.bam \
-O=$NAME.insertSizeMetrics.txt \
-H=$NAME.insertSizes.pdf \
-M=0.5 VALIDATION_STRINGENCY=SILENT VERBOSITY=WARNING 
+-I $NAME.bam \
+-O $NAME.insertSizeMetrics.txt \
+-H $NAME.insertSizes.pdf \
+-M 0.5 --VALIDATION_STRINGENCY SILENT --VERBOSITY WARNING 
+
+
+
 
