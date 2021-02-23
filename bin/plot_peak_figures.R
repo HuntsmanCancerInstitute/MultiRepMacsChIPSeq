@@ -468,6 +468,7 @@ if(file.exists(fproffile)) {
     # exclude this column name
     fprofdata <- fprofdata[,2:ncol(fprofdata)]
   }
+  fprofdata[is.na(fprofdata)] <- 0
   grpdata = read.table(paste0(opt$input, "_profile_fragment.groups.txt"), header=TRUE, sep="\t", 
                        row.names = 1, check.names = F)
   clrs <- colorRampPalette(brewer.pal(9, 'Reds'))(255)
@@ -490,6 +491,7 @@ if(file.exists(lfeproffile)) {
     # exclude this column name
     lfeprofdata <- lfeprofdata[,2:ncol(lfeprofdata)]
   }
+  lfeprofdata[is.na(lfeprofdata)] <- 0
   grpdata = read.table(paste0(opt$input, "_profile_log2FE.groups.txt"), header=TRUE, sep="\t", 
                        row.names = 1, check.names = F)
   clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(255)
