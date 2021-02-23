@@ -71,9 +71,10 @@ if (opt$output == "NA"){
 chromcol <- grep("^Chromo",colnames(counts))
 startcol <- grep("^Start",colnames(counts))
 stopcol  <- grep("^Stop|End", colnames(counts))
-chip1col  <- grep(paste0('^',opt$first,'$'), colnames(counts))
-chip2col   <- grep(paste0('^',opt$second,'$'), colnames(counts))
+chip1col <- grep(paste0('^',opt$first,'$'), colnames(counts))
+chip2col <- grep(paste0('^',opt$second,'$'), colnames(counts))
 namecol  <- grep("^Name", colnames(counts))
+idcol    <- grep("^Primary_ID", colnames(counts))
 
 
 # target genomic ranges
@@ -82,14 +83,18 @@ if (length(chromcol) & length(startcol) & length(stopcol)) {
   targets <- GRanges(seqnames=counts[,chromcol],
                      ranges=IRanges(counts[,startcol],counts[,stopcol]),
                      strand=NULL)
-} else {
-  # must extract from name, hope it's as chr1:123-456 format
-  if (length(namecol)) {
-    coord <- do.call(rbind, strsplit(as.character(counts[,namecol]), ":|-"))
-    targets <- GRanges(seqnames=coord[,1],
-                       ranges=IRanges(as.integer(coord[,2]),as.integer(coord[,3])),
-                       strand=NULL)
-  }
+} else if (length(idcol)) {
+  # must extract from id, hope it's as chr1:123-456 format
+  coord <- do.call(rbind, strsplit(as.character(counts[,idcol]), ":|-"))
+  targets <- GRanges(seqnames=coord[,1],
+                     ranges=IRanges(as.integer(coord[,2]),as.integer(coord[,3])),
+                     strand=NULL)
+} else if (length(namecol)) {
+  # try extracting from name, hope it's as chr1:123-456 format
+  coord <- do.call(rbind, strsplit(as.character(counts[,namecol]), ":|-"))
+  targets <- GRanges(seqnames=coord[,1],
+                     ranges=IRanges(as.integer(coord[,2]),as.integer(coord[,3])),
+                     strand=NULL)
 }
 
 # check target widths
