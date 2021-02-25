@@ -30,7 +30,7 @@ eval {
 	$parallel = 1;
 };
 
-my $VERSION = 4.2;
+my $VERSION = 4.3;
 
 unless (@ARGV) {
 	print <<END;
@@ -1296,13 +1296,16 @@ sub deduplicate_multithread {
 	# this should be faster than going through Perl and bam adapters
 	my $sam_app = which('samtools');
 	if ($sam_app and not $no_sam) {
+		# write temporary new header file
 		my $samfile = $outfile;
 		$samfile =~ s/\.bam$/temp.sam/;
 		my $fh = IO::File->new($samfile, '>') or 
 			die "unable to write temporary sam file\n";
 		$fh->print($htext);
 		$fh->close;
-		my $command = sprintf "%s cat -h %s -o %s ", $sam_app, $samfile, $outfile;
+		# run external samtools concatenate
+		my $command = sprintf "%s cat --no-PG --threads %s -h %s -o %s ", 
+			$sam_app, $cpu, $samfile, $outfile;
 		$command .= join(' ', map { $targetfiles{$_} } @tid_list);
 		print " executing $sam_app cat to merge children...\n";
 		if (system($command)) {
