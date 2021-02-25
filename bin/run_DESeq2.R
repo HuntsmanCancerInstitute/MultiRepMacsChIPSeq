@@ -128,12 +128,13 @@ if (opt$all == TRUE) {
 	  End = end(targets),
 	  baseMean = ddsResults1$baseMean,
 	  Log2FoldChange = ddsResults1$log2FoldChange,
+	  PValue = ddsResults1$pvalue,
 	  Padj = ddsResults1$padj
 	)
     # check for name and add it if present
     if (length(namecol)) {
       allresults$Name <- counts[,namecol]
-      allresults <- allresults[,c(1,2,3,7,4:6)]
+      allresults <- allresults[,c(1,2,3,8,4:7)]
     }
     # write results
     write.table(allresults,file=paste0(opt$output,".all.txt"),
