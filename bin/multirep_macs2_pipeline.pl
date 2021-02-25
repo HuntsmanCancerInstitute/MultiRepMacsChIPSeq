@@ -23,7 +23,7 @@ use Getopt::Long;
 use Parallel::ForkManager;
 use Bio::ToolBox::utility qw(simplify_dataset_name);
 
-my $VERSION = 15;
+my $VERSION = 15.1;
 
 # parameters
 my %opts = (
@@ -951,6 +951,7 @@ sub run_dedup {
 			elsif ($line =~ /^  Retained non-optical duplicate count:\s+(\d+)\s*$/) {
 				# bam_partial_dedup
 				# oops, there may be a space at the end
+				# this might not be found if no deduplication occurred
 				$retdup = $1;
 			}
 		}
@@ -962,7 +963,7 @@ sub run_dedup {
 	
 		# store in array
 		push @dedupstats, join("\t", $name, $total, $optdup, $dup, $nondup, $duprate, 
-			$retdup);
+			$retdup || $dup);
 	}
 
 	# print duplicate stats file
