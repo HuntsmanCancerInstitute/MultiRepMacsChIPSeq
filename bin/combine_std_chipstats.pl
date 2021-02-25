@@ -197,9 +197,6 @@ while (@ARGV) {
 		$fh->close;
 	}
 	
-	# not finding what we're looking for
-	next unless ($novoReads or $total_mapped);
-	
 	# infer some counts
 	if ($nondup and $dup and not $duprate) {
 		# this occurs if we're parsing from bam_umi_dedup
