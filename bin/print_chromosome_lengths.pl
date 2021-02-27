@@ -12,9 +12,10 @@
 # https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq
 
 use strict;
-use File::Copy;
+use File::Spec;
+use IO::File;
 use Getopt::Long;
-use Bio::ToolBox::big_helper qw(generate_chromosome_file);
+use Bio::ToolBox::db_helper qw(get_chromosome_list);
 
 unless (@ARGV) {
 	print <<USAGE;
@@ -28,7 +29,7 @@ Usage: $0 <database>
 Options:
   -d --db "file"               Indexed database file
   -K --chrskip "text"          Chromosome skip regex
-  -o --out "file"              Optional file name
+  -o --out "file"              Output file name, default db basename
 
 USAGE
 	exit;
@@ -45,23 +46,34 @@ GetOptions(
 	'o|out=s'     => \$out
 ) or die "unrecognized option!\n";
 
+# database file
 $db ||= shift @ARGV;
 unless ($db) {
 	die "must specify a database file!\n";
 }
 
-
-# generate the chromosome file
-# this is always a randomly named temp file
-my $chromo_file = generate_chromosome_file($db, $chrskip) or 
-	die "unable to generate chromosome file!\n";
-
-# if requested, rename to specified output file
-if ($out) {
-	move($chromo_file, $out);
-	print "wrote chromosome file '$out'\n";
+# output file
+unless ($out) {
+	my (undef, undef, $out) = File::Spec->splitpath($db);
+	$out =~ s/(?:bam|bw|bigwig|bb|bigbed|fasta|fa)$//i;
+	$out .= '.chromosomes.txt';
 }
-else {
-	print "wrote chromosome file '$chromo_file'\n";
+
+
+# collect the chromosomes
+my @chromosomes = get_chromosome_list($db, $chrskip);
+unless (@chromosomes) {
+	die " no chromosome sequences identified in database file $db!\n";
 }
+
+
+# write the chromosome list
+my $fh = IO::File->new($out, '>') or 
+	die "unable to write file! $!";
+foreach my $chr (@chromosomes) {
+	$fh->printf("%s\t%d\n", $chr->[0], $chr->[1]);
+}
+$fh->close;
+print "wrote chromosome file '$out'\n";
+
 
