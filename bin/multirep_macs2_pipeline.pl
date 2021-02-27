@@ -391,7 +391,7 @@ print "======== Finished ChIPSeq multi-replicate pipeline ==========\n";
 
 sub check_inputs {
 	if (@ARGV) {
-		die sprintf("There are unrecognized leftover items on the command line!\n %s\n", join("\n", @ARGV));
+		die sprintf("There are unrecognized leftover items on the command line!\n Did you leave spaces in your --chip or --control file lists?\nItems:\n %s\n", join("\n ", @ARGV));
 	}
 	unless (@chips) {
 		die "No ChIP file(s) defined!\n";
@@ -496,14 +496,14 @@ MESSAGE
 		# no fragment size defined? might be ok
 		if ($opts{paired}) {
 			# paired fragments
-			if ($opts{peaksize}) {
-				print "\n WARNING! Setting minimum peak size to 500 bp, but this should be manually\n set based on mean alignment insert size and nature of experiment.\n";
+			if (not $opts{peaksize}) {
+				print "\n WARNING! Setting minimum peak size to 500 bp, but this should be manually\n set based on mean alignment insert size and nature of experiment.\n\n";
 				$opts{peaksize} = 500;
 				$opts{fragsize} = 250; # for expected background normalization
 			}
 		}
 		else {
-			die " Must set an estimated mean fragment size for single-end alignments!\n  Run 'bam2wig.pl --shift --model' or 'macs2 predictd'\n";
+			die " Must set an estimated mean fragment size for single-end alignments!\n  Run 'macs2 predictd' or 'bam2wig.pl --shift --model'\n";
 		}
 	}
 	unless (defined $opts{peakgap}) {
@@ -522,6 +522,16 @@ MESSAGE
 	$opts{chrnorms} = join(", ", @chrnorms);
 	
 	# exclusion list
+	if ($opts{blacklist} and not -e $opts{blacklist}) {
+		printf("\n WARNING! Unable to find specified black list file '%s'!\n", $opts{blacklist});
+		if (scalar(@controls)) {
+			print " Defaulting to using input-derived exclusion list\n";
+			$opts{blacklist} = 'input';
+		}
+		else {
+			undef $opts{blacklist};
+		}
+	}
 	if (not defined $opts{blacklist} and scalar(@controls)) {
 		$opts{blacklist} = 'input';
 	}
