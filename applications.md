@@ -22,6 +22,8 @@ Documentation for the applications included in this package:
 
 - [print_chromosome_lengths.pl](#print_chromosome_lengthspl)
 
+- [report_mappable_space.pl](#report_mappable_spacepl)
+
 - [run_DESeq2.R](#run_deseq2r)
 
 - [run_normR_difference.R](#run_normr_differencer)
@@ -42,21 +44,23 @@ reduce high-enrichment peaks, but not removing duplicates can lead to
 false positives. An optimal balance is therefore desirable. This is 
 most important when comparing between replicates or samples.
 
-This script has two primary modes: 
-1. Randomly subsample or remove duplicate reads to reach a target 
-   duplication rate. Results in a more uniform duplicate reduction 
-   across the genome, which can be more typical of true PCR duplication. 
-   Set the --frac and --random options below. Can also optionally set 
-   the --max option to remove extreme outliers.
-2. Remove duplicate reads at positions that exceed a threshold, either 
-   manually set or automatically calculated, to achieve a target 
-   duplication rate. Not usually recommmended as it reduces signal at  
-   top peaks without addressing low level duplication across the genome.
+This script can randomly subsample or remove duplicate reads to reach a 
+target duplication rate. This results in a more uniform duplicate reduction 
+across the genome, which can be more typical of true PCR duplication. 
+Set the target duplication fraction rate with the --frac option below. 
+
+This script can also simply remove excessive duplicate reads at positions 
+that exceed a specified target threshold. This can be set either alone or
+in combination with the random subsample. Using alone is generally not 
+recommmended, as it reduces signal at extreme peaks without addressing 
+low level duplication elsewhere across the genome.
 
 For ChIPSeq applications, check the duplication level of the input. For 
-mammalian genomes, typically 10-20% duplication is observed in sonicated 
-input. ChIP samples typically have higher duplication. Set the target 
-fraction of all samples to the lowest observed duplication rate.
+mammalian genomes, typically 5-20% duplication is observed in sonicated 
+input. For very strong enrichment of certain targets, it's not unusual 
+to see higher duplication rates in ChIP samples than in Input samples. 
+Generally, set the target fraction of all samples to the lowest observed 
+duplication rate.
 
 Single-end aligment duplicates are checked for start position, strand, and 
 calculated alignment end position to check for duplicates. Because of this, 
@@ -85,44 +89,43 @@ are skipped in both counting and writing.
 
 Usage:
  
-	bam_partial_dedup.pl --in in.bam
-	bam_partial_dedup.pl --frac 0.xx --rand --in in.bam --out out.bam
-	bam_partial_dedup.pl --m X -i in.bam -o out.bam
+	bam_partial_dedup.pl --in input.bam
+	bam_partial_dedup.pl --frac 0.xx --in input.bam --out output.bam
 
 Options:
 
-	--in <file>      The input bam file, should be sorted and indexed
-	--out <file>     The output bam file containing unique and retained 
-				     duplicates; optional if you're just checking the 
-				     duplication rate.
-	--pe             Bam files contain paired-end alignments and only 
-				     properly paired duplicate fragments will be checked for 
-				     duplication. 
-	--mark           Write non-optical alignments to output and mark as 
-				     duplicates with flag bit 0x400.
-	--random         Randomly subsamples duplicate alignments so that the  
-				     final duplication rate will match target duplication 
-				     rate. Must set --frac option. 
-	--frac <float>   Decimal fraction representing the target duplication 
-				     rate in the final file. 
-	--max <int>      Integer representing the maximum number of duplicates 
-				     at each position
-	--optical        Enable optical duplicate checking
-	--distance       Set optical duplicate distance threshold.
-				     Use 100 for unpatterned flowcell (HiSeq) or 
-				     10000 for patterned flowcell (NovaSeq). Default 100.
-				     Setting this value automatically sets --optical.
-	--keepoptical    Keep optical duplicates in output as marked 
-				     duplicates with flag bit 0x400. Optical duplicates 
-				     are not differentiated from non-optical duplicates.
-	--coord <string> Provide the tile:X:Y integer 1-base positions in the 
-				     read name for optical checking. For Illumina CASAVA 1.8 
-				     7-element names, this is 5:6:7 (default)
+	--in <file>        The input bam file, should be sorted and indexed
+	--out <file>       The output bam file containing unique and retained 
+				         duplicates; optional if you're just checking the 
+				         duplication rate.
+	--pe               Bam files contain paired-end alignments and only 
+				         properly paired duplicate fragments will be checked for 
+				         duplication. Singletons are silently dropped.
+	--qual <int>       Skip alignments below indicated mapping quality (0)
+	--mark             Write non-optical alignments to output and mark as 
+				         duplicates with flag bit 0x400.
+	--frac <float>     Decimal fraction representing the target duplication
+				         rate in the final file. 
+	--max <int>        Integer representing the maximum number of alignments 
+				         at each position. Set to 1 to remove all duplicates.
+	--optical          Enable optical duplicate checking
+	--distance         Set optical duplicate distance threshold.
+				         Use 100 for unpatterned flowcell (HiSeq) or 
+				         2500 for patterned flowcell (NovaSeq). Default 100.
+				         Setting this value automatically sets --optical.
+	--report           Write duplicate distance report files only, no de-duplication
+	--keepoptical      Keep optical duplicates in output as marked 
+				        duplicates with flag bit 0x400. Optical duplicates 
+				         are not differentiated from non-optical duplicates.
+	--coord <string>   Provide the tile:X:Y integer 1-base positions in the 
+				         read name for optical checking. For Illumina CASAVA 1.8 
+				         7-element names, this is 5:6:7 (default)
 	--blacklist <file> Provide a bed/gff/text file of repeat regions to skip
-	--chrskip <regex> Provide a regex for skipping certain chromosomes
-	--seed <int>     Provide an integer to set the random seed generator to 
-				     make the subsampling consistent (non-random).
-	--cpu <int>      Specify the number of threads to use (4) 
+	--chrskip <regex>  Provide a regex for skipping certain chromosomes
+	--seed <int>       Provide an integer to set the random seed generator to 
+				         make the subsampling consistent (non-random).
+	--cpu <int>        Specify the number of threads to use (4) 
+	--help             Print full documentation
 
 
 ## combine_replicate_data.pl
@@ -184,7 +187,7 @@ regions with little or no initial enrichment. A differential track is
 then generated by subtracting input2 from input1. Complimentary 
 enrichment tracks are then generated from the differential track, 
 "positive" being enriched for input1 and "negative" being enriched 
-for input2. 
+for input2. The original differential track may be kept if desired.
 
 New peaks may be called from these respective enrichment tracks, 
 if so desired. If new peaks are to be re-called, specify the minimum 
@@ -205,6 +208,8 @@ OPTIONS:
   
 	  Differential
 		--min <float>           Set the minimum value to keep in input (0)
+	    --scale <float>         If necessary, optional scaling factor for RPM files
+	                               only used for converting input, not output
 		--keepdiff              Keep the differential file
   
 	  Re-call peaks (optional)
@@ -233,23 +238,32 @@ OPTIONS:
 A script to generate a chromosomal mean coverage bedGraph track 
 to be used in Macs2 as the global control track when there is 
 no input for generating a control_lambda chromatin bias track.
-This uses a bigWig file to calculate each chromosomal mean. It 
-will write out a simple bedGraph representing the genome with 
-the respective mean for each chromosome.
-  
-Usage: `generate_mean_bedGraph.pl <file1.bw> ...`
-  
-It will write out a bedgraph file in the same direcotory and same 
-basename appended with `.global_mean.bdg`.
-  
+This uses a bigWig or bedGraph coverage file to calculate a global 
+mean. Intervals without coverage are not included in the calculation.
+It will write out a simple bedGraph representing the genome 
+with the respective mean for each chromosome. 
+
+It will write out a bedgraph file in the same directory with the 
+basename appended with '.global_mean.bdg'. More than one file may 
+be provided at a time.
+
+Version: 2
+	
+	Usage: $0 <file1.bw> ...
+
+
 ## intersect_peaks.pl
 
 A script to intersect two or more peak files. This is a wrapper around the bedtools 
 program.
 
-It will first merge all of the peak files into a single representative bed file.
+It will first calculate a number of descriptive statistics for the interval lengths 
+for each input file, including count, sum, standard deviation, and quartiles.
 
-It will then run the bedtools Jaccard statistic pairwise across all of the peak 
+It will merge all of the peak files into a single representative bed file.
+Peak intervals will be renamed to the given name. 
+
+It will run the bedtools Jaccard statistic pairwise across all of the peak 
 files and write out a merged table of the results. The Jaccard statistic measures 
 the amount of spatial overlap between two peak files (intersection/union) reported 
 as a fraction between 0 and 1.
@@ -258,12 +272,13 @@ Finally, it will run bedtools multiinter tool to perform a multi-way intersectio
 and calculate the intervals for each category of overlap. This is parsed into a 
 summary file suitable for drawing a Venn diagram based on spatial overlap.
 
-Five files will be written:
+Six files will be written:
     basename.bed                    the merged peaks
     basename.jaccard.txt            the Jaccard results in a table
     basename.n_intersection.txt     the number of intersections in a table
     basename.multi.txt              data file from multi-intersection 
     basename.spatialVenn.txt        summary of spatial overlap for each category
+    basename.lengthStats.txt        interval length statistics for each file
 
 Usage:
 
@@ -272,6 +287,8 @@ Usage:
 Options:
 
 		--out basename          Provide the output basename
+		--name text             Provide text to rename the merged peaks
+		--genome path           Provide a genome file for sort consistency
 		--bed path              Path to bedtools (bedtools)
 		--help                  Print documentation
 
@@ -314,6 +331,8 @@ as a (poor) substitute.
 
 Advanced users may provide one processed bigWig file per ChIP or control sample. 
 
+Version: 15.1
+
 Options:
 
 	 Input files
@@ -326,23 +345,26 @@ Options:
 	  --out       file basename     Base filename for merged output files (merged)
   
 	 Genome size
-	  --species   [human,mouse,fish,fly,yeast]   Default (human)
-	  --genome    integer           Alternatively give effective genome size
+	  --genome    integer           Specify effective mappable genome size 
+	                                  (default empirically determined)
   
 	 Bam options
 	  --mapq      integer           Minimum mapping quality, (0)
 	  --pe                          Bam files are paired-end
 	  --min       integer           Minimum paired-end size allowed (50 bp)
 	  --max       integer           Maximum paired-end size allowed (500 bp)
+	  --fraction                    Record multiple-hit alignments as fraction of hits
  
 	 Bam filtering options
 	  --chrskip   "text"            Chromosome skip regex (chrM|MT|lambda|Adapter|PhiX)
 	  --blacklist file              Bed file of repeats or hotspots to avoid
-  
+	                                  Determined empirically from control (Input) samples
+	
 	 Duplication filtering
-	  --nodedup                     Skip deduplication
-	  --dupfrac   fraction          Minimum allowed fraction of duplicates (0.1)
-	  --maxdup    integer           Maximum allowed duplication depth ()
+	  --nodedup                     Skip deduplication and take everything as is
+	  --dupfrac   floa              Target duplication rate for subsampling (0.05)
+	  --maxdepth  integer           Maximum position alignment depth ()
+	                                  set to 1 to remove all duplicates
 	  --optdist   integer           Maximum distance for optical duplicates (0)
 									  use 100 for HiSeq, 2500 for NovaSeq
 	  --deduppair                   Run deduplication as paired-end, but coverage as single-end
@@ -365,7 +387,8 @@ Options:
 	 Peak calling
 	  --cutoff    number            Threshold q-value for calling peaks (2) 
 									 Higher numbers are more significant, -1*log10(q)
-	  --peaksize  integer           Minimum peak size to call (2 x size)
+	  --peaksize  integer           Minimum peak size to call (2 x fragment size)
+	                                  Required for paired-end alignments.
 	  --peakgap   integer           Maximum gap between peaks before merging (1 x size)
 	  --broad                       Also perform broad (gapped) peak calling
 	  --broadcut  number            Q-value cutoff for linking broad regions (0.5)
@@ -374,7 +397,7 @@ Options:
 	  --savebdg                     Save q-value bdg files for further custom calling
 	
 	 Peak scoring
-	  --binsize   integer           Size of bins in 10 flanking peak bins for profile (peak/5)
+	  --binsize   integer           Size of bins in 25 flanking peak bins for profile (40 bp)
 	  --window    integer           Collect counts across genome in given window size
 	  --discard   number            Discard genome windows with replicate sum below number (10)
 	  --rawcounts                   Use unscaled raw counts for re-scoring peaks
@@ -392,7 +415,6 @@ Options:
 	  --bamdedup  path             (bam_partial_dedup.pl)
 	  --macs      path             (macs2)
 	  --manwig    path             (manipulate_wig.pl)
-	  --mandata   path             (manipulate_data.pl)
 	  --wig2bw    path             (wigToBigWig)
 	  --bw2bdg    path             (bigWigToBedGraph)
 	  --printchr  path             (print_chromosome_lengths.pl)
@@ -403,9 +425,11 @@ Options:
 	  --meanbdg   path             (generate_mean_bedGraph.pl)
 	  --bedtools  path             (bedtools)
 	  --intersect path             (intersect_peaks.pl)
+	  --peak2bed  path             (peak2bed.pl)
 	  --combrep   path             (combine_replicate_data.pl)
 	  --plotpeak  path             (plot_peak_figures.R)
 	  --rscript   path             (Rscript)
+	  --reportmap path             (report_mappable_space.pl)
 
 
 ## plot_peak_figures.R
@@ -413,12 +437,29 @@ Options:
 This script generates a number of heat maps and plots for identified peak calls, 
 including the following:
 
-- heat map and cluster of jaccard (spatial overlap) statistic between peaks
-- heat map and cluster of the number of peak intersctions
-- heat map of the mean q-value scores for each ChIP over merged peaks
-- heat map of the mean log2 fold enrichment for each ChIP over merged peaks with k-means clustering (6, 8, and 10 clusters)
-- pairwise Pearson, Spearman, and Euclidean distance between all sample replicates with heat map and cluster
-- PCA plot between all sample replicates
+- Scatter plot of before and after duplication counts versus non-duplicate
+- PCA plot between all sample replicates based on fragment counts in peak
+- Multiple pairwise correlation (Pearson, Spearman, and Euclidean distance) 
+  heat maps and clusters of the counts between sample replicates
+- Heat map and cluster of the number of peak intersections
+- Heat map and cluster of jaccard (spatial overlap) statistic between peaks
+- Pie chart of spatial overlap fraction of total merged peak coverage for 
+  each sample
+- Bar chart of the fraction of fragment counts in corresponding peaks 
+  for each replicate, a measure of ChIP efficiency
+- Heat map of the mean q-value scores for each ChIP over merged peaks
+- Heat map of the mean log2 fold enrichment for each ChIP over merged peaks
+  with k-means clustering (6, 8, and 10 clusters)
+- Profile heat map of the fragment density over the midpoint of merged
+  peaks for all samples, with and without k-means (4) clustering
+- Profile heat map of the log2 Fold Enrichment over the midpoint of merged
+  peaks for all samples, with and without k-means (4) clustering
+- Mean profile line plot of fragment density over merged peaks
+- Mean profile line plot of log2 Fold Enrichment over merged peaks
+
+Samples are identified by color palette: Try Set1, Set2, Set3, Spectral, Dark2, 
+or any other named palette in RColorBrewer. Note that excessive sample numbers 
+may exceed the number the colors in a given palette (8 to 12). 
 
 Usage: 
 
@@ -428,22 +469,25 @@ Options:
 
 		-i INPUT, --input=INPUT
 			Path and basename to the multirep_macs2_pipeline combined output
-
+		
 		-n MIN, --min=MIN
 			Minimum log2 Fold Enrichment value to plot, default -4
-
+		
 		-x MAX, --max=MAX
 			Maximum log2 Fold Enrichment value to plot, default 4
-
+		
 		-q QMAX, --qmax=QMAX
 			Maximum q-value to plot, default 30
-
+		
+		-r FMAX, --fmax=FMAX
+			Maximum fragment value to plot, default 4
+		
 		-p --palette=NAME
 			RColorBrewer palette for samples, default Set1
-
+		
 		-f FORMAT, --format=FORMAT
 			Format of output file: png, pdf, default png
-
+		
 		-h, --help
 			Show this help message and exit
 
@@ -482,7 +526,33 @@ Options:
 
 	-d --db "file"               Indexed database file
 	-K --chrskip "text"          Chromosome skip regex
-	-o --out "file"              Optional file name
+	-o --out "file"              Optional file name, default db basename
+
+
+## report_mappable_space.pl
+
+A script to report the mappable space of a genome based on empirical mapping 
+derived from one or more bam files. For a given ChIPSeq experiment, provide all 
+available Bam files.
+
+Two numbers are reported: all mappable space reported by all alignments, 
+regardless of mapping quality and number of hits to the genome, and unique 
+mappability, as determined by a minimum mapping quality score (default 10).
+Results are written to standard out.
+
+Usage:
+
+	report_mappable_space.pl *.bam
+	report_mappable_space.pl --chrskip '^chrRandom.+|chrM' *.bam
+
+Options:
+
+	  --in <file>         An input bam file, must be sorted and indexed
+	                        Repeat for each input file
+	  --qual <int>        Minimum mapping quality to be considered unique (10)
+	  --chrskip <regex>   Provide a regular expression for skipping unwanted chromosomes
+	  --cpu <int>         Specify the number of threads to use (4)
+
 
 ## run_DESeq2.R
 
@@ -559,22 +629,25 @@ Options:
 
 	-i INPUT, --input=INPUT
 		Input file containing count data
-
+	
 	-o OUTPUT, --output=OUTPUT
 		Output file basename, default 'first_second' names
-
+	
 	-f FIRST, --first=FIRST
 		Name of first ChIP count column
-
+	
 	-s SECOND, --second=SECOND
 		Name of second ChIP count column
-
+	
 	-t THRESHOLD, --threshold=THRESHOLD
 		Threshold Q-value for filtering, default 0.001
-
+	
 	-m MIN, --min=MIN
 		Minimum interval count sum, default 50
-
+	
+	--all
+		Report all windows, not just significant
+	
 	-h, --help
 		Show this help message and exit
 
@@ -602,25 +675,25 @@ Options:
 
 	-i INPUT, --input=INPUT
 		Input file containing count data
-
+	
 	-o OUTPUT, --output=OUTPUT
 		Output file basename, default 'chip_ref' names
-
+	
 	-c CHIP, --chip=CHIP
 		Name of ChIP count column
-
+	
 	-r REF, --ref=REF
 		Name of reference (or Input) count column
-
+	
 	-t THRESHOLD, --threshold=THRESHOLD
 		Threshold Q-value for filtering, default 0.001
-
+	
 	-m MIN, --min=MIN
 		Minimum interval count sum, default 50
-
+	
 	--all
 		Report all windows, not just significant
-
+	
 	-h, --help
 		Show this help message and exit
 
