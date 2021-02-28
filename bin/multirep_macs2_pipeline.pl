@@ -67,7 +67,7 @@ my %opts = (
 	chrapply    => undef,
 	rawcounts   => 0,
 	savebdg     => 0,
-	binsize     => undef,
+	binsize     => 40,
 	genomewin   => 0,
 	discard     => 10,
 	repmean     => 0,
@@ -211,7 +211,7 @@ Options:
   --savebdg                     Save q-value bdg files for further custom calling
   
  Peak scoring
-  --binsize   integer           Size of bins in 25 flanking peak bins for profile (peak/10)
+  --binsize   integer           Size of bins in 25 flanking peak bins for profile ($opts{binsize})
   --window    integer           Collect counts across genome in given window size
   --discard   number            Discard genome windows with replicate sum below number ($opts{discard})
   --rawcounts                   Use unscaled raw counts for re-scoring peaks
@@ -513,9 +513,6 @@ MESSAGE
 	}
 	unless (defined $opts{broadgap}) {
 		$opts{broadgap} = $opts{fragsize} ? 4 * $opts{fragsize} : 2 * $opts{peaksize};
-	}
-	unless (defined $opts{binsize}) {
-		$opts{binsize} = int( $opts{peaksize} / 10);
 	}
 	
 	# add parameters to option hash for printing configuration
