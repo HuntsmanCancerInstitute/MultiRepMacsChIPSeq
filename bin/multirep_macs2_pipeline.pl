@@ -37,8 +37,9 @@ my %opts = (
 	minsize     => 50,
 	maxsize     => 500,
 	dedup       => 1,
-	maxdup      => undef,
-	dupfrac     => 0.1,
+	maxdup      => undef, # old option
+	maxdepth    => undef,
+	dupfrac     => 0.05,
 	optdist     => 0,
 	deduppair   => 0,
 	savebam     => 0,
@@ -175,11 +176,11 @@ Options:
   
  Duplication filtering
   --nodedup                     Skip deduplication and take everything as is
-  --dupfrac   float             Minimum allowed fraction of duplicates ($opts{dupfrac})
-  --maxdup    integer           Maximum allowed duplication depth ($opts{maxdup})
+  --dupfrac   float             Target duplication rate for subsampling ($opts{dupfrac})
+  --maxdepth  integer           Maximum position alignment depth ($opts{maxdepth})
                                   set to 1 to remove all duplicates
   --optdist   integer           Maximum distance for optical duplicates ($opts{optdist})
-                                  use 100 for HiSeq, 10000 for NovaSeq
+                                  use 100 for HiSeq, 2500 for NovaSeq
   --deduppair                   Run deduplication as paired-end, but coverage as single-end
                                   e.g. for ATAC-Seq cut site analysis
   --savebam                     Save de-duplicated bam files
@@ -286,7 +287,8 @@ GetOptions(
 	'blacklist=s'           => \$opts{blacklist},
 	'dedup!'                => \$opts{dedup},
 	'dupfrac=f'             => \$opts{dupfrac},
-	'maxdup=i'              => \$opts{maxdup},
+	'maxdup=i'              => \$opts{maxdup}, # old option
+	'maxdepth=i'            => \$opts{maxdepth},
 	'optdist=i'             => \$opts{optdist},
 	'deduppair!'            => \$opts{deduppair},
 	'savebam!'              => \$opts{savebam},
@@ -536,6 +538,13 @@ MESSAGE
 		$opts{blacklist} = 'input';
 	}
 	
+	# max depth-duplication confusion
+	if (defined $opts{maxdup}) {
+		# because this was inappropriately named before
+		print " \n WARNING: The --maxdup option is now --maxdepth\n";
+		$opts{maxdepth} = $opts{maxdup};
+	}
+	delete $opts{maxdup};
 }
 
 sub print_start {
@@ -2083,11 +2092,18 @@ sub generate_dedup_commands {
 				$in,
 				$out,
 				$opts{cpu};
-			if ($opts{dupfrac} > 0) {
-				$command .= sprintf("--random --seed 1 --frac %s ", $opts{dupfrac});
+			if (defined $opts{maxdepth} and $opts{maxdepth} == 1) {
+				# no other deduplication options need to be set
+				$command .= "--max 1 ";
 			}
-			if (defined $opts{maxdup}) {
-				$command .= sprintf("--max %s ", $opts{maxdup});
+			else {
+				# set random deduplication and/or maximum duplicates
+				if ($opts{dupfrac} > 0) {
+					$command .= sprintf("--seed 1 --frac %s ", $opts{dupfrac});
+				}
+				if (defined $opts{maxdepth} and $opts{maxdepth} > 1) {
+					$command .= sprintf("--max %s ", $opts{maxdepth});
+				}
 			}
 			if ($opts{optdist}) {
 				$command .= sprintf("--optical --distance %s ", $opts{optdist});
@@ -2121,11 +2137,18 @@ sub generate_dedup_commands {
 				$in,
 				$out,
 				$opts{cpu};
-			if ($opts{dupfrac} > 0) {
-				$command .= sprintf("--random --seed 1 --frac %s ", $opts{dupfrac});
+			if (defined $opts{maxdepth} and $opts{maxdepth} == 1) {
+				# no other deduplication options need to be set
+				$command .= "--max 1 ";
 			}
-			if (defined $opts{maxdup}) {
-				$command .= sprintf("--max %s ", $opts{maxdup});
+			else {
+				# set random deduplication and/or maximum duplicates
+				if ($opts{dupfrac} > 0) {
+					$command .= sprintf("--seed 1 --frac %s ", $opts{dupfrac});
+				}
+				if (defined $opts{maxdepth} and $opts{maxdepth} > 1) {
+					$command .= sprintf("--max %s ", $opts{maxdepth});
+				}
 			}
 			if ($opts{optdist}) {
 				$command .= sprintf("--optical --distance %s ", $opts{optdist});
