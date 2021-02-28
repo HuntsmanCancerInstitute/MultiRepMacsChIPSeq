@@ -48,7 +48,7 @@ including the following:
     for each replicate, a measure of ChIP efficiency
   - Heat map of the mean q-value scores for each ChIP over merged peaks
   - Heat map of the mean log2 fold enrichment for each ChIP over merged peaks
-    with k-means clustering (6, 8, and 10 clusters)
+    with k-means clustering (4, 6, and 8 clusters)
   - Profile heat map of the fragment density over the midpoint of merged
     peaks for all samples, with and without k-means (4) clustering
   - Profile heat map of the log2 Fold Enrichment over the midpoint of merged
@@ -445,15 +445,15 @@ if(file.exists(lfefile)) {
       plot_mean_hm(lfedata, opt$min, opt$max, clrs, 
              "Mean Log2 Fold Enrichment over merged peaks",
              paste0(opt$input,"_log2FE_hm"))
+      plot_mean_k_hm(lfedata, opt$min, opt$max, 4, clrs, color4, 
+                 "Mean Log2 Fold Enrichment over merged peaks, 4 Clusters",
+                 paste0(opt$input,"_log2FE_hm_K10"))
       plot_mean_k_hm(lfedata, opt$min, opt$max, 6, clrs, color6, 
                  "Mean Log2 Fold Enrichment over merged peaks, 6 Clusters",
                  paste0(opt$input,"_log2FE_hm_K6"))
       plot_mean_k_hm(lfedata, opt$min, opt$max, 8, clrs, color8, 
                  "Mean Log2 Fold Enrichment over merged peaks, 8 Clusters",
                  paste0(opt$input,"_log2FE_hm_K8"))
-      plot_mean_k_hm(lfedata, opt$min, opt$max, 10, clrs, color10, 
-                 "Mean Log2 Fold Enrichment over merged peaks, 10 Clusters",
-                 paste0(opt$input,"_log2FE_hm_K10"))
     }
 }
 
