@@ -30,10 +30,9 @@ eval {
 	$parallel = 1;
 };
 
-my $VERSION = 4.3;
+my $VERSION = 5;
 
-unless (@ARGV) {
-	print <<END;
+my $DOC = <<END;
 
 A script to remove excessive duplicate alignments down to an acceptable 
 fraction. This is in contrast to traditional duplicate removers that 
@@ -46,21 +45,23 @@ reduce high-enrichment peaks, but not removing duplicates can lead to
 false positives. An optimal balance is therefore desirable. This is 
 most important when comparing between replicates or samples.
 
-This script has two primary modes: 
-1. Randomly subsample or remove duplicate reads to reach a target 
-   duplication rate. Results in a more uniform duplicate reduction 
-   across the genome, which can be more typical of true PCR duplication. 
-   Set the --frac and --random options below. Can also optionally set 
-   the --max option to remove extreme outliers.
-2. Remove duplicate reads at positions that exceed a threshold, either 
-   manually set or automatically calculated, to achieve a target 
-   duplication rate. Not usually recommmended as it reduces signal at  
-   top peaks without addressing low level duplication across the genome.
+This script can randomly subsample or remove duplicate reads to reach a 
+target duplication rate. This results in a more uniform duplicate reduction 
+across the genome, which can be more typical of true PCR duplication. 
+Set the target duplication fraction rate with the --frac option below. 
+
+This script can also simply remove excessive duplicate reads at positions 
+that exceed a specified target threshold. This can be set either alone or
+in combination with the random subsample. Using alone is generally not 
+recommmended, as it reduces signal at extreme peaks without addressing 
+low level duplication elsewhere across the genome.
 
 For ChIPSeq applications, check the duplication level of the input. For 
-mammalian genomes, typically 10-20% duplication is observed in sonicated 
-input. ChIP samples typically have higher duplication. Set the target 
-fraction of all samples to the lowest observed duplication rate.
+mammalian genomes, typically 5-20% duplication is observed in sonicated 
+input. For very strong enrichment of certain targets, it's not unusual 
+to see higher duplication rates in ChIP samples than in Input samples. 
+Generally, set the target fraction of all samples to the lowest observed 
+duplication rate.
 
 Single-end aligment duplicates are checked for start position, strand, and 
 calculated alignment end position to check for duplicates. Because of this, 
@@ -68,7 +69,7 @@ the numbers may be slightly different than calculated by traditional duplicate
 removers.
 
 Paired-end alignments are treated as fragments. Only properly paired 
-alignments are considered; singletons are skipped. Fragments 
+alignments are considered; singletons are skipped and dropped. Fragments 
 are checked for start position and fragment length (paired insertion size) 
 for duplicates. Random subsampling should not result in broken pairs.
 
@@ -76,7 +77,7 @@ Optical duplicates, arising from neighboring clusters on a sequencing flow
 cell with identical sequence, may now be checked. When random subsampling 
 duplicates, optical duplicates should critically be ignored. This is highly 
 recommended for patterned flow cells from Illumina NovaSeq or NextSeq. Set a 
-distance of 100 pixels for unpatterned (Illumina HiSeq) or at least 10000 for  
+distance of 100 pixels for unpatterned (Illumina HiSeq) or at least 2500 for  
 patterned (NovaSeq). By default, optical duplicate alignments are not written 
 to output. To ONLY filter for optical duplicates, set --max to a very high number.
 Note that tile-edge duplicates are not counted as such.
@@ -92,9 +93,8 @@ alignments, these regions can and should be entirely skipped by providing a
 file with recognizable coordinates. Any alignments overlapping these intervals 
 are skipped in both counting and writing. 
 
-USAGE:  bam_partial_dedup.pl --in in.bam
-        bam_partial_dedup.pl --frac 0.xx --rand --in in.bam --out out.bam
-        bam_partial_dedup.pl --m X -i in.bam -o out.bam
+USAGE:  bam_partial_dedup.pl --in input.bam
+        bam_partial_dedup.pl --frac 0.xx --in input.bam --out output.bam
 
 VERSION: $VERSION
        
@@ -105,21 +105,18 @@ OPTIONS:
                         duplication rate.
   --pe                Bam files contain paired-end alignments and only 
                         properly paired duplicate fragments will be checked for 
-                        duplication. 
+                        duplication. Singletons are silently dropped.
   --qual <int>        Skip alignments below indicated mapping quality (0)
   --mark              Write non-optical duplicate alignments to output marked 
                         with flag bit 0x400.
-  --random            Randomly subsamples duplicate alignments so that the  
-                        final duplication rate will match target duplication 
-                        rate. Must set --frac option. 
   --frac <float>      Decimal fraction representing the target duplication 
                         rate in the final file. 
-  --max <int>         Integer representing the maximum number of duplicates 
-                        at each position
+  --max <int>         Integer representing the maximum number of alignments 
+                        at each position. Set to 1 to remove all duplicates.
   --optical           Enable optical duplicate checking
   --distance <int>    Set optical duplicate distance threshold.
                         Use 100 for unpatterned flowcell (HiSeq) or 
-                        10000 for patterned flowcell (NovaSeq). Default 100.
+                        2500 for patterned flowcell (NovaSeq). Default 100.
                         Setting this value automatically sets --optical.
   --report            Write duplicate distance report files only, no de-duplication
   --keepoptical       Keep optical duplicates in output as marked 
@@ -133,7 +130,30 @@ OPTIONS:
   --seed <int>        Provide an integer to set the random seed generator to 
                         make the subsampling consistent (non-random).
   --cpu <int>         Specify the number of threads to use (4) 
+  --help              Print full documentation
 
+END
+
+unless (@ARGV) {
+	print <<END;
+
+ A script for checking and completely or partially removing duplicate 
+ alignments from a Bam file.
+ 
+ VERSION: $VERSION
+ 
+ SIMPLE USAGE:
+ Check single-end duplication rate:
+   bam_partial_dedup.pl --in input.bam
+ 
+ Check paired-end duplication rate:
+   bam_partial_dedup.pl --pe --in input.bam
+ 
+ Random subsample single-end duplicates to 10%:
+   bam_partial_dedup.pl --frac 0.1 --in input.bam --out output.bam
+
+ Use -h or --help for full documentation and options.
+ 
 END
 	exit;
 }
@@ -141,7 +161,7 @@ END
 ### Get Options
 my ($fraction, $max, $infile, $outfile, $do_optical, $optical_thresh, $keep_optical, 
 	$mark, $random, $paired, $min_mapq, $chr_exclude, $black_list, $seed, $cpu, $tilepos, 
-	$xpos, $ypos, $name_coordinates, $report_distance, $no_sam);
+	$xpos, $ypos, $name_coordinates, $report_distance, $no_sam, $help);
 my @program_options = @ARGV;
 GetOptions( 
 	'in=s'       => \$infile, # the input bam file path
@@ -151,7 +171,7 @@ GetOptions(
 	'report!'    => \$report_distance, # write duplicate distance report
 	'keepoptical!' => \$keep_optical, # include optical duplicates in output
 	'mark!'      => \$mark, # mark the duplicates
-	'random!'    => \$random, # flag to random downsample duplicates
+	'random!'    => \$random, # flag to random downsample duplicates - obsolete
 	'frac=f'     => \$fraction, # target fraction of duplicates
 	'max=i'      => \$max, # the maximum number of alignments per position
 	'pe!'        => \$paired, # treat as paired-end alignments
@@ -163,18 +183,33 @@ GetOptions(
 	'coord=s'    => \$name_coordinates, # tile:X:Y name positions
 	'bam=s'      => \$BAM_ADAPTER, # specifically set the bam adapter, advanced!
 	'nosam!'     => \$no_sam, # avoid using external sam adapter, advanced!
+	'help!'      => \$help, # print documentation
 ) or die " unrecognized option(s)!! please refer to the help documentation\n\n";
 
 my $max_optical_rate = 0.01;
 
+### Check options
+if ($help) {
+	print $DOC;
+	exit 0;
+}
 unless ($infile) {
-	die "no input file provided!\n";
+	die " No input file provided!\n";
 }
-if ($max and $fraction and not $random) {
-	die "max and frac options are mutually exclusive without random. Pick one.\n";
+if (defined $max) {
+	if ($max < 1) {
+		die " Maximum number of alignments must be at least 1!\n";
+	}
+	elsif ($max == 1) {
+		# no need to calculate fractions if user set max number to 1
+		undef $fraction;
+	}
 }
-if ($fraction and $fraction !~ /^0\.\d+$/) {
-	die "unrecognized fraction '$fraction'. Should be decimal (0.x)\n";
+if ($fraction and $fraction > 1) {
+	die " Unrecognized fraction '$fraction'. Should be decimal (0.x)\n";
+}
+if ($random) {
+	print " Specifying option --random is no longer necessary and is default\n";
 }
 if ($report_distance) {
 	# optical must be on
@@ -199,7 +234,7 @@ if ($name_coordinates) {
 		$ypos = $3 - 1;
 	}
 	else {
-		die "name coordinate must be integers as tile:X:Y, such as 5:6:7\n";
+		die " Name coordinate must be integers as tile:X:Y, such as 5:6:7\n";
 	}
 }
 else {
@@ -213,7 +248,7 @@ if ($parallel and not defined $cpu) {
 }
 if ($min_mapq) {
 	unless ($min_mapq > 0 and $min_mapq < 256) {
-		die "invalid minimum mapping quality! Must be an integer between 0-255!\n";
+		die " Invalid minimum mapping quality! Must be an integer between 0-255!\n";
 	}
 }
 
@@ -244,7 +279,7 @@ my $items = $paired ? 'properly paired fragments' : 'alignments';
 	# explain what we are counting in the output
 my $write_out_alignments; # subroutine reference for writing out alignments
 my $callback;
-my $chance; # probability for subsampling
+my $chance = 0; # probability for subsampling
 my $black_list_hash = process_black_list();
 
 # chromosome list
@@ -268,7 +303,7 @@ if ($fraction > 0 or not defined $max) {
 ### Write out new bam file with specified number of targets
 exit 0 unless $outfile;
 exit 0 if $report_distance;
-exit 0 unless ($max > 0 or $chance > 0);
+exit 0 unless (defined $max or $chance > 0);
 $outfile .= '.bam' unless $outfile =~ /\.bam$/i;
 # update header
 my $htext = $header->text;
@@ -276,12 +311,11 @@ $htext .= sprintf("\@PG\tID:bam_partial_dedup\tVN:%s\tCL:%s", $VERSION, $0);
 $htext .= " --pe" if $paired;
 $htext .= " --max=$max" if ($max);
 $htext .= " --frac=$fraction" if ($fraction);
-$htext .= " --random" if ($random);
 $htext .= " --seed=$seed" if $seed;
 $htext .= " --mark" if $mark;
 $htext .= " --optical --distance=$optical_thresh " if ($do_optical);
 $htext .= " --keepoptical" if $keep_optical;
-$htext .= " --chrskip=$chr_exclude" if $chr_exclude;
+$htext .= " --chrskip='$chr_exclude'" if $chr_exclude;
 $htext .= " --blacklist=$black_list" if $black_list;
 $htext .= " --coord $name_coordinates" if $name_coordinates;
 $htext .= " --bam $BAM_ADAPTER --in $infile --out $outfile\n";
@@ -305,7 +339,7 @@ if ($paired and $counts->{unpaired}) {
 printf " Wrote %d alignments to $outfile\n", $paired ? 
 	($counts->{nondup} + $counts->{duplicate}) * 2 : 
 	$counts->{nondup} + $counts->{duplicate};
-exit; # bam files should automatically be closed
+exit 0; # bam files should automatically be closed
 
 
 
@@ -448,66 +482,67 @@ sub count_alignments {
 	# check if we need to continue
 	if ($fraction and $dupRate <= $fraction) {
 		# the duplication rate is acceptable, no de-duplication necessary
-		print " Actual duplication rate is less than target fraction. No de-duplication necessary.\n";
+		print " Actual duplication rate is less than indicated target fraction ($fraction).\n";
 		
 		# check to see whether max or optical duplication is still necessary
 		if (defined $max and $max >= 1 and $do_optical) {
 			# maximum depth is set plus checking for opticals
 			
 			if ($maxObserved <= $max) {
-				print " Maximum observed depth is less than maximum allowed. No de-duplication necessary.\n";
+				print " Maximum observed depth is less than maximum allowed ($max).\n";
 				if ($opticalRate > $max_optical_rate) {
-					print " Optical duplicate rate is higher than allowed.\n";
+					print " Optical duplicate rate is higher than allowed ($max_optical_rate).\n";
 					# proceed with the given max value, de-duplication will proceed
 				}
 				else {
 					# both optical rate and max duplicate is OK
 					# reset the max allowed value, de-duplication will not proceed
+					print " No de-duplication necessary.\n";
 					undef $max;
 				}
 			}
 			else {
 				# we will continue with max cutoff
-				print " Maximum observed depth is above maximum allowed.\n";
+				print " Maximum observed depth is above maximum allowed ($max).\n";
 			}
 		}
 		elsif (defined $max and $max >= 1 and not $do_optical) {
 			if ($maxObserved <= $max) {
-				print " Maximum observed depth is less than maximum allowed. No de-duplication necessary.\n";
+				print " Maximum observed depth is less than maximum allowed ($max).\n No de-duplication necessary.\n";
 				# both optical rate and max duplicate is OK
 				# reset the max allowed value, de-duplication will not proceed
 				undef $max;
 			}
 			else {
 				# we will continue with max cutoff
-				print " Maximum observed depth is above maximum allowed.\n";
+				print " Maximum observed depth is above maximum allowed ($max).\n";
 			}
 		
 		}
-		elsif (not $max and $do_optical) {
+		elsif (not defined $max and $do_optical) {
 			# no maximum was set, duplication is acceptable
 			# check optical rate
 			if ($opticalRate > $max_optical_rate) {
-				print " Optical duplicate rate is higher than allowed.\n";
+				print " Optical duplicate rate is higher than allowed ($max_optical_rate).\n";
 				# de-duplication will proceed
 				# artificially set the max value to force the de-duplication routine
 				# without actually removing non-optical duplicates
 				$max = $maxObserved + 1;
 			}
 			else {
+				print " Optical duplication rate is ok.\n No de-duplication necessary.\n";
 				# optical rate is OK
 				# de-duplication will not proceed
 			}
 		}
-		return;
 	}
 	
 	# check maximum
-	elsif (defined $max and $max >= 1 and $maxObserved <= $max and not $fraction) {
-		print " Maximum observed depth is less than maximum allowed. \n";
+	elsif (defined $max and $maxObserved <= $max and not $fraction) {
+		print " Maximum observed alignment depth is less than maximum allowed ($max).\n";
 		# check for optical rate
 		if ($do_optical and $opticalRate > $max_optical_rate) {
-			print " Optical duplicate rate is higher than allowed.\n";
+			print " Optical duplicate rate is higher than allowed ($max_optical_rate).\n";
 			# de-duplication will proceed
 			# artificially set the max value to force the de-duplication routine
 			# without actually removing non-optical duplicates
@@ -515,45 +550,17 @@ sub count_alignments {
 		}
 		else {
 			# no de-duplication is necessary
+			print " No de-duplication necessary\n";
 			undef $max;
 		}
-		return;
 	}
 	
-	# otherwise we proceed with calculating the fractions for de-duplication
-	# either by maximum depth or random
-	
-	# calculate fractions
-	elsif ($fraction and not $random) {
-		my $rate;
-		foreach (my $i = 0; $i <= $#depths; $i++) {
-			my $depth = $depths[$i];
-			my $sumCount = 0; # count of acceptable reads at given depth
-			foreach my $d (@depths) {
-				if ($d <= $depth) {
-					# we can take up to this depth
-					$sumCount += ($depth2count->{$d} * $d);
-				}
-				else {
-					# throw away the excess
-					$sumCount += ($depth2count->{$d} * $depth);
-				}
-			}
-			$rate = ($totalCount - $sumCount) / $totalCount;
-			printf "  At maximum depth $depth: %d kept, effective duplicate rate %.4f\n", 
-				$sumCount, $rate;
-			if ($rate < $fraction) {
-				$max = $depths[$i]; 
-				last;
-			}
-		}
-		print " Setting maximum allowed duplicates to $max\n";
-	}
-	elsif ($fraction and $random) {
-		
+	# calculate fraction
+	elsif ($fraction) {
+		print " Calculating expectations for random subsampling\n";
 		# this is the number of duplicates available to be subsampled
 		my $availableDups = $dupCount;
-		if ($max) {
+		if (defined $max) {
 			# adjust for the number of duplicates to be tossed for exceeding max cutoff
 			while (my ($d, $c) = each %$depth2count) {
 				if ($max > 1 and $d > $max) {
@@ -564,16 +571,18 @@ sub count_alignments {
 		
 		# this is what the new final total should be
 		my $newTotal = int($nondupCount / (1 - $fraction) );
-		printf "  Expected new total: %16d\n", $newTotal;
+		printf "  Expected new total: %18d\n", $newTotal;
 		
 		# this is how many can be duplicates
 		my $allowedDups = int($newTotal * $fraction);
-		printf "  Expected duplicates kept: %10d\n", $allowedDups;
+		printf "  Expected duplicates kept: %12d\n", $allowedDups;
 		
 		# this is the chance for being kept
 		$chance = sprintf("%.8f", $allowedDups / $availableDups); 
-		printf "  Probability of keeping: %12s\n", $chance;
+		printf "  Probability of keeping: %14s\n", $chance;
 	}
+	
+	# otherwise we simply return
 }
 
 
@@ -1095,7 +1104,7 @@ sub deduplicate {
 	
 	# set callbacks and subroutines
 	$callback = $paired ? \&write_pe_callback : \&write_se_callback;
-	if ($random and defined $chance) {
+	if (defined $chance) {
 		$write_out_alignments = $paired ? \&write_out_random_pe_alignments : 
 			\&write_out_random_se_alignments;
 	}
@@ -1296,6 +1305,7 @@ sub deduplicate_multithread {
 	# this should be faster than going through Perl and bam adapters
 	my $sam_app = which('samtools');
 	if ($sam_app and not $no_sam) {
+		
 		# write temporary new header file
 		my $samfile = $outfile;
 		$samfile =~ s/\.bam$/temp.sam/;
@@ -1303,9 +1313,20 @@ sub deduplicate_multithread {
 			die "unable to write temporary sam file\n";
 		$fh->print($htext);
 		$fh->close;
+		
+		# check samtools version
+		my $sam_check = qx($sam_app --version);
+		my $sam_version;
+		if ($sam_check =~ /samtools 1\.(\d+)/) {
+			$sam_version = $1;
+		}
+		
 		# run external samtools concatenate
-		my $command = sprintf "%s cat --no-PG --threads %s -h %s -o %s ", 
-			$sam_app, $cpu, $samfile, $outfile;
+		my $command = sprintf("%s cat -h %s -o %s ", $sam_app, $samfile, $outfile);
+		if ($sam_version >= 10) {
+			# enable multi-theading and no program note for 1.10 or greater
+			$command .= sprintf("--no-PG --threads %s ", $cpu);
+		}
 		$command .= join(' ', map { $targetfiles{$_} } @tid_list);
 		print " executing $sam_app cat to merge children...\n";
 		if (system($command)) {
@@ -1734,9 +1755,8 @@ sub random_se_alignment_writer {
 	}
 	
 	# cut off above maximum
-	if ($max and scalar @keep > $max) {
-		my @removed = splice(@keep, $max - 1);
-		push @toss, @removed;
+	if (defined $max and scalar(@keep) >= $max) {
+		push @toss, splice(@keep, $max - 1); # we've already written the first one
 	}
 	
 	# write out keepers
@@ -1823,9 +1843,8 @@ sub write_out_random_pe_alignments {
 			}
 	
 			# cut off above maximum
-			if ($max and scalar @keep > $max) {
-				my @removed = splice(@keep, $max - 1);
-				push @toss, @removed;
+			if (defined $max and scalar(@keep) >= $max) {
+				push @toss, splice(@keep, $max - 1); # we've already written the first one
 			}
 	
 			# write out keepers
