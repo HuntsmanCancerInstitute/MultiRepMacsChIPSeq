@@ -100,10 +100,10 @@ Below is a general overview of the pipeline.
 
 - Intersect peaks
 
-    Use [intersect_peaks](#intersect_peakspl) to intersect the peaks from each
-    ChIP condition into a master list of peaks across all ChIP conditions, as well as
-    generate a variety of statistics regarding the peaks and their overlap. These
-    statistics are plotted as QC plots by
+    Use [intersect_peaks](applications.md#intersect_peakspl) to intersect the peaks
+    from each ChIP condition into a master list of peaks across all ChIP conditions,
+    as well as generate a variety of statistics regarding the peaks and their
+    overlap. These statistics are plotted as QC plots by
     [plot_peak_figures](applications.md#plot_peak_figuresr).
 
 - Rescore merged peaks
