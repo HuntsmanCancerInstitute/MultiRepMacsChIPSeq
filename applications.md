@@ -254,8 +254,8 @@ Version: 2
 
 ## intersect_peaks.pl
 
-A script to intersect two or more peak files. This is a wrapper around the bedtools 
-program.
+A script to intersect two or more peak files. This is a wrapper around the 
+[BedTools](https://bedtools.readthedocs.io) program.
 
 It will first calculate a number of descriptive statistics for the interval lengths 
 for each input file, including count, sum, standard deviation, and quartiles.
@@ -263,12 +263,12 @@ for each input file, including count, sum, standard deviation, and quartiles.
 It will merge all of the peak files into a single representative bed file.
 Peak intervals will be renamed to the given name. 
 
-It will run the bedtools Jaccard statistic pairwise across all of the peak 
+It will run the _bedtools Jaccard_ statistic pairwise across all of the peak 
 files and write out a merged table of the results. The Jaccard statistic measures 
 the amount of spatial overlap between two peak files (intersection/union) reported 
 as a fraction between 0 and 1.
 
-Finally, it will run bedtools multiinter tool to perform a multi-way intersection 
+Finally, it will run _bedtools multiinter_ tool to perform a multi-way intersection 
 and calculate the intervals for each category of overlap. This is parsed into a 
 summary file suitable for drawing a Venn diagram based on spatial overlap.
 
@@ -294,9 +294,11 @@ Options:
 
 ## multirep_macs2_pipeline.pl
 
-This is a wrapper for calling and/or comparing peaks in ChIPSeq or ATACSeq with single 
-or multiple replicas using the Macs2 ChIPSeq caller. It uses BioToolBox applications to 
-normalize duplicate levels and read depths between samples and replicates.
+This is a wrapper for calling and/or comparing peaks in ChIPSeq or ATACSeq with
+single or multiple replicas using the [Macs2](https://pypi.org/project/MACS2/)
+ChIPSeq caller. It uses [BioToolBox](https://metacpan.org/pod/Bio::ToolBox)
+applications to normalize duplicate levels and read depths between samples and
+replicates.
 
 Multiple ChIP samples (experiments) may be provided by repeating the chip option as 
 necessary for every experiment, factor, or antibody sample. Provide a separate name 

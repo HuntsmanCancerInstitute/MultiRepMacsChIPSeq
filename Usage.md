@@ -270,13 +270,15 @@ complexity. See the Pysano folder for example scripts.
 
 - Lambda-control
 
-    This pipeline uses the local lambda-control background of Macs2 to account for chromatin 
-    bias in the region. It uses the maximum signal derived from the reference control track 
-    based on three size ranges: d or the fragment size (`--size`), small local lambda 
-    (`--slocal`), and large local lambda (`--llocal`). Either small or large lambda may 
-    be turned off by setting the value to 0. Local lambda can be completely turned off 
-    by using `--nolambda`. If a reference control bam file is not provided (NOT recommended), 
-    then a chromosomal mean is calculated from the ChIP fragment coverage track.
+    This pipeline uses the local lambda-control background of Macs2 to account for
+    chromatin bias in the region. It uses the maximum signal derived from the
+    reference control track based on three size ranges: _d_ or the fragment size
+    (`--size`), _small local lambda_ (`--slocal`), and _large local lambda_
+    (`--llocal`). Either small or large _lambda_ may be turned off by setting the value
+    to 0. Local _lambda_ can be completely turned off by using `--nolambda`. If a
+    reference control bam file is not provided (generally NOT recommended, except in
+    some cases such as ATACSeq), then a global mean is calculated from the ChIP
+    fragment coverage track.
 
 - Enrichment tracks
 
@@ -299,8 +301,8 @@ complexity. See the Pysano folder for example scripts.
         --peaksize 250 \
         --peakgap 150 \
     
-    Peaks are reported as simple [bed](http://genome.ucsc.edu/FAQ/FAQformat.html#format1)
-    files with 5 columns. 
+    Peaks and peak summits are reported as simple
+    [bed](http://genome.ucsc.edu/FAQ/FAQformat.html#format1) files with 5 columns. 
     
     When multiple conditions are provided, the peaks are merged into a single Bed file, 
     representing all possible peaks identified.

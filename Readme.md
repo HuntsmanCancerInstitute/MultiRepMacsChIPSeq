@@ -77,28 +77,30 @@ Below is a general overview of the pipeline.
 
 - Generate count files
 
-    To facilitate generating count matrices later, point data (shifted start
-    positions or paired fragment midpoints) count bigWig files are generated using
-    [bam2wig](https://metacpan.org/pod/bam2wig.pl) for each sample replicate. By
-    default, replicates are depth-normalized and scaled to the target depth
-    (calculated automatically as the minimum observed depth of all provided Bam
-    files).
+    To facilitate generating count matrices later, point-data count bigWig files,
+    either shifted start positions (single-end) or fragment midpoints (paired-end),
+    are generated using [bam2wig](https://metacpan.org/pod/bam2wig.pl) for each
+    sample replicate. By default, replicates are depth-normalized and scaled to the
+    target depth (calculated automatically as the minimum observed depth of all
+    provided Bam files).
 
 - Generate enrichment files
 
-    Use Macs2 to generate q-value and Log2 Fold Enrichment tracks from the ChIP
-    fragment coverage and lambda control files for each ChIP condition separately.
+    Use [Macs2](https://pypi.org/project/MACS2/) to generate q-value and Log2 Fold
+    Enrichment tracks from the ChIP fragment coverage and lambda control files for
+    each ChIP condition separately.
 
 - Call peaks
 
-    Use Macs2 to call peaks from the q-value tracks for each ChIP condition separately 
-    using the indicated threshold, minimum peak size, and peak gap size for merging. 
-    The peak call parameters can be explicitly specified for custom control. Broad, or 
-    gapped-peak, calls may also be made if desired.
+    Use [Macs2](https://pypi.org/project/MACS2/) to call peaks from the q-value
+    tracks for each ChIP condition separately using the indicated threshold, minimum
+    peak size, and peak gap size for merging. The peak call parameters can be
+    explicitly specified for custom control. Broad, or gapped-peak, calls may also be
+    made if desired.
 
 - Intersect peaks
 
-    Use [BedTools](https://bedtools.readthedocs.io) to intersect the peaks from each
+    Use [intersect_peaks](#intersect_peakspl) to intersect the peaks from each
     ChIP condition into a master list of peaks across all ChIP conditions, as well as
     generate a variety of statistics regarding the peaks and their overlap. These
     statistics are plotted as QC plots by
@@ -122,13 +124,13 @@ Below is a general overview of the pipeline.
 
     The merged peaks may then be evaluated for differential occupancy between two or
     more samples using rigorous statistical analysis. For example,
-    [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html) may be
-    used to identify significantly different peaks. Some basic R scripts are included
-    to perform such analysis on an ad hoc basis.
+    [DESeq2](https://bioconductor.org/packages/DESeq2/) may be used to identify
+    significantly different peaks. Some basic R scripts are included to perform such
+    analysis on an ad hoc basis.
 
 # Usage and installation
 
-See the accompanying [Usage Guide](usage.md) and 
+See the accompanying [Installation guide](INSTALL.md), [Usage Guide](Usage.md), and 
 [list of application menus](applications.md) for further information.
 
 # AUTHOR
