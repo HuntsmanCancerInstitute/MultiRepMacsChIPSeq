@@ -447,7 +447,7 @@ if(file.exists(lfefile)) {
              paste0(opt$input,"_log2FE_hm"))
       plot_mean_k_hm(lfedata, opt$min, opt$max, 4, clrs, color4, 
                  "Mean Log2 Fold Enrichment over merged peaks, 4 Clusters",
-                 paste0(opt$input,"_log2FE_hm_K10"))
+                 paste0(opt$input,"_log2FE_hm_K4"))
       plot_mean_k_hm(lfedata, opt$min, opt$max, 6, clrs, color6, 
                  "Mean Log2 Fold Enrichment over merged peaks, 6 Clusters",
                  paste0(opt$input,"_log2FE_hm_K6"))

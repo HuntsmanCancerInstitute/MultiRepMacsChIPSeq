@@ -54,8 +54,8 @@ unless ($db) {
 
 # output file
 unless ($out) {
-	my (undef, undef, $out) = File::Spec->splitpath($db);
-	$out =~ s/(?:bam|bw|bigwig|bb|bigbed|fasta|fa)$//i;
+	(undef, undef, $out) = File::Spec->splitpath($db);
+	$out =~ s/\.(?:bam|bw|bigwig|bb|bigbed|fasta|fa)$//i;
 	$out .= '.chromosomes.txt';
 }
 
