@@ -2116,9 +2116,9 @@ sub generate_dedup_commands {
 				if (defined $opts{maxdepth} and $opts{maxdepth} > 1) {
 					$command .= sprintf("--max %s ", $opts{maxdepth});
 				}
-			}
-			if ($opts{optdist}) {
-				$command .= sprintf("--optical --distance %s ", $opts{optdist});
+				if ($opts{optdist}) {
+					$command .= sprintf("--optical --distance %s ", $opts{optdist});
+				}
 			}
 			if ($opts{paired} or $opts{deduppair}) {
 				$command .= "--pe ";
@@ -2161,9 +2161,9 @@ sub generate_dedup_commands {
 				if (defined $opts{maxdepth} and $opts{maxdepth} > 1) {
 					$command .= sprintf("--max %s ", $opts{maxdepth});
 				}
-			}
-			if ($opts{optdist}) {
-				$command .= sprintf("--optical --distance %s ", $opts{optdist});
+				if ($opts{optdist}) {
+					$command .= sprintf("--optical --distance %s ", $opts{optdist});
+				}
 			}
 			if ($opts{paired} or $opts{deduppair}) {
 				$command .= "--pe ";
