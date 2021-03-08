@@ -18,12 +18,12 @@ use File::Copy;
 use File::Spec;
 use File::Which;
 use File::Path qw(make_path);
-use List::Util qw(min);
+use List::Util qw(min uniqstr);
 use Getopt::Long;
 use Parallel::ForkManager;
 use Bio::ToolBox::utility qw(simplify_dataset_name);
 
-my $VERSION = 15.1;
+my $VERSION = 15.2;
 
 # parameters
 my %opts = (
@@ -572,14 +572,28 @@ sub check_input_files {
 	print "\n\n======= Checking input files\n";
 	my $error = 0;
 	foreach my $i (0 .. $#names) {
-		foreach my $f (split ',', $chips[$i]) {
+		my @list = split ',', $chips[$i];
+		if (scalar(@list) != uniqstr(@list)) {
+			printf " Duplicate entries found in %s ChIP entries!\n", $names[$i];
+			# fix it
+			@list = uniqstr(@list);
+			$chips[$i] = join(',', @list);
+		}
+		foreach my $f (@list) {
 			unless (-e $f) {
 				printf(" can't find %s ChIP file %s!\n", $names[$i], $f);
 				$error++;
 			}
 		}
 		if ($controls[$i]) {
-			foreach my $f (split ',', $controls[$i]) {
+			my @list2 = split ',', $controls[$i];
+			if (scalar(@list2) != uniqstr(@list2)) {
+				printf " Duplicate entries found in %s control entries!\n", $names[$i];
+				# fix it
+				@list2 = uniqstr(@list2);
+				$chips[$i] = join(',', @list2);
+			}
+			foreach my $f (@list2) {
 				unless (-e $f) {
 					printf(" can't find %s control file %s!\n", $names[$i], $f);
 					$error++;
