@@ -463,14 +463,15 @@ with the --genome option.
 
 MESSAGE
 	}
+	delete $opts{species};
 	
 	# directory
 	unless ($opts{dryrun}) {
 		unless (-e $opts{dir} and -d _) {
-			make_path($opts{dir}) or die sprintf("unable to make directory %s! $!\n", $opts{dir});
+			make_path($opts{dir}) or die sprintf("Unable to make directory %s! $!\n", $opts{dir});
 		}
 		unless (-w $opts{dir}) {
-			die sprintf("target directory %s is not writable!\n", $opts{dir});
+			die sprintf("Target directory %s is not writable!\n", $opts{dir});
 		}
 	}
 	# target depth
@@ -499,13 +500,13 @@ MESSAGE
 		if ($opts{paired}) {
 			# paired fragments
 			if (not $opts{peaksize}) {
-				print "\n WARNING! Setting minimum peak size to 500 bp, but this should be manually\n set based on mean alignment insert size and nature of experiment.\n\n";
+				print "\nWARNING! Setting minimum peak size to 500 bp, but this should be manually\nset based on mean alignment insert size and nature of experiment.\n\n";
 				$opts{peaksize} = 500;
 				$opts{fragsize} = 250; # for expected background normalization
 			}
 		}
 		else {
-			die " Must set an estimated mean fragment size for single-end alignments!\n  Run 'macs2 predictd' or 'bam2wig.pl --shift --model'\n";
+			die "Must set an estimated mean fragment size for single-end alignments!\n  Run 'macs2 predictd' or 'bam2wig.pl --shift --model'\n";
 		}
 	}
 	unless (defined $opts{peakgap}) {
@@ -522,9 +523,9 @@ MESSAGE
 	
 	# exclusion list
 	if ($opts{blacklist} and not -e $opts{blacklist}) {
-		printf("\n WARNING! Unable to find specified black list file '%s'!\n", $opts{blacklist});
+		printf("\nWARNING! Unable to find specified black list file '%s'!\n", $opts{blacklist});
 		if (scalar(@controls)) {
-			print " Defaulting to using input-derived exclusion list\n";
+			print "Defaulting to using input-derived exclusion list\n";
 			$opts{blacklist} = 'input';
 		}
 		else {
@@ -538,7 +539,7 @@ MESSAGE
 	# max depth-duplication confusion
 	if (defined $opts{maxdup}) {
 		# because this was inappropriately named before
-		print " \n WARNING: The --maxdup option is now --maxdepth\n";
+		print " \nWARNING: The --maxdup option is now --maxdepth\n";
 		$opts{maxdepth} = $opts{maxdup};
 	}
 	delete $opts{maxdup};
