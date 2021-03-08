@@ -1,5 +1,41 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
+v15.2
+	multirep_macs2_pipeline.pl
+	- Check for duplicate input bam files, which can cause havoc later on.
+	- Only run optical duplicate checking when necessary
+	- Minor fixes
+
+	print_chromosome_lengths.pl
+	- bug fix
+	
+v15.1
+	multirep_macs2_pipeline.pl
+	- Change maxdup option to maxdepth. The option was misnamed, as setting 
+	  this to 1 would technically still leave 1 duplicate behind. Now 
+	  setting to 1 actually ensures all duplicates are removed, leaving 1 
+	  alignment per position.
+	- Improve error checking and reporting, especially of inputs. Default 
+	  to generating custom exclusion list when one isn't provided or available.
+	- Change default profile data collection to +/- 1 Kb (25 x 40 bins each side).
+	
+	bam_partial_dedup.pl
+	- Major update to version 5. Max option now sets maximum depth, whereas 
+	  before it implied depth but actually did duplicate number.
+	- Removed faulty method of calculating maximum depth to achieve target 
+	  duplication rate, i.e. --norandom option. This wasn't recommended, 
+	  never worked well, and wasn't used anyway. Won't be missed.
+	- Change options when running samtools. 
+	
+	print_chromosome_lengths.pl
+	- Changed internal method of generating files by avoiding temp files
+	
+	plot_peak_figures.R
+	- Switch to plotting k-means of 4, 6, 8 clusters (dropping 10)
+	
+	run_DESeq2.R
+	- Include p-value column in output
+
 v15.0
 	multirep_macs2_pipeline.pl
 	- Calculate exclusion lists empirically from provided Input Bam files. 
