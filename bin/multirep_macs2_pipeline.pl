@@ -894,7 +894,7 @@ sub run_input_peak_detection {
 	$command .= " 2>&1 > $logfile ";
 	
 	# add the mean bedgraph file
-	$command .= sprintf(" && %s %s.bdg 2>> $logfile ", $opts{meanbdg}, $opts{blacklist});
+	$command .= sprintf(" && %s %s.bdg 2>&1 >> $logfile ", $opts{meanbdg}, $opts{blacklist});
 	
 	# add the q-value conversion
 	$command .= sprintf(" && %s bdgcmp -t %s.bdg -c %s.global_mean.bdg -m qpois -o %s.qvalue.bdg 2>> $logfile ",
