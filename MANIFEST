@@ -15,6 +15,9 @@ bin/report_mappable_space.pl
 bin/run_DESeq2.R
 bin/run_normR_difference.R
 bin/run_normR_enrichment.R
+lib/Bio/MultiRepChIPSeq/Runner.pm
+lib/Bio/MultiRepChIPSeq/options.pm
+lib/Bio/MultiRepChIPSeq/Job.pm
 Build.PL
 LICENSE
 MANIFEST			This list of files
