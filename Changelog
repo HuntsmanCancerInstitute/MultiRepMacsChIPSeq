@@ -1,5 +1,25 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
+
+v16
+	multirep_macs2_pipeline.pl
+	- Completely restructure internal code (!!!), breaking apart the script 
+	  into separate code libraries for future work and sustainability. 
+	  No functional changes.
+	
+	recall_peaks.pl
+	- New script for calling new peaks with different parameters from a 
+	  completed pipeline run. This avoids re-running the entire pipeline or 
+	  performing it manually. Utilizes the new library code to avoid redundancy.
+	
+	subset_bigwig.pl
+	- New script to extract one chromosome from a bigWig file, basically to 
+	  make a smaller version for quick evaluation on a personal computer.
+	
+	print_chromosome_lengths.pl
+	- Improve chromosome order output from bigWig files, since the adapter 
+	  does not maintain order.
+
 v15.2
 	multirep_macs2_pipeline.pl
 	- Check for duplicate input bam files, which can cause havoc later on.
