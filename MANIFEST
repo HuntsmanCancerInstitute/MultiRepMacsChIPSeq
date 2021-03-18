@@ -11,10 +11,12 @@ bin/peak2bed.pl
 bin/plot_shift_models.R
 bin/plot_peak_figures.R
 bin/print_chromosome_lengths.pl
+bin/recall_peaks.pl
 bin/report_mappable_space.pl
 bin/run_DESeq2.R
 bin/run_normR_difference.R
 bin/run_normR_enrichment.R
+bin/subset_bigwig.pl
 lib/Bio/MultiRepChIPSeq/Runner.pm
 lib/Bio/MultiRepChIPSeq/options.pm
 lib/Bio/MultiRepChIPSeq/Job.pm
