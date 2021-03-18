@@ -22,6 +22,8 @@ Documentation for the applications included in this package:
 
 - [print_chromosome_lengths.pl](#print_chromosome_lengthspl)
 
+- [recall_peaks.pl](#recall_peakspl)
+
 - [report_mappable_space.pl](#report_mappable_spacepl)
 
 - [run_DESeq2.R](#run_deseq2r)
@@ -29,6 +31,8 @@ Documentation for the applications included in this package:
 - [run_normR_difference.R](#run_normr_differencer)
 
 - [run_normR_enrichment.R](#run_normr_enrichmentr)
+
+- [subset_bigwig.pl](#subset_bigwigpl)
 
 
 ## bam_partial_dedup.pl
@@ -333,7 +337,7 @@ as a (poor) substitute.
 
 Advanced users may provide one processed bigWig file per ChIP or control sample. 
 
-Version: 15.1
+Version: 16
 
 Options:
 
@@ -531,6 +535,73 @@ Options:
 	-o --out "file"              Optional file name, default db basename
 
 
+## recall_peaks.pl
+
+This script will take an existing a MultiRep ChIPSeq Pipeline results 
+directory, and re-run the peak calling, merging, and rescoring steps 
+under new parameters. This allows you to investigate alternative peak 
+calling parameters. New QC and analysis plots are generated based on 
+the new peaks. 
+
+This does not require Bam files, nor does it re-process alignments or 
+coverage files. It simply re-uses the pre-existing q-value tracks for 
+making new peak calls with different parameters. If you want to change 
+parameters for alignments or coverage, you will need to rerun the 
+pipeline over again. Existing fragment coverage, log2 Fold Enrichment, 
+and count bigWig files are used for re-scoring the new peaks. As such, 
+it expects file outputs from the MultiRep ChIPSeq Pipeline. 
+
+New peak and analysis files are placed into new subdirectories with a 
+numeric suffix (allowing for multiple conditions to be run consecutively) 
+without overwriting pre-existing files. Peaks from different runs can 
+subsequently be compared using the intersect_peaks.pl script, if desired.
+
+Options:
+
+	 Input files
+	  --in        file basename     Base filename for previous pipeline output
+	  --dir       directory         Directory for writing all files (./)
+	  --out       file basename     Base filename for new output files (merged)
+  
+	 Peak calling
+	  --cutoff    number            Threshold q-value for calling peaks () 
+	                                  Higher numbers are more significant, -1*log10(q)
+	  --peaksize  integer           Minimum peak size to call ()
+	  --peakgap   integer           Maximum gap between peaks before merging ()
+	  --broad                       Also perform broad (gapped) peak calling
+	  --broadcut  number            Q-value cutoff for linking broad regions ()
+	  --broadgap  integer           Maximum link size between peaks in broad calls ()
+  
+	 Peak scoring
+	  --binsize   integer           Size of bins in 25 flanking peak bins for profile (40)
+	  --repmean                     Combine replicate counts as mean for each sample set
+	  --noplot                      Do not plot figures of results
+  
+	 Job control
+	  --cpu       integer           Number of CPUs to use per job (4)
+	  --job       integer           Number of simultaneous jobs (2)
+	  --dryrun                      Just print the commands without execution
+	  --noorganize                  Do not organize files into subfolders when finished
+
+	 Application  Paths
+	  --macs      path             (macs2)
+	  --manwig    path             (manipulate_wig.pl)
+	  --wig2bw    path             (wigToBigWig)
+	  --bw2bdg    path             (bigWigToBedGraph)
+	  --printchr  path             (print_chromosome_lengths.pl)
+	  --data2wig  path             (data2wig.pl)
+	  --getdata   path             (get_datasets.pl)
+	  --getrel    path             (get_relative_data.pl)
+	  --geteff    path             (get_chip_efficiency.pl)
+	  --meanbdg   path             (generate_mean_bedGraph.pl)
+	  --bedtools  path             (bedtools)
+	  --intersect path             (intersect_peaks.pl)
+	  --peak2bed  path             (peak2bed.pl)
+	  --combrep   path             (combine_replicate_data.pl)
+	  --plotpeak  path             (plot_peak_figures.R)
+	  --rscript   path             (Rscript)
+
+
 ## report_mappable_space.pl
 
 A script to report the mappable space of a genome based on empirical mapping 
@@ -698,5 +769,26 @@ Options:
 	
 	-h, --help
 		Show this help message and exit
+
+
+## subset_bigwig.pl
+
+A script to subset bigWig files to one specific chromosome. Useful for 
+downloading a smaller file to a personal computer for visual evaluation.
+New files are written in the specified directory with the same basename 
+appended with the chromosome name and extension.
+
+USAGE:
+
+	subset_bigwig.pl -c chr1 file1.bw file2.bw ...
+
+OPTIONS:
+
+	-c --chrom <text>       The chromosome to subset (default chr1)
+	-o --out <file>         The output directory (default ./)
+	-j --job <int>          Number of simultaneous jobs, (default 2)
+	--wig2bw <path>         (wigToBigWig)
+	--bw2wig <path>         (bigWigToWig)
+	--help                  Print documentation
 
 

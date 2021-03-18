@@ -410,7 +410,28 @@ regions (ChIP vs ChIP) or enrichment (ChIP vs Input). Replicates are not used, s
 replicate counts must be averaged; see the included
 [combine_replicate_data](applications.md#combine_replicate_datapl) script.
 
-## Differential Peak analysis
+## Re-call peaks with different parameters
+
+It's not unusual, if after evaluation, to decide that the original peak calling 
+parameters were not ideal and should be modified. Rather than re-running the entire 
+pipeline, peaks can now be recalled in a fraction of the time by re-using the 
+existing q-value tracks using the [recall_peaks](applications.md#recall_peakspl) 
+script. Modifications can be made to the `--peaksize`, `--peakgap`, 
+and `--cutoff` values, as well as the broad (gapped) peak parameters. Any changes 
+affecting alignments, fragments, or lambda background will necessitate re-running the 
+entire pipeline.
+
+	recall_peaks.pl --in all_chip --out recall --dir ChIPSeq --peaksize 150 --peakgap 100
+
+The original pipeline `--out` value is given as the `--in` value here, and a new 
+output defined. Point the directory to the same output directory as before, and the 
+relevant bigWig files should be found and re-used. Peaks will be recalled, merged, and 
+re-scored as before. New plots will be generated. New subfolders will be generated, 
+with an incrementing digit suffix; original files will not be overwritten. The 
+[intersect_peaks](applications.md#intersect_peakspl) script can be used to compare 
+the old and new peak calls, if desired.
+
+## Differential peak analysis
 
 Again, both packages may be used here. Use the
 [run_DESeq2](applications.md#run_deseq2r) script, specifying both ChIPs.
@@ -466,7 +487,7 @@ of the pipeline). Adjust accordingly for your situation.
 	$ plot_figures.R -i new_list
 
 In the above example, be sure to edit the `_samples.txt` file to reflect the new 
-samples, if necessary. Also, 
+samples, if necessary. 
 
 ## Reference genome scaling
 
