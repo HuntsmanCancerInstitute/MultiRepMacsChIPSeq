@@ -65,7 +65,34 @@ my @chromosomes = get_chromosome_list($db, $chrskip);
 unless (@chromosomes) {
 	die " no chromosome sequences identified in database file $db!\n";
 }
-
+if ($db =~ /\.(?:bw|bigwig|bb|bigbed)/i) {
+	# Bio::DB::Big adapters return chromosomes in random hash order, not given order
+	# let's try and sort reasonably
+	my @numeric;
+	my @partial;
+	my @alphic;
+	foreach (@chromosomes) {
+		if ($_->[0] =~ /^(?:chr)?(\d+)$/i) {
+			# standard chromosomes
+			$_->[2] = $1;
+			push @numeric, $_;
+		} 
+		elsif ($_->[0] =~ /(\d+)/) {
+			# contigs and such?
+			$_->[2] = $1;
+			push @partial, $_;
+		}
+		else {
+			# sex, mitochondrial
+			push @alphic, $_;
+		}
+	}
+	my @new;
+	push @new, sort { $a->[2] <=> $b->[2] } @numeric;
+	push @new, sort { $b->[1] <=> $a->[1] } @alphic; # sort these by size?
+	push @new, sort { $a->[2] <=> $b->[2] } @partial;
+	@chromosomes = @new;
+}
 
 # write the chromosome list
 my $fh = IO::File->new($out, '>') or 
