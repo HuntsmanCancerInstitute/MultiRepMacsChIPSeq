@@ -772,8 +772,8 @@ sub generate_bam2wig_frag_commands {
 		}
 		else {
 			# treat d just like ChIP, including extend and shift, this may deviate from Macs2
-			$command1 .= sprintf("--extend --extval %s --shiftval %0.0f --bin %s ", 
-				$self->fragsize, $self->shiftsize, $self->chipbin);
+			$command1 .= sprintf("--extend --extval %s --shiftval %0.0f ", 
+				$self->fragsize, $self->shiftsize);
 		}
 		if ($self->control_scale) {
 			$command1 .= sprintf("--scale %s ", join(',', $self->control_scale) );
