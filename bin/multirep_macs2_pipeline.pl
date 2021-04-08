@@ -19,7 +19,7 @@ use List::Util qw(uniqstr);
 use Getopt::Long;
 use Bio::MultiRepChIPSeq::Runner;
 
-my $VERSION = 16;
+my $VERSION = 16.1;
 
 # Initialize Runner and options
 my $Runner = Bio::MultiRepChIPSeq::Runner->new();
@@ -107,7 +107,6 @@ Options:
                                   use 100 for HiSeq, 2500 for NovaSeq
   --deduppair                   Run deduplication as paired-end, but coverage as single-end
                                   e.g. for ATAC-Seq cut site analysis
-  --savebam                     Save de-duplicated bam files
 
  Fragment coverage
   --size      integer           Predicted fragment size. REQUIRED for single-end
@@ -146,6 +145,8 @@ Options:
   --job       integer           Number of simultaneous jobs ($opts->{job})
   --dryrun                      Just print the commands without execution
   --noorganize                  Do not organize files into subfolders when finished
+  --savebam                     Save de-duplicated bam files
+  --savebdg                     Save text bedGraph files
 
  Application  Paths
   --bam2wig   path             ($opts->{bam2wig})
@@ -204,36 +205,35 @@ GetOptions(
 	'genome=i',
 	'mapq=i',
 	'paired|pe!',
-	'min=i',
-	'max=i',
 	'fraction!',
+	'minsize|min=i',
+	'maxsize|max=i',
 	'chrskip=s',
 	'blacklist=s',
 	'dedup!',
 	'dupfrac=f',
-	'maxdup=i',
+	'maxdup=i', # old option
 	'maxdepth=i',
 	'optdist=i',
 	'deduppair!',
-	'savebam!',
 	'fragsize|size=i',
-	'shift=i',
+	'shiftsize|shift=i',
 	'slocal=i',
 	'llocal=i',
-	'cbin=i',
-	'slbin=i',
-	'llbin=i',
+	'chipbin|cbin=i',
+	'slocalbin|slbin=i',
+	'llocalbin|llbin=i',
 	'chrnorm=f@',
 	'chrapply=s',
 	'cutoff=f',
-	'tdep=f',
+	'targetdep|tdep=f',
 	'peaksize=i',
 	'peakgap=i',
 	'broad!',
 	'broadcut=f',
 	'broadgap=i',
 	'lambda!',
-	'savebdg!',
+	'binsize=1',
 	'genomewin=i',
 	'discard=f',
 	'repmean!',
@@ -242,6 +242,8 @@ GetOptions(
 	'job=i',
 	'dryrun!',
 	'organize!',
+	'savebam!',
+	'savebdg!',
 	'help!',
 	'bam2wig=s',
 	'bamdedup=s',
