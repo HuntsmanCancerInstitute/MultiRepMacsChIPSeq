@@ -416,13 +416,14 @@ MESSAGE
 	}
 	
 	# sizes
-	if ($Runner->fragsize and not $Runner->peaksize) {
-		$Runner->peaksize(2 * $Runner->fragsize);
-	}
-	else {
-		# no fragment size defined? might be ok
-		if ($Runner->paired) {
-			# paired fragments
+	if (not $Runner->peaksize) {
+		# no minimum peak size defined? might be ok
+		if ($Runner->fragsize) {
+			# set default to twice fragment size
+			$Runner->peaksize(2 * $Runner->fragsize);
+		}
+		elsif ($Runner->paired) {
+			# paired fragments - make something up
 			if (not $Runner->peaksize) {
 				print "\nWARNING! Setting minimum peak size to 500 bp, but this should be manually\nset based on mean alignment insert size and nature of experiment.\n\n";
 				$Runner->peaksize(500);
