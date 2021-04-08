@@ -103,8 +103,6 @@ Export the hash as a reference.
 
 =item broadgap
 
-=item linkqv
-
 =item gaplink
 
 =item lambda
@@ -233,7 +231,6 @@ sub init_options {
 		broad       => 0,
 		broadcut    => 0.5,
 		broadgap    => undef,
-		linkqv      => 1,
 		gaplink     => undef,
 		lambda      => 1,
 		cpu         => 4,
@@ -491,12 +488,6 @@ sub broadgap {
 	my $self = shift;
 	$self->{opts}{broadgap} = shift if @_;
 	return $self->{opts}{broadgap};
-}
-
-sub linkqv {
-	my $self = shift;
-	$self->{opts}{linkqv} = shift if @_;
-	return $self->{opts}{linkqv};
 }
 
 sub gaplink {
