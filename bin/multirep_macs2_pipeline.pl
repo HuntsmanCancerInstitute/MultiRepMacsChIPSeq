@@ -233,7 +233,7 @@ GetOptions(
 	'broadcut=f',
 	'broadgap=i',
 	'lambda!',
-	'binsize=1',
+	'binsize=i',
 	'genomewin=i',
 	'discard=f',
 	'repmean!',
@@ -492,7 +492,7 @@ DRYRUN
 	}
 	print "\n\n======= Configuration\n";
 	foreach my $k (sort {$a cmp $b} keys %$opts) {
-		next if $k =~ /chip|control|name/;
+		next if $k =~ /^(?:chip|control|name)$/;
 		if (ref($opts->{$k}) eq 'ARRAY') {
 			printf "%12s\n%s", $k, join(",", map {"          $_"} @{$opts->{$k}} );
 		}
