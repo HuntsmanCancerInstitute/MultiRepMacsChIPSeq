@@ -20,7 +20,7 @@ use Bio::ToolBox 1.65;
 use List::Util qw(min max);
 use Statistics::Descriptive;
 
-my $VERSION = 4;
+my $VERSION = 4.1;
 
 # variables
 my $tool = which('bedtools');
@@ -60,6 +60,8 @@ Six files will be written:
     basename.spatialVenn.txt        summary of spatial overlap for each category
     basename.lengthStats.txt        interval length statistics for each file
 
+VERSION: $VERSION
+
 USAGE: intersect_peaks.pl --out <basename> peak1.narrowPeak peak2.narrowPeak ....
 
 OPTIONS:
@@ -94,10 +96,12 @@ if ($help) {
 die "must provide output base name!\n" unless $outfile;
 die "bedtools not in your PATH!\n" unless $tool;
 $outfile =~ s/\.(?:bed|narrowPeak)$//i; # strip any existing extension if provided
+my (undef, $out_path, $out_base) = File::Spec->splitpath($outfile);
 unless ($peak_basename) {
 	# use the outfile basename
-	(undef, undef, $peak_basename) = File::Spec->splitpath($outfile);
+	$peak_basename = $out_base;
 }
+$out_path ||= '.'; # current directory
 
 # inputs
 my @files = @ARGV;
@@ -114,6 +118,7 @@ my @names;
 my $LengthStats = Bio::ToolBox->new_data('File', 'Count', 'Sum', 
 	'Mean', 'StandardDev', 'Min', 'Percentile5','FirstQuartile', 'Median', 
 	'ThirdQuartile', 'Percentile95', 'Max');
+my @sortfiles;
 for my $file (@files) {
 	
 	# open file
@@ -150,15 +155,45 @@ for my $file (@files) {
 		sprintf("%.0f", $Stat->percentile(95)),
 		$Stat->max
 	] );
+	
+	# sort the file just for sanity purposes
+	$Data->gsort_data;
+	my $sortfile = File::Spec->catfile($out_path, $Data->basename . '.sort' . $Data->extension);
+	$Data->save($sortfile);
+	push @sortfiles, $sortfile;
 }
 $LengthStats->save("$outfile\.lengthStats.txt");
 
+
+### Sort genome file
+# yeah, this may seem counter intuitive, but by sorting EVERY file in the SAME manner
+# I can avoid a bucket load of head aches because bedtools is a stickler for sort order
+# the problem is that I can't guarantee that the peaks files match the chromosome file
+if ($genome_file) {
+	my $Data = Bio::ToolBox->load_file(
+		file     => $genome_file,
+		noheader => 1
+	) or die "can't read genome file '$genome_file'! $!";
+	$Data->name(0, 'chromosome');
+	$Data->name(1, 'start');
+	$Data->gsort_data;
+	$genome_file = File::Spec->catfile($out_path, $Data->basename . '.sort' . $Data->extension);
+	# we can't use standard file writing mechanism here, because it'll write headers
+	# do it manually
+	my $fh = Bio::ToolBox->write_file($genome_file) or 
+		die "unable to write $genome_file! $!";
+	$Data->iterate( sub {
+		my $row = shift;
+		$fh->printf("%s\t%s\n", $row->value(0), $row->value(1));
+	});
+	$fh->close;
+}
 
 
 ### Merge the peaks
 print " Merging peak files....\n";
 my $merge_peak_file = $outfile . '.bed';
-my $command = sprintf("cat %s | ", join(" ", @files));
+my $command = sprintf("cat %s | ", join(" ", @sortfiles));
 if (min(@numcols) != max(@numcols)) {
 	# unequal columns, must trim excess columns
 	$command .= sprintf("cut -f%d-%d | ", 1, min(@numcols));
@@ -215,7 +250,7 @@ for my $f1 (0..$#names) {
 	$IntersectionData->value($i, 0, $names[$f1]);
 	
 	for my $f2 (0..$#names) {
-		my $result = qx($jaccard_cmdbase -a $files[$f1] -b $files[$f2] 2>&1);
+		my $result = qx($jaccard_cmdbase -a $sortfiles[$f1] -b $sortfiles[$f2] 2>&1);
 		if ($result =~ /error/i) {
 			# there was some sort of error - the most likely is lexicographic 
 			# the user needs a genome file because the bed files are either not 
@@ -248,7 +283,7 @@ $IntersectionData->save("$outfile\.n_intersection.txt");
 print " Calculating multi-way intersection....\n";
 my $multi_file = $outfile . '.multi.txt';
 $command = sprintf("%s multiinter -header -names %s -i %s > %s", 
-	$tool, join(' ', @names), join(' ', @files), $multi_file);
+	$tool, join(' ', @names), join(' ', @sortfiles), $multi_file);
 if (system($command)) {
 	die "something went wrong! command:\n $command\n";
 }
@@ -279,4 +314,10 @@ $VennData->add_comment("Coverage in bp for each category and fraction of total")
 $VennData->save("$outfile\.spatialVenn.txt");
 
 
+
+### clean up
+unlink @sortfiles;
+if ($genome_file) {
+	unlink $genome_file;
+}
 

@@ -5,6 +5,11 @@ v16.1
 	multirep_macs2_pipeline.pl
 	- Bug fixes to ensure command line options are passed properly to the 
 	  Runner library object. Fixes problems with running in single-end mode. 
+	
+	intersect_peaks.pl
+	- Enforce peak sort order by resorting everything, because bedtools is 
+	  a stickler for sort order, and there is no guarantee provided files 
+	  are in the same order, even a provided genome file!
 
 v16
 	multirep_macs2_pipeline.pl
