@@ -129,6 +129,7 @@ Options:
 	--seed <int>       Provide an integer to set the random seed generator to 
 				         make the subsampling consistent (non-random).
 	--cpu <int>        Specify the number of threads to use (4) 
+	--verbose          Print more information
 	--help             Print full documentation
 
 

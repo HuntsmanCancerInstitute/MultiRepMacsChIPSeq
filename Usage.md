@@ -13,7 +13,7 @@ bam files using [samtools](https://github.com/samtools/samtools) or equivalent.
 University of Utah users using the HCI 
 [pysano](https://healthcare.utah.edu/huntsmancancerinstitute/research/shared-resources/center-managed/bioinformatics/pysano/) 
 system for executing jobs at [CHPC](https://www.chpc.utah.edu) can use the templates 
-in the pysano folder. 
+in this project's pysano folder. 
 
 ## Fragment length estimation
 
@@ -97,7 +97,7 @@ execute that. Before running, it's highly recommended to run the command with th
 
 The script will spawn numerous separate jobs in steps, running them in parallel. Job
 control is explained below in the options section. In general, the script is designed
-to run on a single workstation of compute node, rather than through a cluster job
+to run on a single workstation or compute node, rather than through a cluster job
 manager. Each step command is printed to `STDOUT` as the pipeline is run. Individual
 job output is captured in separate `.out.txt` files and combined into a single log
 file upon completion. Progress is tracked using a simple `output.progress.txt` file,
@@ -105,41 +105,61 @@ which is used to skip finished steps when restarting an incomplete run.
 
 ## Simple Peak call
 
-To call peaks on a single ChIPSeq sample with multiple replicates, call the
+To call peaks on a single-condition ChIPSeq sample with multiple replicates, call the
 [multirep_macs2_pipeline](applications.md#multirep_macs2_pipelinepl) script,
-giving the bam files as a comma-delimited list as shown below.
+treating each replicate as a separate sample. This allows the replicates to be compared 
+directly. If each replicate has a separate reference, then a separate `--control` 
+option can be repeated for each sample in the same order.
+
+    $ multirep_macs2_pipeline.pl \
+    --chip file1.bam \
+    --chip file2.bam \
+    --chip file3.bam \
+    --control input.bam \
+    --name my_experiment 
+
+Each replicate will have a separate peak call, and the replicates merged into a 
+single master set of peaks for subsequent analysis and comparison.
+
+Otherwise for simplicity, replicates can simply be averaged together by using a single 
+`--chip` argument and a comma-delimited list of bam files. In this case, very limited 
+plots will be generated.
 
     $ multirep_macs2_pipeline.pl \
     --chip file1.bam,file2.bam,file3.bam \
     --control input.bam \
     --name my_experiment 
 
-With only one sample, only a limited number of plots will be generated.
-
 ## Differential peak calls
 
 When multiple conditions are being tested and compared for differential binding, then
 simply add additional `--chip` and `--name` arguments to the
-[multirep_macs2_pipeline](applications.md#multirep_macs2_pipelinepl) script. **NOTE**
-the order is kept the same for each condition. If each condition has a separate
-reference, then `--control` can be repeated for each as well. If there are multiple
-controls, and some are shared between more than one ChIP but not all, that's ok; list
-each control for each ChIP and duplicate entries will be smartly handled.
+[multirep_macs2_pipeline](applications.md#multirep_macs2_pipelinepl) script. In this 
+case, replicates for each condition are averaged together prior to peak calling, with 
+the assumption that a greater diversity and variance will be observed between the 
+conditions than between the replicates within each condition. 
+
+**NOTE** The order of multiple `--chip`, `--name`, and `--control` options is critical, 
+and must be provided in the same order. If there are multiple controls, and some are 
+shared between more than one ChIP but not all, then that's ok; list each control for 
+each ChIP and duplicate entries will be smartly handled.
 
     $ multirep_macs2_pipeline.pl \
     --chip file1.bam,file2.bam,file3.bam \
     --chip file4.bam,file5.bam,file6.bam \
     --chip file7.bam,file8.bam \
-    --control input.bam \
+    --control input1.bam \
+    --control input2.bam \
+    --control input3.bam \
     --name condition1 \ 
     --name condition2 \ 
     --name condition3 \
     --out all_chips
 
 At the end of the pipeline, individual peaks from all conditions are merged into a 
-single master list of all peaks identified. This can be used in further custom 
-analysis to determine significant differential occupancy. Comparison plots are 
-generated to assist in evaluation.
+single master list of all peaks identified. This is used in subsequent differential 
+analysis to determine significant differential occupancy. A number of comparison 
+plots are generated to assist in evaluation.
 
 
 ## Pipeline options
@@ -176,7 +196,7 @@ complexity. See the Pysano folder for example scripts.
         --dupfrac 0.05 \
     
     Alternatively you can set a maximum number of allowed reads at any position. This
-    option might help with hotspots (but black lists are a better approach). 
+    option might help with hotspots (but exclusion lists are a better approach). 
     
         --dupfrac 0 \
         --maxdepth 10 \
@@ -187,15 +207,30 @@ complexity. See the Pysano folder for example scripts.
         --maxdepth 1 \
     
     Or you may completely turn off de-duplication by using the `--nodedup` flag. Use
-    this option if you have already marked duplicates, perhaps by using unique
-    molecular indexes (UMIs) or barcodes (see
+    this option if you have already marked or removed duplicates, perhaps by using 
+    unique molecular indexes (UMIs) or barcodes (see
     [UMIScripts](https://github.com/HuntsmanCancerInstitute/UMIScripts), for
     example). Marked duplicate reads are **always** skipped regardless of these
     settings.
     
     In general, random subsampling is preferred over setting an arbitrary maximum depth, 
     which is analogous to cutting off all peaks at a certain height, effectively making 
-    all peaks the same.
+    all peaks the same. 
+    
+    Subsampling works well for point-source datasets, such as transcription factor 
+    binding or highly-restricted histone marks, such as H3K4me3, where high levels 
+    of biological duplication is expected. For broad enrichment, where biological 
+    duplication is rare, duplicate subsampling is less useful, and complete 
+    de-duplication may be more efficient.
+    
+    **NOTE** Optical de-duplication is critical when sub-sampling duplicates. If your
+    sequencing was done on a patterned Illumina flow cell, such as Novaseq, with
+    observably high optical duplicates, you should set an optical pixel distance as
+    appropriate. Note that this works with Illumina CASAVA style read names; reads
+    from SRA don't retain original spot names, so optical duplicate checking can't be
+    performed.
+    
+        --optdist 2500 \
     
 - Read filtering
 
@@ -216,7 +251,7 @@ complexity. See the Pysano folder for example scripts.
     available to down-weight multiple-mapping alignments, which usually have low
     mapping qualities. Rather than scoring the alignment as 1 (prior to depth
     normalization), the alignment is scored as a fraction of the number of hits,
-    recorded in the alignment tag `NH`, essentially as `1/NH`. This allows more for
+    recorded in the alignment tag `NH`, essentially as `1/NH`. This allows for more 
     comprehensive coverage while avoiding high coverage from low quality alignments.
 
 - Fragment size and coverage tracks
@@ -246,7 +281,7 @@ complexity. See the Pysano folder for example scripts.
     To expedite coverage track generation, fragment coverage tracks are binned (10 bp
     by default for ChIP). This greatly reduces computation time while minimally
     affecting coverage resolution. Lambda track binning is set automatically based on
-    lambda size.
+    lambda size, but can be set manually for those obsessively inclined.
     
     All tracks are generated as Read (Fragment) Per Million (or RPM) depth-normalized 
     values. Multiple replicates are mean averaged and reported as a single track.
