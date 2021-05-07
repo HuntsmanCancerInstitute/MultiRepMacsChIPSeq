@@ -130,6 +130,7 @@ OPTIONS:
   --seed <int>        Provide an integer to set the random seed generator to 
                         make the subsampling consistent (non-random).
   --cpu <int>         Specify the number of threads to use (4) 
+  --verbose           Print more information
   --help              Print full documentation
 
 END
@@ -161,7 +162,7 @@ END
 ### Get Options
 my ($fraction, $max, $infile, $outfile, $do_optical, $optical_thresh, $keep_optical, 
 	$mark, $random, $paired, $min_mapq, $chr_exclude, $black_list, $seed, $cpu, $tilepos, 
-	$xpos, $ypos, $name_coordinates, $report_distance, $no_sam, $help);
+	$xpos, $ypos, $name_coordinates, $report_distance, $no_sam, $verbose, $help);
 my @program_options = @ARGV;
 GetOptions( 
 	'in=s'       => \$infile, # the input bam file path
@@ -181,6 +182,7 @@ GetOptions(
 	'seed=i'     => \$seed, # seed for non-random random subsampling
 	'cpu=i'      => \$cpu, # number of cpu cores to use
 	'coord=s'    => \$name_coordinates, # tile:X:Y name positions
+	'verbose!'   => \$verbose, # tell me more
 	'bam=s'      => \$BAM_ADAPTER, # specifically set the bam adapter, advanced!
 	'nosam!'     => \$no_sam, # avoid using external sam adapter, advanced!
 	'help!'      => \$help, # print documentation
@@ -257,6 +259,7 @@ if ($min_mapq) {
 # input bam file
 my $sam = open_db_connection($infile) or # automatically takes care of indexing
 	die "unable to read bam $infile $!";
+print " using '$BAM_ADAPTER' Perl Bam adapter\n" if $verbose;
 
 # read header and set adapter specific alignment writer
 my ($header, $write_alignment);
@@ -624,6 +627,7 @@ sub count_alignments_singlethread {
 		# since we're using external interval tree module that is not fork-safe, must 
 		# recreate interval tree each time
 		my $seq_id = $sam->target_name($tid);
+		print "  counting $seq_id $items...\n" if $verbose;
 		if ($black_list_hash and exists $black_list_hash->{$seq_id}) {
 			my $tree = Set::IntervalTree->new;
 			foreach (@{ $black_list_hash->{$seq_id} }) {
@@ -645,6 +649,7 @@ sub count_alignments_singlethread {
 		
 		# add chromosome counts to global values
 		$totalCount += $data->{totalCount};
+		printf("   %d $items counted on $seq_id\n", $data->{totalCount}) if $verbose;
 		while (my ($d, $c) = each %{ $data->{depth2count} } ) {
 			$depth2count{$d} += $c;
 		}
@@ -686,6 +691,7 @@ sub count_alignments_multithread {
 	$pm->run_on_finish( sub {
 		my ($pid, $exit_code, $ident, $exit_signal, $core_dump, $data) = @_;
 		# add child counts to global values
+		print "   child process $pid exited with code $exit_code\n" if $verbose;
 		$totalCount += $data->{totalCount};
 		$opticalCount += $data->{optCount};
 		$coordErrorCount += $data->{coordError};
@@ -715,6 +721,7 @@ sub count_alignments_multithread {
 		
 		### in child
 		$sam->clone;
+		print "  counting $seq_id $items...\n" if $verbose;
 		
 		# prepare callback data structure
 		my $data = {
@@ -751,6 +758,7 @@ sub count_alignments_multithread {
 		}
 		
 		# finish and return to parent
+		printf("   %d $items counted on $seq_id\n", $data->{totalCount}) if $verbose;
 		delete $data->{reads};
 		delete $data->{position};
 		undef $data->{black_list}; # why is this necessary?
@@ -1176,6 +1184,7 @@ sub deduplicate_singlethread {
 		# since we're using external interval tree module that is not fork-safe, must 
 		# recreate interval tree each time
 		my $seq_id = $sam->target_name($tid);
+		print "  deduplicating $seq_id $items...\n" if $verbose;
 		if ($black_list_hash and exists $black_list_hash->{$seq_id}) {
 			my $tree = Set::IntervalTree->new;
 			foreach (@{ $black_list_hash->{$seq_id} }) {
@@ -1199,7 +1208,8 @@ sub deduplicate_singlethread {
 		}
 		
 		# add up the counts
-		printf " wrote %d alignments\n", $data->{nondup} + $data->{duplicate};
+		printf("   wrote %d $items for $seq_id\n", $data->{nondup} + $data->{duplicate}) 
+			if $verbose;
 		foreach my $k (qw(total nondup duplicate toss)) {
 			$counts{$k} += $data->{$k};
 		}
@@ -1226,6 +1236,7 @@ sub deduplicate_multithread {
 	$pm->run_on_finish( sub {
 		my ($pid, $exit_code, $ident, $exit_signal, $core_dump, $data) = @_;
 		# add child counts to global values
+		print "   child process $pid exited with code $exit_code\n" if $verbose;
 		foreach my $k (qw(total optical nondup duplicate toss unpaired)) {
 			$counts{$k} += $data->{$k};
 		}
@@ -1242,6 +1253,8 @@ sub deduplicate_multithread {
 		
 		### in child
 		$sam->clone;
+		my $seq_id = $sam->target_name($tid);
+		print "  deduplicating $seq_id $items...\n" if $verbose;
 		
 		# set the random seed
 		if (defined $seed) {
@@ -1273,7 +1286,6 @@ sub deduplicate_multithread {
 		# process black lists for this chromosome
 		# since we're using external interval tree module that is not fork-safe, must 
 		# recreate interval tree each time
-		my $seq_id = $sam->target_name($tid);
 		if ($black_list_hash and exists $black_list_hash->{$seq_id}) {
 			my $tree = Set::IntervalTree->new;
 			foreach (@{ $black_list_hash->{$seq_id} }) {
@@ -1305,6 +1317,8 @@ sub deduplicate_multithread {
 		undef $data->{black_list}; # why is this necessary?
 		delete $data->{black_list};
 		undef $tempbam;
+		printf("   wrote %d $items for $seq_id\n", $data->{nondup} + $data->{duplicate}) 
+			if $verbose;
 		$pm->finish(0, $data); 
 	}
 	$pm->wait_all_children;
@@ -1347,6 +1361,7 @@ sub deduplicate_multithread {
 	
 	
 	# open final bam new bam file
+	print " writing merged Bam file with adapter\n";
 	my $outbam = Bio::ToolBox::db_helper::write_new_bam_file($outfile) or 
 		die "unable to open output bam file $outfile! $!";
 		# using an unexported subroutine imported as necessary depending on bam availability
