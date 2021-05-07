@@ -30,7 +30,7 @@ eval {
 	$parallel = 1;
 };
 
-my $VERSION = 5;
+my $VERSION = 5.1;
 
 my $DOC = <<END;
 
@@ -394,6 +394,15 @@ sub count_alignments {
 	} else {
 		($totalCount, $opticalCount, $coordErrorCount, $depth2count, $dupmatrix,
 			 $distance2count) = count_alignments_singlethread();
+	}
+	
+	# sanity check
+	if ($totalCount == 0) {
+		print "\n Something is wrong! Zero $items were counted!\n Check your bam file to make sure mapped alignments are present.\n";
+		if ($paired) {
+			print " Also check that the bam file truly has paired-end alignments,\n or run in single-end mode (without --pe option)\n\n";
+		}
+		exit;
 	}
 	
 	# report duplication statistics
