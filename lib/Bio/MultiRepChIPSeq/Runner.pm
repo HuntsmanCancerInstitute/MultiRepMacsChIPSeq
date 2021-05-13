@@ -1,4 +1,5 @@
 package Bio::MultiRepChIPSeq::Runner;
+our $VERSION = 16.2;
 
 =head1 name
 
@@ -119,6 +120,10 @@ sub new {
 		sample_file         => undef,
 	};
 	return bless $self, $class;
+}
+
+sub version {
+	return $VERSION;
 }
 
 sub add_job {

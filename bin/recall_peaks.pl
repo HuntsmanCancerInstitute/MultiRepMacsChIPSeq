@@ -19,11 +19,11 @@ use File::Path qw(make_path);
 use Getopt::Long;
 use Bio::MultiRepChIPSeq::Runner;
 
-my $VERSION = 1;
 
 # Initialize Runner and options
 my $Runner = Bio::MultiRepChIPSeq::Runner->new();
 my $opts = $Runner->options;
+my $VERSION = $Runner->version;
 
 # reset some default parameters for recalling
 undef $opts->{peaksize};

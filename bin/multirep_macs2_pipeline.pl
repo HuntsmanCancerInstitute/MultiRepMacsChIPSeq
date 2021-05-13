@@ -19,12 +19,10 @@ use List::Util qw(uniqstr);
 use Getopt::Long;
 use Bio::MultiRepChIPSeq::Runner;
 
-my $VERSION = 16.1;
-
 # Initialize Runner and options
 my $Runner = Bio::MultiRepChIPSeq::Runner->new();
 my $opts = $Runner->options;
-
+my $VERSION = $Runner->version;
 
 my $documentation = <<DOC;
 

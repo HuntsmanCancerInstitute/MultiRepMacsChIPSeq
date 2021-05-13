@@ -7,7 +7,7 @@ use Module::Build;
 my $build = Module::Build->new(
 	dist_name         => 'MultiRepMacsChIPSeq',
 	module_name       => 'MultiRepMacsChIPSeq',
-	dist_version_from => 'bin/multirep_macs2_pipeline.pl',
+	dist_version_from => 'lib/Bio/MultiRepChIPSeq/Runner.pm',
 	dist_abstract     => 'Multiple-replica multiple-condition Macs2 ChIPSeq wrapper',
 	dist_author       => 'Timothy Parnell <timothy.parnell@hci.utah.edu>',
 	license           => 'artistic_2',
