@@ -1,6 +1,15 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v16.2
+	multirep_macs2_pipeline.pl
+	- Print configuration, job commands, and job logs in order of execution 
+	  to the combined log output when complete.
+	
+	bam_partial_dedup.pl
+	- add sanity check to ensure alignments were counted
+	- added verbose option
+
 v16.1
 	multirep_macs2_pipeline.pl
 	- Bug fixes to ensure command line options are passed properly to the 
