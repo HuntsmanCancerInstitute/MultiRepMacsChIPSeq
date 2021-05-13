@@ -1492,30 +1492,56 @@ sub run_cleanup {
 	my $self = shift;
 	return if $self->dryrun;
 	print "\n\n======= Combining log files\n";
+	my @output;
 	
+	# Version
+	push @output, "======== ChIPSeq multi-replicate pipeline ==========\n";
+	push @output, "\nProgram $0\n";
+	push @output, "Version $VERSION\n";
 	
-	# combine output logs
-	my @combined_output;
+	# Configuration
+	push @output, $self->print_config(1); # capture it
+	
+	# Combine known output logs
+	push @output, "\n\n======= Job Logs\n";
+	foreach my $command (@{ $self->{finished_commands} }) {
+		# job command string
+		push @output, sprintf "\n\n=== Job: %s\n", $command->[0];
+		
+		# job log file
+		if ($command->[2] and -e $command->[2]) {
+			if (-s _ ) {
+				# file is not empty
+				my $fh = IO::File->new($command->[2], 'r') or next;
+				push @output, <$fh>;
+				$fh->close;
+			}
+			unlink $command->[2];
+		}
+	}
+	
+	# Check for remaining log files, perhaps from previously completed steps
 	my @logs = glob(File::Spec->catfile($self->dir, '*.out.txt'));
 	foreach my $log (@logs) {
-		push @combined_output, "=== Log file: $log\n";
+		push @output, "=== Log file: $log\n";
 		if (-z $log) {
 			# an empty file
-			push @combined_output, "\n";
-			unlink $log;
+			push @output, "\n";
 		}
 		else {
 			# push log contents to combined output
 			my $fh = IO::File->new($log, 'r') or next;
-			push @combined_output, <$fh>;
-			push @combined_output, "\n";
+			push @output, <$fh>;
+			push @output, "\n";
 			$fh->close;
 		}
 		unlink $log if -e $log;
 	}
+	
+	# print everything out
 	my $file = File::Spec->catfile($self->dir, $self->out . "_job_output_logs.txt");
 	my $fh = IO::File->new($file, "w");
-	foreach (@combined_output) {
+	foreach (@output) {
 		$fh->print($_);
 	}
 	$fh->close;
