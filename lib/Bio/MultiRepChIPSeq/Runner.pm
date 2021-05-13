@@ -1451,6 +1451,42 @@ sub run_plot_peaks {
 	$self->execute_commands( [ [$command, $example, $log] ] );
 }
 
+sub print_config {
+	my $self = shift;
+	my $capture = shift || 0;
+	my @output;
+	
+	# Samples
+	push @output, "\n\n======= Samples\n";
+	my @names = $self->name;
+	for my $i (0 .. $#names) {
+		push @output, sprintf " %s ChIP: %s\n", $names[$i], ($self->chip)[$i]; 
+		push @output, sprintf " %s Control: %s\n", $names[$i], ($self->control)[$i] || q();
+	}
+	
+	# Run parameters
+	push @output, "\n\n======= Configuration\n";
+	foreach my $k (sort {$a cmp $b} keys %{$self->{opts}} ) {
+		if (ref($self->{opts}->{$k}) eq 'ARRAY') {
+			# next if $k =~ /^(?:chip|control|name)$/;
+			push @output, sprintf "%12s  %s\n", $k, 
+				join(",\n              ", @{$self->{opts}->{$k}} );
+		}
+		else {
+			push @output, sprintf "%12s  %s\n", $k, $self->{opts}->{$k};
+		}
+	}
+	
+	# Finish
+	if ($capture) {
+		return @output;
+	}
+	else {
+		print @output;
+	}
+	return;
+}
+
 
 sub run_cleanup {
 	my $self = shift;

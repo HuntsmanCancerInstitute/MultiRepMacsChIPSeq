@@ -253,17 +253,7 @@ mostly be complete. No files will be generated.
 
 DRYRUN
 	}
-	
-	print "\n\n======= Configuration\n";
-	foreach my $k (sort {$a cmp $b} keys %$opts) {
-		next if $k =~ /chip|control|name/;
-		if (ref($opts->{$k}) eq 'ARRAY') {
-			printf "%12s\n%s", $k, join(",", map {"          $_"} @{$opts->{$k}} );
-		}
-		else {
-			printf "%12s  %s\n", $k, $opts->{$k};
-		}
-	}
+	$Runner->print_config;
 	print "\n\n";
 }
 
