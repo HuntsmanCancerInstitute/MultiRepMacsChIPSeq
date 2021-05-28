@@ -78,6 +78,12 @@ replace the existing one.
 
 =item chr_normfactor
 
+=item chip_rep_names
+
+=item rep_peaks
+
+=item rep_gappeaks
+
 =item chip_bw
 
 =item chip_bdg
@@ -143,7 +149,11 @@ The commands can be executed by the L<Bio::MultiRepChIPSeq::Runner> object.
 
 =item generate_peakcall_commands
 
+=item generate_independent_peakcall_commands
+
 =item generate_cleanpeak_commands
+
+=item generate_independent_merge_peak_commands
 
 =item generate_bdg2bw_commands
 
