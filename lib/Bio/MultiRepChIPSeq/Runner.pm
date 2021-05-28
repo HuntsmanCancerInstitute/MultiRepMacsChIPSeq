@@ -1472,7 +1472,8 @@ sub run_plot_peaks {
 	# add independent peak calls
 	if ($self->independent) {
 		foreach my $Job ($self->list_jobs) {
-			my $jobbase = File::Spec->catfile($self->dir, $self->job_name);
+			next if (scalar($Job->rep_peaks) == 1); # nothing to compare
+			my $jobbase = File::Spec->catfile($self->dir, $Job->job_name);
 			my $command = sprintf("%s %s --input %s ", $self->rscript_app, 
 				$self->plotpeak_app, $jobbase);
 			my $example = $jobbase . '.jaccard.png';
