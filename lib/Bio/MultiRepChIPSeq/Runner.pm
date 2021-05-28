@@ -1,5 +1,5 @@
 package Bio::MultiRepChIPSeq::Runner;
-our $VERSION = 16.2;
+our $VERSION = 17;
 
 =head1 name
 
@@ -899,15 +899,34 @@ sub run_call_peaks {
 		print "\nStep is completed\n";
 		return;
 	}
+	
+	# generate commands based on whether we're doing joint or independent calls
+	my $i = $self->independent;
 	foreach my $Job ($self->list_jobs) {
-		push @commands, $Job->generate_peakcall_commands;
+		if ($i) {
+			push @commands, $Job->generate_independent_peakcall_commands;
+		}
+		else {
+			push @commands, $Job->generate_peakcall_commands;
+		}
 	}
 	$self->execute_commands(\@commands);
+	
+	# independent calls must be merged
+	if ($i) {
+		@commands = ();
+		foreach my $Job ($self->list_jobs) {
+			push @commands, $Job->generate_independent_merge_peak_commands;
+		}
+		$self->execute_commands(\@commands);
+	}
+	
 	$self->update_progress_file('callpeak');
 }
 
 sub run_clean_peaks {
 	my $self = shift;
+	return if $self->independent; # not necessary here
 	my @commands;
 	print "\n\n======= Cleaning peak files\n";
 	if ($self->{progress}{cleanpeak}) {
@@ -1448,7 +1467,22 @@ sub run_plot_peaks {
 	# there are multiple output files from this script
 	# only using one as an example
 	my $example = File::Spec->catfile($self->dir, $self->out . '_PCA.png');
-	$self->execute_commands( [ [$command, $example, $log] ] );
+	my @commands = ( [$command, $example, $log] );
+	
+	# add independent peak calls
+	if ($self->independent) {
+		foreach my $Job ($self->list_jobs) {
+			my $jobbase = File::Spec->catfile($self->dir, $self->job_name);
+			my $command = sprintf("%s %s --input %s ", $self->rscript_app, 
+				$self->plotpeak_app, $jobbase);
+			my $example = $jobbase . '.jaccard.png';
+			my $log = $jobbase . '.plot_figures.out.txt';
+			$command .= " 2>&1 $log"; 
+			push @commands, [$command, $example, $log];
+		}
+	}
+	
+	$self->execute_commands(\@commands);
 }
 
 sub print_config {
@@ -1563,6 +1597,15 @@ sub run_cleanup {
 			}
 		}
 	}
+	if ($self->broad and $self->independent) {
+		foreach my $Job ($self->list_jobs) {
+			foreach my $f ($Job->rep_gappeaks) {
+				my $b = $f;
+				$b =~ s/gapped/broad/;
+				unlink $b;
+			}
+		}
+	}
 	unlink $self->chromofile if $self->chromofile eq 
 		File::Spec->catfile($self->dir,"chrom_sizes.temp.txt"); # calculated format
 	unlink $self->{progress_file};
@@ -1622,18 +1665,35 @@ sub run_organize {
 		move($_, $countdir);
 	}
 	
-	# merged peak
+	# peak files
 	foreach (glob(File::Spec->catfile($self->dir, '*.summit.bed')) ) {
 		move($_, $sumitdir);
 	}
 	foreach (glob(File::Spec->catfile($self->dir, '*.bed')) ) {
 		move($_, $peakdir);
 	}
+	if ($self->independent) {
+		foreach (glob(File::Spec->catfile($self->dir, '*.narrowPeak')) ) {
+			move($_, $peakdir);
+		}
+		if ($self->broad) {
+			foreach (glob(File::Spec->catfile($self->dir, '*.gappedPeak')) ) {
+				move($_, $peakdir);
+			}
+		}
+	}
 	
 	# text files
 	foreach (glob(File::Spec->catfile($self->dir, '*.txt*')) ) {
 		next if $_ =~ /job_output_logs\.txt$/;
 		move($_, $analdir);
+	}
+	
+	# independent macs2 analysis files
+	if ($self->independent) {
+		foreach (glob(File::Spec->catfile($self->dir, '*.xls')) ) {
+			move($_, $analdir);
+		}
 	}
 	
 	# image files

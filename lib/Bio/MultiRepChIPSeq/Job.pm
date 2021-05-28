@@ -172,6 +172,9 @@ sub new {
 	    control_bams        => [], # array of initial conrol bam file names
 	    chip_dedup_bams     => [], # array of deduplicated bam file names
 	    chip_use_bams       => [], # array of final bam file names to use
+	    chip_rep_names      => [], # array of ChIP file base names
+	    rep_peaks           => [], # array of ChIP replicate peaks
+	    rep_gappeaks        => [], # array of ChIP replicate gapped peaks
 	    control_dedup_bams  => [], # array of deduplicated control bam files
 	    control_use_bams    => [], # array of final control bam files to use
 	    chip_scale          => [], # array of scaling factors for chip signal
@@ -240,11 +243,15 @@ sub new {
 		foreach my $bam (@bams) {
 			my (undef, undef, $fname) = File::Spec->splitpath($bam);
 			$fname =~ s/\.bam$//i; # strip extension
+			$self->chip_rep_names($fname);
 			my $base = File::Spec->catfile($self->dir, $fname);
 			# count bigWig
 			$self->chip_count_bw("$base.count.bw");
 			# dedup bam
 			$self->chip_dedup_bams("$base.dedup.bam");
+			# replicate peak file if running independent calls
+			$self->rep_peaks($base . '_peaks.narrowPeak');
+			$self->rep_gappeaks($base . '_peaks.gappedPeak');
 		}
 	}
 	
@@ -392,6 +399,24 @@ sub chr_normfactor {
 	my $self = shift;
 	$self->{chr_normfactor} = shift if @_;
 	return $self->{chr_normfactor};
+}
+
+sub chip_rep_names {
+	my $self = shift;
+	push @{ $self->{chip_rep_names} }, @_ if @_;
+	return @{ $self->{chip_rep_names} };
+}
+
+sub rep_peaks {
+	my $self = shift;
+	push @{ $self->{rep_peaks} }, @_ if @_;
+	return @{ $self->{rep_peaks} };
+}
+
+sub rep_gappeaks {
+	my $self = shift;
+	push @{ $self->{rep_gappeaks} }, @_ if @_;
+	return @{ $self->{rep_gappeaks} };
 }
 
 sub chip_bw {
@@ -1361,6 +1386,149 @@ sub generate_peakcall_commands {
 	return [$command, $self->peak, $log];
 }
 
+sub generate_independent_peakcall_commands {
+	my $self = shift;
+	unless ($self->macs_app =~ /\w+/ or $self->dryrun) {
+		croak "no MACS2 application in path!\n";
+	}
+	my $chip_number = scalar($self->chip_use_bams);
+	unless ($chip_number >= 1) {
+		$self->crash("no ChIP bam files specified!");
+	}
+	
+	# generic Macs2 options
+	my $generic;
+	if ($self->paired) {
+		$generic .= "--format BAMPE --nomodel ";
+	}
+	else {
+		# single-end options
+		# we're skipping modeling size - recommended to ensure consistent comparisons
+		$generic .= sprintf "--format BAM --nomodel --extsize %s ", $self->fragsize;
+		if ($self->shiftsize) {
+			$generic .= sprintf("--shift %s ", $self->shiftsize);
+		}
+	}
+	my $formatter = '%.' . sprintf("%d", int($self->cutoff + 0.5)) . 'f';
+	$generic .= sprintf("--keep-dup all --qvalue $formatter --min-length %d --max-gap %d --slocal %d --llocal %d --gsize %d --outdir %s ",
+		10**(-1 * $self->cutoff),
+		$self->peaksize,
+		$self->peakgap,
+		$self->slocal,
+		$self->llocal,
+		$self->genome,
+		$self->dir
+	);
+	
+	# broad specific options
+	my $broad_generic = $generic;
+	if ($self->broad) {
+		$formatter = '%.' . sprintf("%d", int($self->broadcut + 0.5)) . 'f';
+		$broad_generic .= sprintf("--broad --broad-cutoff $formatter ", 
+			10**(-1 * $self->broadcut));
+	}
+	
+	# generate commands for each ChIP replicate
+	my @commands;
+	if (scalar($self->control_use_bams) == $chip_number) {
+		# perfect, equal numbers
+		for (my $i = 0; $i < $chip_number; $i++) {
+			# narrow peak
+			my $command = sprintf("%s callpeak --treatment %s --control %s --name %s $generic ", 
+				$self->macs_app || 'macs2', 
+				($self->chip_use_bams)[$i],
+				($self->control_use_bams)[$i],
+				($self->chip_rep_names)[$i]
+			);
+			my $out = ($self->rep_peaks)[$i];
+			my $log = $out;
+			$log =~ s/narrowPeak$/narrowpeakcall.out.txt/;
+			$command .= "2> $log ";
+			push @commands, [$command, $out, $log];
+			
+			# broad peaks
+			if ($self->broad) {
+				my $command = sprintf("%s callpeak --treatment %s --control %s --name %s $broad_generic ", 
+					$self->macs_app || 'macs2', 
+					($self->chip_use_bams)[$i],
+					($self->control_use_bams)[$i],
+					($self->chip_rep_names)[$i]
+				);
+				my $out = ($self->rep_gappeaks)[$i];
+				my $log = $out;
+				$log =~ s/gappedPeak$/broadcall.out.txt/;
+				$command .= "2> $log ";
+				push @commands, [$command, $out, $log];
+			}
+		}  
+	}
+	elsif (scalar($self->control_use_bams) == 0) {
+		# no control? ok
+		for (my $i = 0; $i < $chip_number; $i++) {
+			# narrow peak
+			my $command = sprintf("%s callpeak --treatment %s --name %s $generic ", 
+				$self->macs_app || 'macs2', 
+				($self->chip_use_bams)[$i],
+				($self->chip_rep_names)[$i]
+			);
+			my $out = ($self->rep_peaks)[$i];
+			my $log = $out;
+			$log =~ s/narrowPeak$/narrowpeakcall.out.txt/;
+			$command .= "2> $log ";
+			push @commands, [$command, $out, $log];
+			
+			# broad peak
+			if ($self->broad) {
+				my $command = sprintf("%s callpeak --treatment %s --name %s $broad_generic ", 
+					$self->macs_app || 'macs2', 
+					($self->chip_use_bams)[$i],
+					($self->chip_rep_names)[$i]
+				);
+				my $out = ($self->rep_gappeaks)[$i];
+				my $log = $out;
+				$log =~ s/ggappedPeak$/broadcall.out.txt/;
+				$command .= "2> $log ";
+				push @commands, [$command, $out, $log];
+			}
+		}  
+	}
+	else {
+		# use all the control bams for each separate chip 
+		for (my $i = 0; $i < $chip_number; $i++) {
+			# narrow peak
+			my $command = sprintf("%s callpeak --treatment %s --control %s --name %s $generic ", 
+				$self->macs_app || 'macs2', 
+				($self->chip_use_bams)[$i],
+				join(' ', ($self->control_use_bams)),
+				($self->chip_rep_names)[$i]
+			);
+			my $out = ($self->rep_peaks)[$i];
+			my $log = $out;
+			$log =~ s/_peaks\.narrowPeak$/.narrowpeakcall.out.txt/;
+			$command .= "2> $log ";
+			push @commands, [$command, $out, $log];
+			
+			# broad peak
+			if ($self->broad) {
+				my $command = sprintf("%s callpeak --treatment %s --control %s --name %s $broad_generic ", 
+					$self->macs_app || 'macs2', 
+					($self->chip_use_bams)[$i],
+					join(' ', ($self->control_use_bams)),
+					($self->chip_rep_names)[$i]
+				);
+				my $out = ($self->rep_gappeaks)[$i];
+				my $log = $out;
+				$log =~ s/_peaks\.gappedPeak$/.broadcall.out.txt/;
+				$command .= "2> $log ";
+				push @commands, [$command, $out, $log];
+			}
+		}  
+	}
+	
+	# finished
+	return @commands;
+}
+
 sub generate_cleanpeak_commands {
 	my $self = shift;
 	return unless defined $self->peak; # skip control jobs
@@ -1424,6 +1592,105 @@ sub generate_cleanpeak_commands {
 			);
 		}
 		return [$command1, $self->clean_peak, ''];
+	}
+}
+
+sub generate_independent_merge_peak_commands {
+	my $self = shift;
+	unless ($self->peak2bed_app =~ /\w+/ or $self->dryrun) {
+		croak "no peak2bed.pl application in path!\n";
+	}
+	unless ($self->bedtools_app =~ /\w+/ or $self->dryrun) {
+		croak "no bedtools application in path!\n";
+	}
+	unless ($self->intersect_app =~ /\w+/ or $self->dryrun) {
+		croak "no intersect_peaks.pl application in path!\n";
+	}
+	
+	# generate commands
+	if (scalar($self->rep_peaks) == 1) {
+		# only one replicate peak? ok
+		my $np = ($self->rep_peaks)[0];
+		my $gp = ($self->rep_gappeaks)[0];
+		my $command = sprintf "%s ", $self->peak2bed || 'peak2bed.pl';
+		if (
+			(-e $np and -s _ > 0) or
+			$self->dryrun
+		) {
+			# narrowPeak file exists and non-zero length
+			$command .= "$np ";
+		}
+		if (
+			$self->broad and 
+			( (-e $gp and -s _ > 0) or $self->dryrun)
+		) {
+			 # gappedPeak file exists too
+			 $command .= "$gp ";
+		}
+		my $out = $np;
+		$out =~ s/narrowPeak/bed/;
+		my $log = $out;
+		$log =~ s/bed/cleanpeak.out.txt/;
+		$command .= sprintf(" 2>&1 > $log && mv $out %s ", $self->clean_peak);
+		if ($self->broad) {
+			my $out2 = $out;
+			$out2 =~ s/bed/gapped.bed/;
+			$command .= sprintf ("&& mv $out2 %s ", $self->clean_gappeak);
+		}
+		return [$command, $out, $log];
+	}
+	elsif (scalar($self->rep_peaks) > 1) {
+		# more than one replicate peak, merge them
+		my $command = sprintf("%s --name %s --out %s --bed %s --genome %s ", 
+			$self->intersect_app || 'intersect_peaks.pl', 
+			$self->job_name, 
+			$self->clean_peak, 
+			$self->bedtools_app || 'bedtools', 
+			$self->chromofile
+		);
+		foreach my $f ($self->rep_peaks) {
+			if (
+				(-e $f and -s _ > 0) or
+				$self->dryrun
+			) {
+				$command .= "$f ";
+			}
+		}
+		my $out = $self->clean_peak;
+		my $log = $out;
+		$log =~ s/bed/intersect.out.txt/;
+		$command .= " 2>&1 > $log ";
+		
+		# broad gapped peaks
+		if ($self->broad) {
+			my $command2 = sprintf("%s --name %s --out %s --bed %s --genome %s ", 
+				$self->intersect_app || 'intersect_peaks.pl', 
+				$self->job_name, 
+				$self->clean_gappeak, 
+				$self->bedtools_app || 'bedtools', 
+				$self->chromofile
+			);
+			foreach my $f ($self->rep_gappeaks) {
+				if (
+					(-e $f and -s _ > 0) or
+					$self->dryrun
+				) {
+					$command2 .= "$f ";
+				}
+			}
+			my $out2 = $self->clean_gappeak;
+			my $log2 = $out2;
+			$log2 =~ s/bed/intersect.out.txt/;
+			$command2 .= " 2>&1 > $log2 ";
+			# return both narrow and broad commands
+			return ( [$command, $out, $log], [$command2, $out2, $log2] );
+		}
+		else {
+			return [$command, $out, $log];
+		}
+	}
+	else {
+		$self->crash("no replicate peaks!?");
 	}
 }
 

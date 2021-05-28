@@ -129,6 +129,7 @@ Options:
   --broadcut  number            Q-value cutoff for linking broad regions ($opts->{broadcut})
   --broadgap  integer           Maximum link size between peaks in broad calls (4 x size bp)
   --nolambda                    Skip lambda control, compare ChIP directly with control
+  --independent                 Call peaks independently for each replicate and merge
   
  Peak scoring
   --binsize   integer           Size of bins in 25 flanking peak bins for profile ($opts->{binsize})
@@ -231,6 +232,7 @@ GetOptions(
 	'broadcut=f',
 	'broadgap=i',
 	'lambda!',
+	'independent!',
 	'binsize=i',
 	'genomewin=i',
 	'discard=f',

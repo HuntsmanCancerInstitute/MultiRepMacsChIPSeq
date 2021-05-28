@@ -233,6 +233,7 @@ sub init_options {
 		broadgap    => undef,
 		gaplink     => undef,
 		lambda      => 1,
+		independent => 0,
 		cpu         => 4,
 		job         => 2,
 		chipbin     => 10,
@@ -500,6 +501,12 @@ sub lambda {
 	my $self = shift;
 	$self->{opts}{lambda} = shift if @_;
 	return $self->{opts}{lambda};
+}
+
+sub independent {
+	my $self = shift;
+	$self->{opts}{independent} = shift if @_;
+	return $self->{opts}{independent};
 }
 
 sub chrskip {
