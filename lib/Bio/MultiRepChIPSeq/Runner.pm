@@ -1461,7 +1461,7 @@ sub run_plot_peaks {
 	}
 	my $command = sprintf("%s %s --input %s ", $self->rscript_app, 
 		$self->plotpeak_app, $outbase);
-	my $log = $outbase . '_plot_figures.out.txt';
+	my $log = $outbase . '.plot_figures.out.txt';
 	$command .= " 2>&1 > $log";
 	
 	# there are multiple output files from this script

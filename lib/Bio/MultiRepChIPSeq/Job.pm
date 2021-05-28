@@ -737,7 +737,7 @@ sub generate_bam2wig_frag_commands {
 		# finish fragment command
 		$frag_command .= sprintf("--in %s ", join(',', $self->chip_use_bams));
 		my $log = $self->chip_bdg;
-		$log =~ s/bdg$/out.txt/;
+		$log =~ s/bdg$/bam2wig.out.txt/;
 		$frag_command .= " 2>&1 > $log";
 		push @commands, [$frag_command, $self->chip_bdg, $log];
 		
@@ -815,7 +815,7 @@ sub generate_bam2wig_frag_commands {
 			$control_bam_string
 		);
 		my $log = $self->d_control_bdg;
-		$log =~ s/bdg$/out.txt/;
+		$log =~ s/bdg$/bam2wig.out.txt/;
 		$command1 .= " 2>&1 > $log";
 		push @commands, [$command1, $self->d_control_bdg, $log];
 		
@@ -843,7 +843,7 @@ sub generate_bam2wig_frag_commands {
 				$control_bam_string
 			);
 			$log = $self->s_control_bdg;
-			$log =~ s/bdg$/out.txt/;
+			$log =~ s/bdg$/bam2wig.out.txt/;
 			$command2 .= " 2>&1 > $log";
 			push @commands, [$command2, $self->s_control_bdg, $log];
 		}
@@ -871,7 +871,7 @@ sub generate_bam2wig_frag_commands {
 				$control_bam_string
 			);
 			$log = $self->l_control_bdg;
-			$log =~ s/bdg$/out.txt/;
+			$log =~ s/bdg$/bam2wig.out.txt/;
 			$command3 .= " 2>&1 > $log";
 			push @commands, [$command3, $self->l_control_bdg, $log];
 		}
@@ -930,7 +930,7 @@ sub generate_bam2wig_frag_commands {
 		# finish command
 		$frag_command .= "--in $control_bam_string ";
 		my $log = $self->lambda_bdg;
-		$log =~ s/bdg$/out.txt/;
+		$log =~ s/bdg$/bam2wig.out.txt/;
 		$frag_command .= " 2>&1 > $log";
 		push @commands, [$frag_command, $self->lambda_bdg, $log];
 		
@@ -1015,7 +1015,7 @@ sub generate_bam2wig_count_commands {
 			);
 			# output log
 			my $log = $out;
-			$log =~ s/bw$/out.txt/;
+			$log =~ s/bw$/bam2wig.out.txt/;
 			$command .= " 2>&1 > $log";
 			push @commands, [$command, $out, $log];
 		}
@@ -1085,7 +1085,7 @@ sub generate_bam2wig_count_commands {
 			);
 			# output log
 			my $log = $out;
-			$log =~ s/bw$/out.txt/;
+			$log =~ s/bw$/bam2wig.out.txt/;
 			$command .= " 2>&1 > $log";
 			push @commands, [$command, $out, $log];
 		}
@@ -1116,7 +1116,7 @@ sub generate_lambda_control_commands {
 			croak "no generate_mean_bedGraph.pl application in path!\n";
 		}
 		my $log = $self->lambda_bdg;
-		$log =~ s/bdg/out.txt/;
+		$log =~ s/bdg/meanbdg.out.txt/;
 		my $chipfile; # we can use either bw or bdg
 		if (-e $self->chip_bw) {
 			$chipfile = $self->chip_bw;
@@ -1265,7 +1265,7 @@ sub convert_bw_to_bdg {
 		# if we're re-running a peak call and not a brand new pipeline
 		# or somebody hasn't cleaned up somehow....
 		my $log = $self->qvalue_bdg;
-		$log =~ s/bdg$/out.txt/;
+		$log =~ s/bdg$/bw2bdg.out.txt/;
 		my $command = sprintf("%s %s %s 2>> $log", 
 			$self->bw2bdg_app || 'bigWigToBedGraph', 
 			$self->qvalue_bw, 
@@ -1282,7 +1282,7 @@ sub convert_bw_to_bdg {
 	) {
 		# generate command if bigWig file exists or we're in dry run mode
 		my $log = $self->chip_bdg;
-		$log =~ s/bdg$/out.txt/;
+		$log =~ s/bdg$/bw2bdg.out.txt/;
 		my $command = sprintf("%s %s %s 2>> $log", 
 			$self->bw2bdg_app || 'bigWigToBedGraph', 
 			$self->chip_bw, 
@@ -1300,7 +1300,7 @@ sub convert_bw_to_bdg {
 		# generate command if bigWig exists and hasn't been done yet
 		# or if we're in dry run mode
 		my $log = $self->lambda_bdg;
-		$log =~ s/bdg$/out.txt/;
+		$log =~ s/bdg$/bw2bdg.out.txt/;
 		my $command = sprintf("%s %s %s 2>> $log", 
 			$self->bw2bdg_app || 'bigWigToBedGraph', 
 			$self->lambda_bw, 
@@ -1719,7 +1719,7 @@ sub generate_bdg2bw_commands {
 		) {
 			# convert 
 			my $log = $self->chip_bw;
-			$log =~ s/bw$/out.txt/;
+			$log =~ s/bw$/bdg2bw.out.txt/;
 			my $command = sprintf("%s %s %s %s 2>&1 > $log && rm %s", 
 				$self->wig2bw_app || 'wigToBigWig',
 				$self->chip_bdg,
@@ -1741,7 +1741,7 @@ sub generate_bdg2bw_commands {
 		else {
 			# lambda control bigWig
 			my $log = $self->lambda_bw;
-			$log =~ s/bw$/out.txt/;
+			$log =~ s/bw$/bdg2bw.out.txt/;
 			my $command = sprintf("%s %s %s %s 2>&1 > $log && rm %s", 
 				$self->wig2bw_app || 'wigToBigWig',
 				$self->lambda_bdg,
@@ -1754,7 +1754,7 @@ sub generate_bdg2bw_commands {
 			# d control fragment bigWig
 			if ($self->d_control_bdg and $self->d_control_bw) {
 				$log = $self->d_control_bw;
-				$log =~ s/bw$/out.txt/;
+				$log =~ s/bw$/bdg2bw.out.txt/;
 				$command  = sprintf("%s %s %s %s 2>&1 > $log && rm %s", 
 					$self->wig2bw_app || 'wigToBigWig',
 					$self->d_control_bdg,
@@ -1778,7 +1778,7 @@ sub generate_bdg2bw_commands {
 		elsif (not -e $self->qvalue_bw or $self->dryrun) {
 			# convert bedGraph
 			my $log = $self->qvalue_bw;
-			$log =~ s/bw$/out.txt/;
+			$log =~ s/bw$/bdg2bw.out.txt/;
 			my $command = sprintf("%s %s %s %s 2>&1 > $log ", 
 				$self->wig2bw_app || 'wigToBigWig',
 				$self->qvalue_bdg,
@@ -1794,7 +1794,7 @@ sub generate_bdg2bw_commands {
 	if ($self->fe_bdg) {
 		# convert this to log2 Fold Enrichment because I like this better
 		my $log = $self->logfe_bw;
-		$log =~ s/bw$/out.txt/;
+		$log =~ s/bw$/bdg2bw.out.txt/;
 		my $command = sprintf("%s --in %s --log 2 --place 4 --w2bw %s --chromo %s --out %s 2>&1 > $log ",
 			$self->manwig_app || 'manipulate_wig.pl',
 			$self->fe_bdg,
