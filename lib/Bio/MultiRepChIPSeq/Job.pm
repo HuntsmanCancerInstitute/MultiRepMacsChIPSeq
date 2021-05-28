@@ -233,6 +233,7 @@ sub new {
 		$self->peak("$namepath.narrowPeak");
 		$self->gappeak("$namepath.gappedPeak");
 		$self->clean_peak("$namepath.bed");
+		$self->peak_summit($namepath . '.summit.bed');
 		$self->clean_gappeak("$namepath.gapped.bed");
 		if ($chip_scale) {
 			$self->chip_scale(split(',', $chip_scale));
@@ -1609,35 +1610,13 @@ sub generate_independent_merge_peak_commands {
 	
 	# generate commands
 	if (scalar($self->rep_peaks) == 1) {
-		# only one replicate peak? ok
-		my $np = ($self->rep_peaks)[0];
-		my $gp = ($self->rep_gappeaks)[0];
-		my $command = sprintf "%s ", $self->peak2bed || 'peak2bed.pl';
-		if (
-			(-e $np and -s _ > 0) or
-			$self->dryrun
-		) {
-			# narrowPeak file exists and non-zero length
-			$command .= "$np ";
-		}
-		if (
-			$self->broad and 
-			( (-e $gp and -s _ > 0) or $self->dryrun)
-		) {
-			 # gappedPeak file exists too
-			 $command .= "$gp ";
-		}
-		my $out = $np;
-		$out =~ s/narrowPeak/bed/;
-		my $log = $out;
-		$log =~ s/bed/cleanpeak.out.txt/;
-		$command .= sprintf(" 2>&1 > $log && mv $out %s ", $self->clean_peak);
+		# only one replicate peak? nothing really to merge or clean
+		# just point clean files to the existing files
+		$self->clean_peak( ($self->rep_peaks)[0] );
 		if ($self->broad) {
-			my $out2 = $out;
-			$out2 =~ s/bed/gapped.bed/;
-			$command .= sprintf ("&& mv $out2 %s ", $self->clean_gappeak);
+			$self->clean_gappeak( ($self->rep_gappeaks)[0] );
 		}
-		return [$command, $out, $log];
+		return;
 	}
 	elsif (scalar($self->rep_peaks) > 1) {
 		# more than one replicate peak, merge them
