@@ -1,14 +1,22 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v17
+	multirep_macs2_pipeline.pl
+	- Allow peaks to be called independently on each ChIP replicate if 
+	  desired. Some replicates are not well correlated, and calling peaks 
+	  independently, then merging, can improve overall peak calls, particularly 
+	  when one replicate has poor enrichment. 
+	- Bug fixes.
+
 v16.2
 	multirep_macs2_pipeline.pl
 	- Print configuration, job commands, and job logs in order of execution 
 	  to the combined log output when complete.
 	
 	bam_partial_dedup.pl
-	- add sanity check to ensure alignments were counted
-	- added verbose option
+	- Add sanity check to ensure alignments were counted.
+	- Add verbose option.
 
 v16.1
 	multirep_macs2_pipeline.pl
@@ -18,7 +26,7 @@ v16.1
 	intersect_peaks.pl
 	- Enforce peak sort order by resorting everything, because bedtools is 
 	  a stickler for sort order, and there is no guarantee provided files 
-	  are in the same order, even a provided genome file!
+	  are in the same order, even with a provided genome file!
 
 v16
 	multirep_macs2_pipeline.pl
@@ -32,8 +40,9 @@ v16
 	  performing it manually. Utilizes the new library code to avoid redundancy.
 	
 	subset_bigwig.pl
-	- New script to extract one chromosome from a bigWig file, basically to 
-	  make a smaller version for quick evaluation on a personal computer.
+	- New script to extract one chromosome from one or more bigWig files, 
+	  basically to make a smaller version for quick evaluation on a personal 
+	  computer.
 	
 	print_chromosome_lengths.pl
 	- Improve chromosome order output from bigWig files, since the adapter 

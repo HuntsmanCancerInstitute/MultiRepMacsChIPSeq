@@ -376,7 +376,6 @@ Options:
 									  use 100 for HiSeq, 2500 for NovaSeq
 	  --deduppair                   Run deduplication as paired-end, but coverage as single-end
 	                                  e.g. for ATAC-Seq cut site analysis
-	  --savebam                     Save de-duplicated bam files
 	
 	 Fragment coverage
 	  --size      integer           Predicted fragment size (single-end only, 250 bp)
@@ -401,7 +400,7 @@ Options:
 	  --broadcut  number            Q-value cutoff for linking broad regions (0.5)
 	  --broadgap  integer           Maximum link size between peaks in broad calls (4 x size bp)
 	  --nolambda                    Skip lambda control, compare ChIP directly with control
-	  --savebdg                     Save q-value bdg files for further custom calling
+	  --independent                 Call peaks independently for each replicate and merge
 	
 	 Peak scoring
 	  --binsize   integer           Size of bins in 25 flanking peak bins for profile (40 bp)
@@ -416,6 +415,8 @@ Options:
 	  --job       integer           Number of simultaneous jobs (2)
 	  --dryrun                      Just print the commands without execution
 	  --noorganize                  Do not organize files into subfolders when finished
+	  --savebam                     Save de-duplicated bam files
+	  --savebdg                     Save q-value bdg files for further custom calling
 
 	 Application  Paths
 	  --bam2wig   path             (bam2wig.pl)

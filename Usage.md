@@ -137,7 +137,8 @@ simply add additional `--chip` and `--name` arguments to the
 [multirep_macs2_pipeline](applications.md#multirep_macs2_pipelinepl) script. In this 
 case, replicates for each condition are averaged together prior to peak calling, with 
 the assumption that a greater diversity and variance will be observed between the 
-conditions than between the replicates within each condition. 
+conditions than between the replicates within each condition. Independent replicate 
+peak calls can also alternatively be made, if desired, then merged.
 
 **NOTE** The order of multiple `--chip`, `--name`, and `--control` options is critical, 
 and must be provided in the same order. If there are multiple controls, and some are 
@@ -338,6 +339,14 @@ complexity. See the Pysano folder for example scripts.
     
     When multiple conditions are provided, the peaks are merged into a single Bed file, 
     representing all possible peaks identified.
+
+    When multiple replicates are given per condition, peak calls can be made
+    independently for each replicate, if so desired, by providing the `--independent`
+    flag. A good case for this is when the replicates do not have good correlation
+    with each other and/or enrichment varies between the replicates. In this case,
+    peak calling can be improved as enrichment is not averaged out between strong and
+    weak replicates. The replicate peaks are merged into a single condition peak file
+    prior to merging with the other conditions. 
 
 - Peak scoring
 
