@@ -1666,7 +1666,7 @@ sub run_organize {
 	}
 	
 	# peak files
-	foreach (glob(File::Spec->catfile($self->dir, '*.summit.bed')) ) {
+	foreach (glob(File::Spec->catfile($self->dir, '*summit*.bed')) ) {
 		move($_, $sumitdir);
 	}
 	foreach (glob(File::Spec->catfile($self->dir, '*.bed')) ) {
