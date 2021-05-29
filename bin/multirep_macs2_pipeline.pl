@@ -338,6 +338,10 @@ sub check_inputs {
 		$Runner->llocal(0);
 		$Runner->lambda(0);
 	}
+	if ($Runner->slocal == 0 and $Runner->llocal == 0) {
+		# user somehow set both to zero, but this throws errors to macs2
+		$Runner->lambda(0);
+	}
 	if (scalar($Runner->chscale) or scalar($Runner->coscale)) {
 		# no longer recommended
 			print <<MESSAGE;

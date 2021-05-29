@@ -1408,9 +1408,9 @@ sub generate_independent_peakcall_commands {
 	}
 	
 	# generic Macs2 options
-	my $generic;
+	my $generic = '';
 	if ($self->paired) {
-		$generic .= "--format BAMPE --nomodel ";
+		$generic .= '--format BAMPE ';
 	}
 	else {
 		# single-end options
@@ -1420,13 +1420,18 @@ sub generate_independent_peakcall_commands {
 			$generic .= sprintf("--shift %s ", $self->shiftsize);
 		}
 	}
+	$generic .= '--keep-dup all '; # we do our own de-deduplication
+	if ($self->lambda) {
+		$generic .= sprintf("--slocal %d --llocal %d ", $self->slocal, $self->llocal);
+	}
+	else {
+		$generic .= '--nolambda ';
+	}
 	my $formatter = '%.' . sprintf("%d", int($self->cutoff + 0.5)) . 'f';
-	$generic .= sprintf("--keep-dup all --qvalue $formatter --min-length %d --max-gap %d --slocal %d --llocal %d --gsize %d --outdir %s ",
+	$generic .= sprintf("--qvalue $formatter --min-length %d --max-gap %d --gsize %d --outdir %s ",
 		10**(-1 * $self->cutoff),
 		$self->peaksize,
 		$self->peakgap,
-		$self->slocal,
-		$self->llocal,
 		$self->genome,
 		$self->dir
 	);
@@ -1434,7 +1439,7 @@ sub generate_independent_peakcall_commands {
 	# broad specific options
 	my $broad_generic = $generic;
 	if ($self->broad) {
-		$formatter = '%.' . sprintf("%d", int($self->broadcut + 0.5)) . 'f';
+		$formatter = '%.' . sprintf("%d", int($self->broadcut + 1.5)) . 'f';
 		$broad_generic .= sprintf("--broad --broad-cutoff $formatter ", 
 			10**(-1 * $self->broadcut));
 	}
