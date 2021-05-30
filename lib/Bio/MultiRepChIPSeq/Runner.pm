@@ -1478,7 +1478,7 @@ sub run_plot_peaks {
 				$self->plotpeak_app, $jobbase);
 			my $example = $jobbase . '.jaccard.png';
 			my $log = $jobbase . '.plot_figures.out.txt';
-			$command .= " 2>&1 $log"; 
+			$command .= " 2>&1 > $log"; 
 			push @commands, [$command, $example, $log];
 		}
 	}
