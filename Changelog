@@ -1,6 +1,11 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v17.1
+	multirep_macs2_pipeline.pl
+	- Bug fixes to handle errors in handling efficiency output files, duplicate 
+	  sample names, and periods in sample names.
+
 v17
 	multirep_macs2_pipeline.pl
 	- Allow peaks to be called independently on each ChIP replicate if 
