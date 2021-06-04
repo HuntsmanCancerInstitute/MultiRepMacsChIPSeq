@@ -323,12 +323,19 @@ sub check_inputs {
 	unless ($Runner->chip) {
 		die "No ChIP file(s) defined!\n";
 	}
-	unless ($Runner->name) {
+	if ($Runner->name) {
+		my %check = map {$_ => 1} ($Runner->name);
+		if (scalar(keys %check) != scalar($Runner->name)) {
+			die "Duplicate sample names are present!\n";
+		}
+	}
+	else {
 		die "No name(s) defined!\n";
 	}
 	unless (scalar($Runner->chip) == scalar($Runner->name)) {
 		die "Unequal number of ChIP samples and names!\n";
 	}
+	
 	if (scalar($Runner->control) > 1 and scalar($Runner->control) != scalar($Runner->chip)) {
 		die "Unequal number of control and ChIP samples!\n";
 	}
