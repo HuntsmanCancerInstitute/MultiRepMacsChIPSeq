@@ -1,5 +1,5 @@
 package Bio::MultiRepChIPSeq::Runner;
-our $VERSION = 17;
+our $VERSION = 17.1;
 
 =head1 name
 
@@ -1403,11 +1403,17 @@ sub run_efficiency {
 	
 	# merge the efficiency outputs into one
 	if (scalar @commands > 1) {
+		# we're doing this manually to capture all the metadata lines
 		my @combined_eff_data;
 		my @combined_eff_meta;
 		my $eff_header;
 		foreach my $c (@commands) {
-			my $fh = IO::File->new($c->[1], 'r');
+			my $f = $c->[1];
+			unless (-e $f) {
+				print " Missing efficiency file $f! Skipping\n";
+				next;
+			}
+			my $fh = IO::File->new($f, 'r') or next;
 			while (my $line = $fh->getline) {
 				if (substr($line, 0, 1) eq '#') {
 					push @combined_eff_meta, $line;
@@ -1424,17 +1430,23 @@ sub run_efficiency {
 		}
 		
 		# write merged file
-		my $combined_eff_out = File::Spec->catfile($self->dir, $self->out . '.chip_efficiency.txt');
-		my $fh = IO::File->new($combined_eff_out, 'w');
-		foreach (@combined_eff_meta) {
-			$fh->print($_);
+		if (@combined_eff_data) {
+			my $combined_eff_out = File::Spec->catfile($self->dir, $self->out . '.chip_efficiency.txt');
+			my $fh = IO::File->new($combined_eff_out, 'w');
+			foreach (@combined_eff_meta) {
+				$fh->print($_);
+			}
+			$fh->print($eff_header);
+			foreach (@combined_eff_data) {
+				$fh->print($_);
+			}
+			$fh->close;
+			print "\nWrote combined ChIP efficiency file $combined_eff_out\n";
 		}
-		$fh->print($eff_header);
-		foreach (@combined_eff_data) {
-			$fh->print($_);
+		else {
+			print " No efficiency files combined!\n";
+			return;
 		}
-		$fh->close;
-		print "\nWrote combined ChIP efficiency file $combined_eff_out\n";
 	}
 	elsif (scalar @commands == 1) {
 		# just one, so rename it for consistency sake
