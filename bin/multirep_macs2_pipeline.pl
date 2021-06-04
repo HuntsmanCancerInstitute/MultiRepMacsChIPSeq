@@ -602,8 +602,20 @@ sub add_jobs_to_runner {
 	# walk through each given job
 	my @names = $Runner->name;
 	for my $i (0 .. $#names) {
+		# check name
+		my $name = $names[$i];
+		if ($name =~ /\./) {
+			# BioToolBox simplify names by dropping everything after a period
+			# so a crude hack is to change the name
+			$name =~ s/\./_/g; 
+			printf "\nWARNING! Changing name from '%s' to '%s' for compatability\n", 
+				$names[$i], $name;
+			# ugly hack to replace the name
+			$opts->{name}->[$i] = $name;
+		}
+		# add job
 		$Runner->add_job(
-			$names[$i], 
+			$name, 
 			($Runner->chip)[$i], 
 			($Runner->control)[$i] || undef, 
 			($Runner->chscale)[$i] || undef, 
