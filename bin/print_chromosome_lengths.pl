@@ -24,11 +24,12 @@ A database can be Bio::DB::SeqFeature::Store database, Bam file (.bam),
 bigWig (.bw) file, bigBed (.bb) file, multi-fasta (.fa or .fasta) file, or 
 a directory of individual fasta files. 
 
-If more than source file is given, then all are checked for consistency 
-of chromosome names and order. An output file is only written if 
-source files have the same chromosome list.
+If more than one source file is given, then all are checked for consistency 
+of chromosome names and order. An output file is only written if source 
+files have the same chromosome list.
 
 Usage: $0 <database1> ...
+       $0 -K 'chrM|alt|contig|un' -o chrom.sizes *.bam
 
 Options:
   -d --db "file"               Indexed database file, may repeat
@@ -87,7 +88,7 @@ foreach my $db (@databases) {
 
 ### Validate chromosomes
 if (scalar(keys %seqstring) > 1) {
-	printf "\nPROBLEM! There are %d chromosome name/order lists present!!!\n", 
+	printf "\n WARNING!!! There are %d different chromosome name and/or order lists\n present in the source files!!! This may/will present problems with\n downstream applications! This may be correctable without re-aligning.\n", 
 		scalar(keys %seqstring);
 	foreach my $k (keys %seqstring) {
 		printf "\n=== Files:\n  %s\n=== Chromosomes:\n  %s\n",
@@ -106,7 +107,7 @@ if ($out) {
 		$fh->printf("%s\t%d\n", $chr->[0], $chr->[1]);
 	}
 	$fh->close;
-	print "wrote chromosome file '$out'\n";
+	print " Successfully wrote chromosome file '$out'\n";
 }
 else {
 	foreach my $chr (@chrlist) {
