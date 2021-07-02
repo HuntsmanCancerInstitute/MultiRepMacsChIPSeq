@@ -1,5 +1,5 @@
 package Bio::MultiRepChIPSeq::Runner;
-our $VERSION = 17.1;
+our $VERSION = 17.2;
 
 =head1 name
 
@@ -266,7 +266,6 @@ sub write_samples_file {
 
 sub run_generate_chr_file {
 	my $self = shift;
-	my $example = shift || undef;
 		# this will work regardless if example is bam or bigWig
 	print "\n\n======= Generating temporary chromosome file\n";
 	my $chromofile = $self->chromofile;
@@ -281,24 +280,35 @@ sub run_generate_chr_file {
 	unless ($self->printchr_app or $self->dryrun) {
 		croak "no print_chromosome_lengths.pl application in path!\n";
 	}
-	unless ($example) {
-		foreach my $exampleJob ($self->list_jobs) {
-			# a job may be just a control job and not have any bam files
-			$example = ($exampleJob->chip_bams)[0] || ($exampleJob->chip_bw)[0] || q();
-			print " using $example for chromosome list\n";
-			last if $example;
+	
+	# check all source bam and bw files to ensure seqid consistency
+	my @sources;
+	foreach my $Job ($self->list_jobs) {
+		# a job may be just a control job and not have any bam files
+		# also possible that no bam files are present
+		if (scalar($Job->chip_bams)) {
+			push @sources, $Job->chip_bams;
 		}
-		unless ($example) {
-			confess "no example files available to get chromosome list! Provide one with --chromofile option";
+		else {
+			if ($Job->chip_bw and -e $Job->chip_bw) {
+				push @sources, $Job->chip_bw;
+			}
+		}
+		if (scalar($Job->control_bams)) {
 		}
 	}
-	my $command = sprintf("%s --db %s --chrskip '%s' --out %s", 
+	
+	# command
+	my $command = sprintf("%s --out %s ", 
 		$self->printchr_app || 'print_chromosome_lengths.pl', 
-		$example, 
-		$self->chrskip, 
 		$chromofile
 	);
-	return $self->execute_commands([[$command, $chromofile, '']]);
+	$command .= sprintf("--chrskip '%s' ", $self->chrskip) if $self->chrskip;
+	$command .= join(' ', @sources);
+	my $log = $chromofile;
+	$log =~ s/\.temp\.txt/.log.txt/;
+	$command .= sprintf(" 2>&1 > $log");
+	return $self->execute_commands([[$command, $chromofile, $log]]);
 }
 
 sub execute_commands {
