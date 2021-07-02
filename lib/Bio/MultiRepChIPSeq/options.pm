@@ -212,7 +212,7 @@ sub init_options {
 		fraction    => 0,
 		minsize     => 50,
 		maxsize     => 500,
-		chrskip     => "chrM|MT|lambda|Adapter|PhiX",
+		chrskip     => "chrM|MT|alt|Adapter|Lambda|PhiX",
 		blacklist   => undef,
 		dedup       => 1,
 		maxdup      => undef, # old option
