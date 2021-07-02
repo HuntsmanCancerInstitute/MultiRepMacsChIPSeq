@@ -15,21 +15,25 @@ use strict;
 use File::Spec;
 use IO::File;
 use Getopt::Long;
-use Bio::ToolBox::db_helper qw(get_chromosome_list);
+use Bio::ToolBox::db_helper 1.69 qw(get_chromosome_list);
 
 unless (@ARGV) {
 	print <<USAGE;
 A script to print out the lengths of chromosomes present in a database.
 A database can be Bio::DB::SeqFeature::Store database, Bam file (.bam),
-bigWig (.bw) file, bigBed (.bb) file, fasta (.fa or .fasta) file, or 
+bigWig (.bw) file, bigBed (.bb) file, multi-fasta (.fa or .fasta) file, or 
 a directory of individual fasta files. 
 
-Usage: $0 <database>
+If more than source file is given, then all are checked for consistency 
+of chromosome names and order. An output file is only written if 
+source files have the same chromosome list.
+
+Usage: $0 <database1> ...
 
 Options:
-  -d --db "file"               Indexed database file
+  -d --db "file"               Indexed database file, may repeat
   -K --chrskip "text"          Chromosome skip regex
-  -o --out "file"              Output file name, default db basename
+  -o --out "file"              Output file name, default STDOUT
 
 USAGE
 	exit;
@@ -37,70 +41,77 @@ USAGE
 
 
 ### Options
-my $db;
+my @databases;
 my $chrskip;
 my $out;
 GetOptions(
-	'd|db=s'      => \$db,
+	'd|db=s'      => \@databases,
 	'K|chrskip=s' => \$chrskip,
 	'o|out=s'     => \$out
 ) or die "unrecognized option!\n";
 
 # database file
-$db ||= shift @ARGV;
-unless ($db) {
-	die "must specify a database file!\n";
+if (scalar(@ARGV)) {
+	push @databases, @ARGV;
 }
-
-# output file
-unless ($out) {
-	(undef, undef, $out) = File::Spec->splitpath($db);
-	$out =~ s/\.(?:bam|bw|bigwig|bb|bigbed|fasta|fa)$//i;
-	$out .= '.chromosomes.txt';
+unless (@databases) {
+	die "must specify one or more database files!\n";
 }
 
 
-# collect the chromosomes
-my @chromosomes = get_chromosome_list($db, $chrskip);
-unless (@chromosomes) {
-	die " no chromosome sequences identified in database file $db!\n";
-}
-if ($db =~ /\.(?:bw|bigwig|bb|bigbed)/i) {
-	# Bio::DB::Big adapters return chromosomes in random hash order, not given order
-	# let's try and sort reasonably
-	my @numeric;
-	my @partial;
-	my @alphic;
-	foreach (@chromosomes) {
-		if ($_->[0] =~ /^(?:chr)?(\d+)$/i) {
-			# standard chromosomes
-			$_->[2] = $1;
-			push @numeric, $_;
-		} 
-		elsif ($_->[0] =~ /(\d+)/) {
-			# contigs and such?
-			$_->[2] = $1;
-			push @partial, $_;
-		}
-		else {
-			# sex, mitochondrial
-			push @alphic, $_;
-		}
+### Collect Chromosomes
+my %seqstring;
+my @chrlist;
+
+foreach my $db (@databases) {
+	
+	# get the chromosomes for this database
+	my @chromosomes = get_chromosome_list($db, $chrskip);
+	unless (@chromosomes) {
+		warn " no chromosome sequences in database file '$db'!\n";
+		next;
 	}
-	my @new;
-	push @new, sort { $a->[2] <=> $b->[2] } @numeric;
-	push @new, sort { $b->[1] <=> $a->[1] } @alphic; # sort these by size?
-	push @new, sort { $a->[2] <=> $b->[2] } @partial;
-	@chromosomes = @new;
+	
+	# check chromosome string
+	my $string = join("\t", map {$_->[0]} @chromosomes);
+	$seqstring{$string} ||= [];
+	push @{ $seqstring{$string}	}, $db;
+	
+	# final chromosome list
+	unless (@chrlist) {
+		@chrlist = @chromosomes;
+	}
 }
+
+
+
+### Validate chromosomes
+if (scalar(keys %seqstring) > 1) {
+	printf "\nPROBLEM! There are %d chromosome name/order lists present!!!\n", 
+		scalar(keys %seqstring);
+	foreach my $k (keys %seqstring) {
+		printf "\n=== Files:\n  %s\n=== Chromosomes:\n  %s\n",
+			join("\n  ", @{ $seqstring{$k} } ),
+			join("\n  ", split("\t", $k));
+	}
+	exit 0;
+}
+
 
 # write the chromosome list
-my $fh = IO::File->new($out, '>') or 
-	die "unable to write file! $!";
-foreach my $chr (@chromosomes) {
-	$fh->printf("%s\t%d\n", $chr->[0], $chr->[1]);
+if ($out) {
+	my $fh = IO::File->new($out, '>') or 
+		die "unable to write file! $!";
+	foreach my $chr (@chrlist) {
+		$fh->printf("%s\t%d\n", $chr->[0], $chr->[1]);
+	}
+	$fh->close;
+	print "wrote chromosome file '$out'\n";
 }
-$fh->close;
-print "wrote chromosome file '$out'\n";
+else {
+	foreach my $chr (@chrlist) {
+		printf("%s\t%d\n", $chr->[0], $chr->[1]);
+	}
+}
 
 
