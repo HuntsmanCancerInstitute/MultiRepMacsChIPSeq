@@ -360,15 +360,11 @@ sub execute_commands {
 	# check that commands actually produced something
 	my @errors;
 	foreach my $command (@$commands) {
-		if ( $self->_check_command_finished($command, 0) ) {
-			# non-zero status indicates something wrong
-			if (index($command->[0], $self->printchr_app) == 0) {
-				# special error for print_chromosome_lengths application
-				push @errors, sprintf(" Not all source files have the same sequence IDs in the same order\n See %s for details\n",
-					$command->[2]);
-			}
-			else {
-				push @errors, printf "=== ERROR: %s\n", $command->[0];
+		unless ( $self->_check_command_finished($command, 0) ) {
+			# zero status indicates something went wrong
+			push @errors, sprintf "=== ERROR: %s\n", $command->[0];
+			if (defined $command->[2]) {
+				push @errors, sprintf " See log '%s' for details\n", $command->[2];
 			}
 		}
 	}
@@ -399,21 +395,25 @@ sub _check_command_finished {
 			print "=== Job: $command_string\n    previously finished, have $command_out and $command_log files\n" if $talk;
 			return 1;
 		}
-		elsif (not -e $command_out and -e $command_log and 
-			index($command_string, $self->bamdedup_app) == 0) 
-		{
-			# the deduplication command will not write out a bam file if the actual 
-			# duplication rate is below the target rate
-			# presume this is good!?
-			print "=== Job: $command_string\n    presumed finished, have $command_log file only\n" if $talk;
-			return 2;
-		}
-		elsif (not -e $command_out and -e $command_log and 
-			index($command_string, $self->printchr_app) == 0) 
-		{
-			# the print_chromosome_lengths script will not write output if 
-			# sequence orders are not the same
-			return 0;
+		elsif (not -e $command_out and -e $command_log) {
+			# special instance where there is a log file but no output
+			# this can occur with specific applications so check those
+			if (index($command_string, $self->bamdedup_app) == 0) {
+				# the deduplication command will not write out a bam file if the actual 
+				# duplication rate is below the target rate
+				# presume this is good
+				print "=== Job: $command_string\n    presumed finished, have $command_log file only\n" if $talk;
+				return 2;
+			}
+			elsif (index($command_string, $self->printchr_app) == 0) {
+				# the print_chromosome_lengths script will not write output if 
+				# sequence orders are not the same
+				return 0;
+			}
+			else {
+				# something else? catchall?
+				return 0;
+			}
 		}
 		elsif (-e $command_out and not -e $command_log) {
 			# we have a output file but not a log file
