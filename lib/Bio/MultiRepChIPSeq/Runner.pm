@@ -295,6 +295,7 @@ sub run_generate_chr_file {
 			}
 		}
 		if (scalar($Job->control_bams)) {
+			push @sources, $Job->control_bams;
 		}
 	}
 	
@@ -359,14 +360,23 @@ sub execute_commands {
 	# check that commands actually produced something
 	my @errors;
 	foreach my $command (@$commands) {
-		# returns a non-zero function if command didn't run
-		push @errors, $command unless $self->_check_command_finished($command, 0);
+		if ( $self->_check_command_finished($command, 0) ) {
+			# non-zero status indicates something wrong
+			if (index($command->[0], $self->printchr_app) == 0) {
+				# special error for print_chromosome_lengths application
+				push @errors, sprintf(" Not all source files have the same sequence IDs in the same order\n See %s for details\n",
+					$command->[2]);
+			}
+			else {
+				push @errors, printf "=== ERROR: %s\n", $command->[0];
+			}
+		}
 	}
 	if (@errors) {
 		print "\n\n ======= Errors ======\n";
 		print " The following jobs did not generate expected output\n";
 		foreach (@errors) {
-			printf "=== ERROR: %s\n", $_->[0];
+			print $_;
 		}
 		croak "\nCheck log files for errors\n";
 	}
@@ -397,6 +407,13 @@ sub _check_command_finished {
 			# presume this is good!?
 			print "=== Job: $command_string\n    presumed finished, have $command_log file only\n" if $talk;
 			return 2;
+		}
+		elsif (not -e $command_out and -e $command_log and 
+			index($command_string, $self->printchr_app) == 0) 
+		{
+			# the print_chromosome_lengths script will not write output if 
+			# sequence orders are not the same
+			return 0;
 		}
 		elsif (-e $command_out and not -e $command_log) {
 			# we have a output file but not a log file
