@@ -520,7 +520,7 @@ if(file.exists(fprofsumfile)) {
 
 # plot log2FE mean profile line plot
 lfeprofsumfile <- paste0(opt$input, "_profile_log2FE_summary.txt")
-if(file.exists(fprofsumfile)) {
+if(file.exists(lfeprofsumfile)) {
   lfeprofsumdata <- read.table(lfeprofsumfile, header=TRUE, sep="\t", 
                              row.names = 1, check.names = F, na.strings = '.')
   lfeprofsumdata[is.na(lfeprofsumdata)] <- 0
