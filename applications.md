@@ -523,18 +523,23 @@ Options:
 
 A script to print out the lengths of chromosomes present in a database.
 A database can be Bio::DB::SeqFeature::Store database, Bam file (`.bam`),
-bigWig (`.bw`) file, bigBed (`.bb`) file, fasta (`.fa` or `.fasta`) file, or 
+bigWig (`.bw`) file, bigBed (`.bb`) file, multi-fasta (`.fa` or `.fasta`) file, or 
 a directory of individual fasta files. 
+
+If more than one source file is given, then all are checked for consistency 
+of chromosome names and order. An output file is only written if source 
+files have the same chromosome list.
 
 Usage: 
 
-	print_chromosome_lengths.pl <database>
+	print_chromosome_lengths.pl <database1> ...
+	print_chromosome_lengths.pl -K 'chrM|alt|contig|un' -o chrom.sizes *.bam
 
 Options:
 
-	-d --db "file"               Indexed database file
+	-d --db "file"               Indexed database file, may repeat
 	-K --chrskip "text"          Chromosome skip regex
-	-o --out "file"              Optional file name, default db basename
+	-o --out "file"              Output file name, default STDOUT
 
 
 ## recall_peaks.pl
