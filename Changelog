@@ -1,6 +1,24 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v17.3
+	recall_peaks.pl
+	- Skip requirement of finding example bam files. Use fragment bigWig instead.
+
+v17.2
+	multirep_macs2_pipeline.pl
+	- Now checks all provided bam files for chromosome name and order consistency.
+	  Inconsistent order frequently results in failures, despite best efforts. This 
+	  should fail early with helpful error message.
+	- Add "alt" as default chromosome name skip
+
+	print_chromosome_lengths.pl
+	- Accepts multiple source files to check chromosome name and order 
+	  consistency. Prints orders of discordant files.
+	
+	plot_peak_figures.R
+	- Fix bug with Log2FE profile summary file
+	
 v17.1
 	multirep_macs2_pipeline.pl
 	- Bug fixes to handle errors in handling efficiency output files, duplicate 
