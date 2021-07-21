@@ -17,16 +17,16 @@ my $build = Module::Build->new(
 		}
 	},
 	configure_requires => {
-		'Module::Build'           => 0,
+		'Module::Build'           => 0.42,
 	},
 	requires           => {
-		'Bio::ToolBox'              => 1.68,
-		'Bio::DB::HTS'              => 0,
-		'Bio::DB::Big'              => 0,
-		'Parallel::ForkManager'     => 0,
-		'Set::IntervalTree'         => 0,
-		'Set::IntSpan::Fast'        => 0,
-		'Statistics::Descriptive'   => 0,
+		'Bio::ToolBox'              => 1.69,
+		'Bio::DB::HTS'              => 3.01,
+		'Bio::DB::Big'              => 1,
+		'Parallel::ForkManager'     => 1.19,
+		'Set::IntervalTree'         => 0.11,
+		'Set::IntSpan::Fast'        => 1.15,
+		'Statistics::Descriptive'   => 3.0613,
 	},
 );
 
