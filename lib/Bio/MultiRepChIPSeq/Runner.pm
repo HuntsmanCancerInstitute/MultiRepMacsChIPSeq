@@ -1,5 +1,5 @@
 package Bio::MultiRepChIPSeq::Runner;
-our $VERSION = 17.2;
+our $VERSION = 17.3;
 
 =head1 name
 
@@ -289,10 +289,8 @@ sub run_generate_chr_file {
 		if (scalar($Job->chip_bams)) {
 			push @sources, $Job->chip_bams;
 		}
-		else {
-			if ($Job->chip_bw and -e $Job->chip_bw) {
+		elsif ($Job->chip_bw and -e $Job->chip_bw) {
 				push @sources, $Job->chip_bw;
-			}
 		}
 		if (scalar($Job->control_bams)) {
 			push @sources, $Job->control_bams;
