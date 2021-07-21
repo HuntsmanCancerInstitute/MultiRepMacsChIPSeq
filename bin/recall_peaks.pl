@@ -333,16 +333,6 @@ sub check_input_files {
 			}
 		}
 		
-		# find any example bam files
-		# we prefer bam files for making chromosome files, as bigWig files can 
-		# don't always report in the same order
-		my $example = $samples{$condition}->[0];
-		my @bams = glob(File::Spec->catfile($Runner->dir, "$example\*.bam"));
-		if (@bams) {
-			# just need to add the first one, probably only one anyway
-			$Job->chip_bams($bams[0]);
-		}
-		
 		# add new peak files
 		$Job->peak(File::Spec->catfile($Runner->dir, $condition . '.narrowPeak'));
 		$Job->clean_peak(File::Spec->catfile($Runner->dir, $condition . '.bed'));
