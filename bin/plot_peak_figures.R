@@ -278,7 +278,9 @@ if(file.exists(countfile)) {
 # jaccard table
 jaccardfile <- paste0(opt$input,'.jaccard.txt')
 if(file.exists(jaccardfile)) {
-    jdata <- read.table(jaccardfile,header=TRUE,sep="\t", row.names = 1, check.names = F)
+    jdata <- read.table(jaccardfile,header=TRUE, sep="\t", row.names = 1, 
+                        check.names = F, na.strings = ".")
+    jdata[is.na(jdata)] <- 0
     pheatmap(jdata, col=colorRampPalette(brewer.pal(9, 'Blues'))(255), 
              main = "Spatial Overlap Between Peaks", 
              breaks = seq(0,1,length=255),
