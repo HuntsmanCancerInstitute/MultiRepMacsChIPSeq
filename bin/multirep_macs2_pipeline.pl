@@ -555,8 +555,9 @@ sub add_jobs_to_runner {
 	
 	# first check for a unversal control
 	if (scalar($Runner->control) == 1 and scalar($Runner->chip) > 1) {
-		print "Using only one control for multiple ChIP experiments\n";
+		print " Using only one control for multiple ChIP experiments\n";
 		my $universal_control = ($Runner->control)[0];
+		$Runner->has_universal_control(1);
 		
 		# generate universal name
 		my $universal_name;
@@ -588,7 +589,7 @@ sub add_jobs_to_runner {
 			$Runner->control('Custom-Universal-' . $universal_name);
 		}
 		
-		# generate job
+		# generate job - this will always be the first job
 		$Runner->add_job(
 			$universal_name, 
 			'', 
@@ -615,7 +616,7 @@ sub add_jobs_to_runner {
 		}
 		# add job
 		$Runner->add_job(
-			$name, 
+			$names[$i], 
 			($Runner->chip)[$i], 
 			($Runner->control)[$i] || undef, 
 			($Runner->chscale)[$i] || undef, 
