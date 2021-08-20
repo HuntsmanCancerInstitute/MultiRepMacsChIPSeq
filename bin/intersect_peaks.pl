@@ -20,7 +20,7 @@ use Bio::ToolBox 1.65;
 use List::Util qw(min max);
 use Statistics::Descriptive;
 
-my $VERSION = 4.1;
+my $VERSION = 4.2;
 
 # variables
 my $tool = which('bedtools');
@@ -158,7 +158,7 @@ for my $file (@files) {
 	
 	# sort the file just for sanity purposes
 	$Data->gsort_data;
-	my $sortfile = File::Spec->catfile($out_path, $Data->basename . '.sort' . $Data->extension);
+	my $sortfile = File::Spec->catfile($out_path, $Data->basename . ".sort.$$." . $Data->extension);
 	$Data->save($sortfile);
 	push @sortfiles, $sortfile;
 }
@@ -177,9 +177,9 @@ if ($genome_file) {
 	$Data->name(0, 'chromosome');
 	$Data->name(1, 'start');
 	$Data->gsort_data;
-	$genome_file = File::Spec->catfile($out_path, $Data->basename . '.sort' . $Data->extension);
+	$genome_file = File::Spec->catfile($out_path, $Data->basename . ".sort.$$." . $Data->extension);
 	# we can't use standard file writing mechanism here, because it'll write headers
-	# do it manually
+	# do it manually – this should be fixed in Bio::ToolBox v1.69 but leave in manual bit for now
 	my $fh = Bio::ToolBox->write_file($genome_file) or 
 		die "unable to write $genome_file! $!";
 	$Data->iterate( sub {
