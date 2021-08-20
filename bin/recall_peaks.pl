@@ -302,34 +302,113 @@ sub check_input_files {
 		# Add existing track files 
 		if ($organized) {
 			# files based on known organizational subfolders
-			$Job->qvalue_bw(File::Spec->catfile($Runner->dir, 'QValue', $condition . '.qvalue.bw'));
-			$Job->qvalue_bdg(File::Spec->catfile($Runner->dir, $condition . '.qvalue.bdg'));
-			$Job->logfe_bw(File::Spec->catfile($Runner->dir, 'Log2FE', $condition . '.log2FE.bw'));
-			$Job->chip_bw(File::Spec->catfile($Runner->dir, 'Fragment', $condition . '.fragment.bw'));
-			$Job->chip_count_bw( map {
-				File::Spec->catfile($Runner->dir, 'Count', $_ . '.count.bw') 
-				} @{ $samples{$condition} } );
+			
+			my $qbw = File::Spec->catfile($Runner->dir, 'QValue', $condition . '.qvalue.bw');
+			if (-r $qbw) {
+				$Job->qvalue_bw($qbw);
+				$Job->qvalue_bdg( 
+					File::Spec->catfile($Runner->dir, $condition . '.qvalue.bdg')
+				);
+			}
+			else {
+				push @errors, "  File $qbw cannot be found!\n";
+			}
+			
+			my $lbw = File::Spec->catfile($Runner->dir, 'Log2FE', $condition . '.log2FE.bw');
+			if (-r $lbw) {
+				$Job->logfe_bw($lbw);
+			}
+			else {
+				push @errors, "  File $lbw cannot be found!\n";
+			}
+			
+			my $fbw = File::Spec->catfile($Runner->dir, 'Fragment', $condition . '.fragment.bw');
+			if (-r $fbw) {
+				$Job->chip_bw($fbw);
+			}
+			else {
+				push @errors, "  File $fbw cannot be found!\n";
+			}
+			
+			my @cbw = map { File::Spec->catfile($Runner->dir, 'Count', $_ . '.count.bw') }
+				@{ $samples{$condition} };
+			foreach my $c (@cbw) {
+				if (-r $c) {
+					$Job->chip_count_bw($c);
+				}
+				else {
+					push @errors, "  File $c cannot be found!\n";
+				}
+			}
+			
 			if (exists $samples{'Input'}) {
 				# I won't necessarily know which is which, so do all of them????
-				$Job->control_count_bw( map {
+				my @icb = map {
 					File::Spec->catfile($Runner->dir, 'Count', $_ . '.count.bw') 
-					} @{ $samples{'Input'} } );
+					} @{ $samples{'Input'} };
+				foreach my $c (@icb) {
+					if (-r $c) {
+						$Job->control_count_bw($c);
+					}
+					else {
+						push @errors, "  File $c cannot be found!\n";
+					}
+				}
 			}
 		}
 		else {
 			# no known organizational subfolders
-			$Job->qvalue_bw(File::Spec->catfile($Runner->dir, $condition . '.qvalue.bw'));
-			$Job->qvalue_bdg(File::Spec->catfile($Runner->dir, $condition . '.qvalue.bdg'));
-			$Job->logfe_bw(File::Spec->catfile($Runner->dir, $condition . '.log2FE.bw'));
-			$Job->chip_bw(File::Spec->catfile($Runner->dir, $condition . '.fragment.bw'));
-			$Job->chip_count_bw( map {
-				File::Spec->catfile($Runner->dir, $_ . '.count.bw') 
-				} @{ $samples{$condition} } );
+
+			my $qbw = File::Spec->catfile($Runner->dir, $condition . '.qvalue.bw');
+			if (-r $qbw) {
+				$Job->qvalue_bw($qbw);
+				$Job->qvalue_bdg(
+					File::Spec->catfile($Runner->dir, $condition . '.qvalue.bdg')
+				);
+			}
+			else {
+				push @errors, "  File $qbw cannot be found!\n";
+			}
+			
+			my $lbw = File::Spec->catfile($Runner->dir, $condition . '.log2FE.bw');
+			if (-r $lbw) {
+				$Job->logfe_bw($lbw);
+			}
+			else {
+				push @errors, "  File $lbw cannot be found!\n";
+			}
+			
+			my $fbw = File::Spec->catfile($Runner->dir, $condition . '.fragment.bw');
+			if (-r $fbw) {
+				$Job->chip_bw($fbw);
+			}
+			else {
+				push @errors, "  File $fbw cannot be found!\n";
+			}
+			
+			my @cbw = map { File::Spec->catfile($Runner->dir, $_ . '.count.bw') }
+				@{ $samples{$condition} };
+			foreach my $c (@cbw) {
+				if (-r $c) {
+					$Job->chip_count_bw($c);
+				}
+				else {
+					push @errors, "  File $c cannot be found!\n";
+				}
+			}
+			
 			if (exists $samples{'Input'}) {
 				# I won't necessarily know which is which, so do all of them????
-				$Job->control_count_bw( map {
-					File::Spec->catfile($Runner->dir, $_ . '.count.bw') 
-					} @{ $samples{'Input'} } );
+				my @icb = map { File::Spec->catfile($Runner->dir, $_ . '.count.bw') }
+					@{ $samples{'Input'} };
+				foreach my $c (@icb) {
+					if (-r $c) {
+						$Job->control_count_bw($c);
+					}
+					else {
+						push @errors, "  File $c cannot be found!\n";
+					}
+				}
 			}
 		}
 		
