@@ -1,5 +1,5 @@
 package Bio::MultiRepChIPSeq::Runner;
-our $VERSION = 17.3;
+our $VERSION = 17.4;
 
 =head1 name
 
@@ -118,12 +118,19 @@ sub new {
 		pm      			=> $pm,
 		progress_file 		=> undef,
 		sample_file         => undef,
+		universal_control   => 0,
 	};
 	return bless $self, $class;
 }
 
 sub version {
 	return $VERSION;
+}
+
+sub has_universal_control {
+	my $self = shift;
+	$self->{universal_control} = shift if @_;
+	return $self->{universal_control};
 }
 
 sub add_job {
@@ -648,6 +655,16 @@ sub run_bam_check {
 	foreach my $Job ($self->list_jobs) {
 		$Job->find_dedup_bams;
 	}
+	
+	# check for independent peak call and universal control
+	if ($self->independent and $self->has_universal_control) {
+		my @jobs = $self->list_jobs;
+		# universal control is always the first job
+		my $control = shift @jobs;
+		foreach my $Job (@jobs) {
+			$Job->control_use_bams( $control->control_use_bams );
+		}
+	}
 }
 
 sub run_mappable_space_report {
@@ -759,13 +776,13 @@ sub run_mappable_space_report {
 
 sub run_bam_fragment_conversion {
 	my $self = shift;
-	my @commands;
-	my %name2done;
 	print "\n\n======= Generating fragment coverage files\n";
 	
 	
 	# Generate commands for each job
 	# we need the command regardless of whether it needs to be run or not
+	my @commands;
+	my %name2done;
 	foreach my $Job ($self->list_jobs) {
 		push @commands, $Job->generate_bam2wig_frag_commands(\%name2done);
 	}
@@ -773,6 +790,7 @@ sub run_bam_fragment_conversion {
 	# Execute as necessary
 	if ($self->{progress}{fragment}) {
 		print "\nStep is completed\n";
+		# do NOT return yet
 	}
 	elsif (@commands) {
 		# run programs
@@ -844,8 +862,6 @@ sub run_bam_fragment_conversion {
 
 sub run_bam_count_conversion {
 	my $self = shift;
-	my @commands;
-	my %name2done;
 	print "\n\n======= Generating fragment count files\n";
 	if ($self->{progress}{count}) {
 		print "\nStep is completed\n";
@@ -853,6 +869,8 @@ sub run_bam_count_conversion {
 	}
 	
 	# generate commands and run
+	my @commands;
+	my %name2done;
 	foreach my $Job ($self->list_jobs) {
 		push @commands, $Job->generate_bam2wig_count_commands(\%name2done);
 	}
@@ -866,16 +884,25 @@ sub run_bam_count_conversion {
 
 sub run_lambda_control {
 	my $self = shift;
-	my @commands;
-	my %name2done;
 	print "\n\n======= Generating control files\n";
 	if ($self->{progress}{lambda}) {
 		print "\nStep is completed\n";
 		return;
 	}
-	foreach my $Job ($self->list_jobs) {
-		# this handles either lambda_control or global mean files
-		push @commands, $Job->generate_lambda_control_commands(\%name2done);
+	
+	# generate commands
+	my @commands;
+	my %name2done;
+	my @jobs = $self->list_jobs;
+	if ($self->has_universal_control) {
+		# only need to process the first job - the universal control
+		my $con_Job = shift @jobs;
+		push @commands, $con_Job->generate_lambda_control_commands(\%name2done);
+	}
+	else {
+		foreach my $Job (@jobs) {
+			push @commands, $Job->generate_lambda_control_commands(\%name2done);
+		}
 	}
 	if (@commands) {
 		$self->execute_commands(\@commands);
@@ -885,13 +912,13 @@ sub run_lambda_control {
 
 sub run_bw_conversion {
 	my $self = shift;
-	my @commands;
-	my %name2done;
 	print "\n\n======= Converting Fragment bigWig files to bedGraph\n";
 	if ($self->{progress}{bw2bdg}) {
 		print "\nStep is completed\n";
 		return;
 	}
+	my @commands;
+	my %name2done;
 	foreach my $Job ($self->list_jobs) {
 		push @commands, $Job->convert_bw_to_bdg(\%name2done);
 	}
@@ -903,47 +930,64 @@ sub run_bw_conversion {
 
 sub run_bdgcmp {
 	my $self = shift;
-	my @commands;
 	print "\n\n======= Generate enrichment files\n";
 	if ($self->{progress}{bdgcmp}) {
 		print "\nStep is completed\n";
 		return;
 	}
-	foreach my $Job ($self->list_jobs) {
+	
+	# list of jobs to work on
+	my @jobs = $self->list_jobs;
+	if ($self->has_universal_control) {
+		# remove the control job
+		shift @jobs;
+	}
+	
+	# generate commands
+	my @commands;
+	foreach my $Job (@jobs) {
 		push @commands, $Job->generate_enrichment_commands();
 	}
-	$self->execute_commands(\@commands);
+	$self->execute_commands(\@commands) if @commands;
 	$self->update_progress_file('bdgcmp');
 }
 
 sub run_call_peaks {
 	my $self = shift;
-	my @commands;
 	print "\n\n======= Call peaks\n";
 	if ($self->{progress}{callpeak}) {
 		print "\nStep is completed\n";
 		return;
 	}
 	
+	# list of jobs to work on
+	my @jobs = $self->list_jobs;
+	if ($self->has_universal_control) {
+		# remove the control job
+		shift @jobs;
+	}
+	
 	# generate commands based on whether we're doing joint or independent calls
-	my $i = $self->independent;
-	foreach my $Job ($self->list_jobs) {
-		if ($i) {
+	my @commands;
+	foreach my $Job (@jobs) {
+		if ($self->independent) {
 			push @commands, $Job->generate_independent_peakcall_commands;
 		}
 		else {
 			push @commands, $Job->generate_peakcall_commands;
 		}
 	}
-	$self->execute_commands(\@commands);
+	$self->execute_commands(\@commands) if @commands;
 	
 	# independent calls must be merged
-	if ($i) {
+	if ($self->independent) {
 		@commands = ();
-		foreach my $Job ($self->list_jobs) {
+		foreach my $Job (@jobs) {
 			push @commands, $Job->generate_independent_merge_peak_commands;
 		}
-		$self->execute_commands(\@commands);
+		if (@commands) {
+			$self->execute_commands(\@commands);
+		}
 	}
 	
 	$self->update_progress_file('callpeak');
@@ -952,13 +996,21 @@ sub run_call_peaks {
 sub run_clean_peaks {
 	my $self = shift;
 	return if $self->independent; # not necessary here
-	my @commands;
 	print "\n\n======= Cleaning peak files\n";
 	if ($self->{progress}{cleanpeak}) {
 		print "\nStep is completed\n";
 		return;
 	}
-	foreach my $Job ($self->list_jobs) {
+	
+	# list of jobs to work on
+	my @jobs = $self->list_jobs;
+	if ($self->has_universal_control) {
+		# remove the control job
+		shift @jobs;
+	}
+	
+	my @commands;
+	foreach my $Job (@jobs) {
 		push @commands, $Job->generate_cleanpeak_commands;
 	}
 	$self->execute_commands(\@commands);
@@ -967,13 +1019,13 @@ sub run_clean_peaks {
 
 sub run_bdg_conversion {
 	my $self = shift;
-	my @commands;
-	my %name2done;
 	print "\n\n======= Converting bedGraph files\n";
 	if ($self->{progress}{bdg2bw}) {
 		print "\nStep is completed\n";
 		return;
 	}
+	my @commands;
+	my %name2done;
 	foreach my $Job ($self->list_jobs) {
 		push @commands, $Job->generate_bdg2bw_commands(\%name2done);
 	}
@@ -996,6 +1048,13 @@ sub run_peak_merge {
 		croak "no intersect_peaks.pl application in path!\n";
 	}
 	
+	# list of jobs to work on
+	my @jobs = $self->list_jobs;
+	if ($self->has_universal_control) {
+		# remove the control job
+		shift @jobs;
+	}
+	
 	my @commands;
 	
 	# narrowPeaks
@@ -1009,7 +1068,7 @@ sub run_peak_merge {
 	);
 	my $command_check = length($command);
 	my $count_check = 0;
-	foreach my $Job ($self->list_jobs) {
+	foreach my $Job (@jobs) {
 		if (
 			$Job->clean_peak and 
 			( (-e $Job->clean_peak and -s _ > 0) or $self->dryrun )
@@ -1045,7 +1104,7 @@ sub run_peak_merge {
 		my $command2_check = length($command2);
 		my $count2_check = 0;
 		
-		foreach my $Job ($self->list_jobs) {
+		foreach my $Job (@jobs) {
 			if (
 				$Job->clean_gappeak and 
 				( (-e $Job->clean_gappeak and -s _  > 0) or $self->dryrun )
