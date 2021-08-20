@@ -285,17 +285,23 @@ sub check_input_files {
 		die "Sample file '$sample_file' does not have the requisite header!\n";
 	}
 	my %samples;
+	my @sample_order;
 	while (my $line = $fh->getline) {
 		chomp $line;
 		my ($replicate, $condition) = split('\t', $line);
-		$samples{$condition} ||= [];
+		unless (exists $samples{$condition}) {
+			$samples{$condition} = [];
+			if (lc $condition ne 'input') {
+				push @sample_order, $condition;
+			}
+		}
 		push @{ $samples{$condition} }, $replicate;
 	}
 	$fh->close;
 	
 	# Add jobs and associated files for each condition
-	foreach my $condition (sort {$a cmp $b} keys %samples) {
-		next if $condition eq 'Input';
+	my @errors;
+	foreach my $condition (@sample_order) {
 		my $Job = $Runner->add_job($condition, undef, undef, undef, undef, undef);
 			# Runner will crash if Job wasn't made succesfully
 			
