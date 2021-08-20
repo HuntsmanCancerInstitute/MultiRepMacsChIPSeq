@@ -317,12 +317,16 @@ print "======== Finished ChIPSeq multi-replicate pipeline ==========\n";
 ############### Subroutines ########################################################
 
 sub check_inputs {
+	
+	# check chip samples
 	if (@ARGV) {
 		die sprintf("There are unrecognized leftover items on the command line!\n Did you leave spaces in your --chip or --control file lists?\nItems:\n %s\n", join("\n ", @ARGV));
 	}
 	unless ($Runner->chip) {
 		die "No ChIP file(s) defined!\n";
 	}
+	
+	# check names
 	if ($Runner->name) {
 		my %check = map {$_ => 1} ($Runner->name);
 		if (scalar(keys %check) != scalar($Runner->name)) {
@@ -336,6 +340,7 @@ sub check_inputs {
 		die "Unequal number of ChIP samples and names!\n";
 	}
 	
+	# check controls
 	if (scalar($Runner->control) > 1 and scalar($Runner->control) != scalar($Runner->chip)) {
 		die "Unequal number of control and ChIP samples!\n";
 	}
@@ -349,6 +354,8 @@ sub check_inputs {
 		# user somehow set both to zero, but this throws errors to macs2
 		$Runner->lambda(0);
 	}
+	
+	# check scaling factors
 	if (scalar($Runner->chscale) or scalar($Runner->coscale)) {
 		# no longer recommended
 			print <<MESSAGE;
@@ -367,6 +374,8 @@ MESSAGE
 	if (scalar($Runner->coscale) and scalar($Runner->coscale) != scalar($Runner->control)) {
 		die "Unequal number of control samples and control scale factors!\n";
 	}
+	
+	# check chromosome normalization factors
 	if (scalar($Runner->chrnorm) and not $Runner->chrapply) {
 		die "Must specify chromosome apply regex (--chrapply) for chromosome normalization factors!\n";
 	}
@@ -388,6 +397,8 @@ MESSAGE
 	if (scalar($Runner->chrnorm) > 1 and scalar($Runner->control) == 1) {
 		print "Using first chromosome normalization factor for universal control!\n";
 	}
+	
+	# check species
 	if ($Runner->species) {
 		print <<MESSAGE;
 
@@ -399,7 +410,7 @@ with the --genome option.
 MESSAGE
 	}
 	
-	# directory
+	# check directory
 	unless ($Runner->dryrun) {
 		unless (-e $Runner->dir and -d _) {
 			make_path($Runner->dir) or 
@@ -409,7 +420,8 @@ MESSAGE
 			die sprintf("Target directory %s is not writable!\n", $Runner->dir);
 		}
 	}
-	# target depth
+	
+	# check target depth
 	if (defined $Runner->targetdep) {
 		my $files = join(",", ($Runner->chip), ($Runner->control));
 		if ($files =~ /\.bam/i) {
@@ -426,7 +438,7 @@ MESSAGE
 		}
 	}
 	
-	# sizes
+	# check sizes
 	if (not $Runner->peaksize) {
 		# no minimum peak size defined? might be ok
 		if ($Runner->fragsize) {
@@ -454,7 +466,7 @@ MESSAGE
 		$Runner->broadgap($g);
 	}
 	
-	# exclusion list
+	# check exclusion list
 	if (
 		$Runner->blacklist and 
 		$Runner->blacklist ne 'input' and 
@@ -504,6 +516,7 @@ sub check_input_files {
 	my @names = $Runner->name;
 	my @chips = $Runner->chip;
 	my @controls = $Runner->control;
+	my $chip_max_count = 0;
 	foreach my $i (0 .. $#names) {
 		my @list = split ',', $chips[$i];
 		if (scalar(@list) != uniqstr(@list)) {
@@ -519,6 +532,9 @@ sub check_input_files {
 				printf(" can't find %s ChIP file %s!\n", $names[$i], $f);
 				push @errors, $f;
 			}
+		}
+		if (scalar(@list) > $chip_max_count) {
+			$chip_max_count = scalar(@list);
 		}
 		
 		if (@controls) {
@@ -545,6 +561,10 @@ sub check_input_files {
 	}
 	else {
 		print " All input files found\n";
+	}
+	if ($Runner->independent and $chip_max_count == 1) {
+		print " Disabling independent flag because no sample has more than 1 file\n";
+		$Runner->independent(0);
 	}
 }
 
