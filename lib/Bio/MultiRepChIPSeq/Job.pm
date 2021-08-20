@@ -1330,10 +1330,9 @@ sub generate_enrichment_commands {
 	}
 	my $chip = $self->chip_bdg || undef;
 	my $lambda = $self->lambda_bdg || undef;
-	return unless ($chip and $lambda);
 	unless ($self->dryrun) {
-		$self->crash("no ChIP fragment file $chip!\n") if not -e $chip;
-		$self->crash("no control lambda fragment file $lambda!\n") if not -e $lambda;
+		$self->crash("no ChIP fragment file $chip!\n") if (not $chip or not -e $chip);
+		$self->crash("no control lambda fragment file $lambda!\n") if (not $lambda or not -e $lambda);
 	}
 	
 	my $command = sprintf("%s bdgcmp -t %s -c %s -m qpois FE ", 
@@ -1359,8 +1358,9 @@ sub generate_peakcall_commands {
 	unless ($self->macs_app =~ /\w+/ or $self->dryrun) {
 		croak "no MACS2 application in path!\n";
 	}
-	my $qtrack = $self->qvalue_bdg || undef;
-	return unless $qtrack;
+	
+	my $qtrack = $self->qvalue_bdg;
+	$self->crash("no qvalue bedGraph file defined!\n") if not $qtrack;
 	unless ($self->dryrun) {
 		$self->crash("no qvalue bedGraph file $qtrack!\n") if not -e $qtrack;
 	}
@@ -1402,9 +1402,11 @@ sub generate_independent_peakcall_commands {
 	unless ($self->macs_app =~ /\w+/ or $self->dryrun) {
 		croak "no MACS2 application in path!\n";
 	}
+	
+	# ChIP bam files
 	my $chip_number = scalar($self->chip_use_bams);
 	unless ($chip_number >= 1) {
-		$self->crash("no ChIP bam files specified!");
+		$self->crash("no ChIP bam files available for independent peak call!");
 	}
 	
 	# generic Macs2 options
@@ -1547,9 +1549,12 @@ sub generate_independent_peakcall_commands {
 
 sub generate_cleanpeak_commands {
 	my $self = shift;
-	return unless defined $self->peak; # skip control jobs
 	unless ($self->peak2bed_app =~ /\w+/ or $self->dryrun) {
 		croak "no peak2bed.pl application in path!\n";
+	}
+	
+	unless (defined $self->peak) {
+		$self->crash("no peak file defined!");
 	}
 	
 	# this is now done by an external script
@@ -1684,7 +1689,7 @@ sub generate_independent_merge_peak_commands {
 		}
 	}
 	else {
-		$self->crash("no replicate peaks!?");
+		$self->crash("no replicate peaks for merging!?");
 	}
 }
 
