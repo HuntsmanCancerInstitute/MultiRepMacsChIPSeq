@@ -122,7 +122,7 @@ sub process_bdg {
 	# open file handle
 	my ($basename, $path, $extension) = fileparse($file, 
 		qw(.bdg .bedgraph .bdg.gz .bedgraph.gz));
-	my $infh = Bio::ToolBox->open_file($file) or 
+	my $infh = Bio::ToolBox->read_file($file) or 
 		die "unable to open file '$file'!\n";
 	
 	# walk through file

@@ -38,7 +38,7 @@ with extension '.gapped.bed'.
 
 No options are available.
 
-USAGE: narrowpeak2bed.pl peak1.narrowPeak [peak1.gappedPeak] ....
+USAGE: peak2bed.pl peak1.narrowPeak [peak1.gappedPeak] ....
 
 DOC
 

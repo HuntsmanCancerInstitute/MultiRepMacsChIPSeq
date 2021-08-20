@@ -107,6 +107,8 @@ Export the hash as a reference.
 
 =item lambda
 
+=item independent
+
 =item chrskip
 
 =item blacklist
