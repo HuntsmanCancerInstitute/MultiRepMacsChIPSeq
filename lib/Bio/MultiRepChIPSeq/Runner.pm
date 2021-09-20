@@ -1,5 +1,5 @@
 package Bio::MultiRepChIPSeq::Runner;
-our $VERSION = 17.4;
+our $VERSION = 17.5;
 
 =head1 name
 

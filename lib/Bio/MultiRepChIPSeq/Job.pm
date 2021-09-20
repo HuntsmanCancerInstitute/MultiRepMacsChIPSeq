@@ -193,6 +193,7 @@ sub new {
 	    control_scale       => [], # array of scaling factors for control signal
 	    chr_normfactor      => $chrnorm, # chromosome-scaling factor
 	    chip_bw             => undef, # ChIP signal bigWig file name
+	    chip_ind_bw         => [], # individual replicate ChIP signal bigWig names
 	    chip_bdg            => undef, # ChIP signal bedGraph file name
 	    d_control_bdg       => undef, # d control pileup bedGraph
 	    d_control_bw        => undef, # d control pileup bigWig file name
@@ -260,9 +261,13 @@ sub new {
 			$self->chip_count_bw("$base.count.bw");
 			# dedup bam
 			$self->chip_dedup_bams("$base.dedup.bam");
-			# replicate peak file if running independent calls
-			$self->rep_peaks($base . '_peaks.narrowPeak');
-			$self->rep_gappeaks($base . '_peaks.gappedPeak');
+			# if running independent peak calls
+			if ($self->independent) {
+				# add peak and coverage files
+				$self->rep_peaks($base . '_peaks.narrowPeak');
+				$self->rep_gappeaks($base . '_peaks.gappedPeak');
+				$self->chip_ind_bw("$base.fragment.bw");
+			}
 		}
 	}
 	
@@ -440,6 +445,12 @@ sub chip_bdg {
 	my $self = shift;
 	$self->{chip_bdg} = shift if @_;
 	return $self->{chip_bdg};
+}
+
+sub chip_ind_bw {
+	my $self = shift;
+	push @{ $self->{chip_ind_bw} }, @_ if @_;
+	return @{ $self->{chip_ind_bw} };
 }
 
 sub chip_count_bw {
@@ -703,10 +714,8 @@ sub generate_bam2wig_frag_commands {
 		# we have bam files to convert to bw
 		
 		# base fragment command
-		my $frag_command = sprintf(
-			"%s --out %s --qual %s --nosecondary --noduplicate --nosupplementary --bin %s --cpu %s --mean --bdg ", 
-			$self->bam2wig_app || 'bam2wig.pl', 
-			$self->chip_bdg,
+		my $frag_base = sprintf(
+			"--qual %s --nosecondary --noduplicate --nosupplementary --bin %s --cpu %s ", 
 			$self->mapq,
 			$self->chipbin,
 			$self->cpu
@@ -714,45 +723,70 @@ sub generate_bam2wig_frag_commands {
 		
 		# paired or single options
 		if ($self->paired) {
-			$frag_command .= sprintf("--pe --span --minsize %s --maxsize %s ", 
+			$frag_base .= sprintf("--pe --span --minsize %s --maxsize %s ", 
 				$self->minsize, $self->maxsize);
 		}
 		else {
-			$frag_command .= sprintf("--extend --extval %s ", $self->fragsize);
-			$frag_command .= sprintf("--shiftval %s ", $self->shiftsize) 
+			$frag_base .= sprintf("--extend --extval %s ", $self->fragsize);
+			$frag_base .= sprintf("--shiftval %s ", $self->shiftsize) 
 				if $self->shiftsize;
 		}
 		# additional filtering
 		if ($self->fraction) {
-			$frag_command .= "--fraction ";
+			$frag_base .= "--fraction ";
 		}
 		if ($self->blacklist) {
-			$frag_command .= sprintf("--blacklist %s ", $self->blacklist);
+			$frag_base .= sprintf("--blacklist %s ", $self->blacklist);
 		}
 		if ($self->chrskip) {
-			$frag_command .= sprintf("--chrskip \'%s\' ", $self->chrskip);
+			$frag_base .= sprintf("--chrskip \'%s\' ", $self->chrskip);
 		}
 		# scaling
 		if ($self->chip_scale) {
-			$frag_command .= sprintf("--scale %s ", join(',', $self->chip_scale ) );
+			$frag_base .= sprintf("--scale %s ", join(',', $self->chip_scale ) );
 		}
 		else {
 			# standard scaling
-			$frag_command .= "--rpm ";
+			$frag_base .= "--rpm ";
 		}
 		# chromosome-specific scaling
 		if ($self->chr_normfactor) {
-			$frag_command .= sprintf("--chrnorm %s --chrapply %s ", $self->chr_normfactor, 
+			$frag_base .= sprintf("--chrnorm %s --chrapply %s ", $self->chr_normfactor, 
 				$self->chrapply);
 		}
 		# finish fragment command
-		$frag_command .= sprintf("--in %s ", join(',', $self->chip_use_bams));
+		my $frag_command = sprintf("%s --out %s %s --mean --bdg --in %s", 
+			$self->bam2wig_app || 'bam2wig.pl', 
+			$self->chip_bdg,
+			$frag_base,
+			join(',', $self->chip_use_bams)
+		);
 		my $log = $self->chip_bdg;
 		$log =~ s/bdg$/bam2wig.out.txt/;
 		$frag_command .= " 2>&1 > $log";
 		push @commands, [$frag_command, $self->chip_bdg, $log];
 		
+		### Independent ChIP bams
+		if ($self->independent) {
+			my @bams = $self->chip_use_bams;
+			for my $i (0 .. $#bams) {
+				my $out = ($self->chip_ind_bw)[$i];
+				my $command = sprintf("%s --out %s %s --bw --bwapp %s --in %s",
+					$self->bam2wig_app || 'bam2wig.pl', 
+					$out,
+					$frag_base,
+					$self->wig2bw_app || 'wigToBigWig',
+					$bams[$i]
+				);
+				$log = $out;
+				$log =~ s/bw/bam2wig.out.txt/;
+				$command .= " 2>&1 > $log";
+				push @commands, [$command, $out, $log];
+			}
+		}
 	}
+	
+	
 	
 	### Control bams
 	my $control_bam_string = join(',', $self->control_use_bams);
