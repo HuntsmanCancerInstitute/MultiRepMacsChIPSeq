@@ -1,6 +1,11 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v17.5
+	multirep_macs2_pipeline.pl
+	- When run in independent replicate mode, also generate a separate Fragment 
+	  bigWig file for each replicate as a convenience for later evaluation purposes.
+
 v17.4
 	multirep_macs2_pipeline.pl
 	- Improve handling of multiple ChIP sample jobs when using a single universal 
