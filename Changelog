@@ -1,6 +1,28 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v17.4
+	multirep_macs2_pipeline.pl
+	- Improve handling of multiple ChIP sample jobs when using a single universal 
+	  reference control for all samples.
+	- Improve handling of independent replicate peak call jobs, including disabling 
+	  when only 1 replicate is provided per sample.
+	- Sample names are no longer automatically changed for compatibility.
+	
+	recall_peaks.pl
+	- Check for the explicit existence of every file that will be needed before 
+	  starting to avoid subsequent crashes.
+	- Keep the user-provided sample name order rather than resorting alphabetically.
+	
+	intersect_peaks.pl
+	- Temporary sorted files are named uniquely to avoid race conditions when 
+	  multiple instances are run simultaneously, such as during independent 
+	  pipeline mode.
+	
+	plot_peak_figures.R
+	- Handle nulls better in Jaccard files.
+	
+
 v17.3
 	recall_peaks.pl
 	- Skip requirement of finding example bam files. Use fragment bigWig instead.
