@@ -107,15 +107,11 @@ sub new {
 	my $class = shift;
 	my $options = $class->init_options();
 	
-	# initialize one reusable instance of parallel manager
-	my $pm = Parallel::ForkManager->new($options->{job}) or 
-		confess "unable to initiate Parallel Forkmanager!";
-		
 	my $self = {
 		opts    			=> $options,
 		Jobs    			=> [],
 		finished_commands 	=> [],
-		pm      			=> $pm,
+		pm      			=> undef,
 		progress_file 		=> undef,
 		sample_file         => undef,
 		universal_control   => 0,
@@ -322,6 +318,7 @@ sub execute_commands {
 	my $commands = shift;
 	printf "Excecuting %d commands\n", scalar @$commands;
 	
+		
 	# dry run
 	if ($self->dryrun) {
 		# we just go through the motions here
@@ -334,7 +331,20 @@ sub execute_commands {
 	
 	# execute jobs
 	if ($self->job > 1) {
-		my $pm = $self->{pm};
+		
+		# get parallel manager
+		my $pm;
+		if (defined $self->{pm}) {
+			$pm = $self->{pm}; # make it reusable
+		}
+		else {
+			# initialize new instance of parallel manager
+			$pm = Parallel::ForkManager->new($self->job) or 
+				confess "unable to initiate Parallel Forkmanager!";
+			$self->{pm} = $pm; # make it reusable
+		}
+		
+		# run commands
 		foreach my $command (@$commands) {
 			next if $self->_check_command_finished($command, 1);
 			printf "=== Job: %s\n", $command->[0];
