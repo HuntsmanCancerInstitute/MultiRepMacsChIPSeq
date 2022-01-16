@@ -400,6 +400,8 @@ ddupfile <- paste0(opt$input, '.dedup-stats.txt')
 if(file.exists(ddupfile)) {
   ddupdata <- read.table(ddupfile, header=TRUE, sep="\t", 
                         check.names = F, na.strings = '.')
+  
+  # XY scatter comparison
   colnames(ddupdata)[4] <- "Before"
   colnames(ddupdata)[7] <- "After"
   ddupdata_long <- melt(ddupdata, id="NonDuplicateCount", 
@@ -410,7 +412,22 @@ if(file.exists(ddupfile)) {
     xlab("NonDuplicate Count") +
     ylab("Duplicate Count") +
     ggtitle("Number of Duplicate Fragments After De-duplication")
-  ggsave(plot = p, filename = paste0(opt$input, '.dedup-stats.', opt$format),
+  ggsave(plot = p, filename = paste0(opt$input, '.dedup-comparison.', opt$format),
+         width = 6, height = 4)
+  
+  # stacked bar chart of counts
+  colnames(ddupdata)[3] <- "Optical"
+  colnames(ddupdata)[5] <- "Unique"
+  colnames(ddupdata)[7] <- "Retained"
+  ddupdata$Discarded <- ddupdata$Before - ddupdata$Retained
+  ddupdata_long <- melt(ddupdata, id="File", 
+                        measure.vars = c("Optical", "Discarded", "Retained", "Unique"),
+                        variable.name = "Duplication", value.name = "Count")
+  p <- ggplot(ddupdata_long, aes(File, y = Count)) +
+    geom_col(aes(fill=Duplication), position = "stack") +
+    ggtitle("Fragment Duplication Counts") + 
+    theme(axis.text.x = element_text(angle = 90))
+  ggsave(plot = p, filename = paste0(opt$input, '.duplicate-counts.', opt$format),
          width = 6, height = 4)
 }
 
