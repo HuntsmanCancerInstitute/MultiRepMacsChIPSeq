@@ -290,7 +290,7 @@ if(file.exists(jaccardfile)) {
              main = "Spatial Overlap Between Peaks", 
              breaks = seq(0,1,length=255),
              display_numbers = TRUE, number_format = "%.2f",
-             number_color = 'yellow',
+             number_color = 'red',
              filename = paste0(opt$input, '.jaccard.', opt$format), 
              width = 8, height = 8)
 }
@@ -303,11 +303,11 @@ if(file.exists(intersectfile)) {
     ndata <- read.table(intersectfile,header=TRUE,sep="\t", 
                         row.names = 1, check.names = F)
     maxval <- max(ndata)
-    pheatmap(ndata, col=colorRampPalette(brewer.pal(9, 'Greens'))(255), 
+    pheatmap(ndata, col=colorRampPalette(brewer.pal(9, 'Blues'))(255), 
              main = "Number of Peak Intersections", 
              breaks = seq(0,maxval,length=255),
              display_numbers = TRUE, number_format = "%.1e",
-             number_color = 'yellow',
+             number_color = 'red',
              filename = paste0(opt$input, '.n_intersection.', opt$format), 
              width = 8, height = 8)
 }
@@ -480,7 +480,7 @@ if(file.exists(fproffile)) {
   fprofdata[is.na(fprofdata)] <- 0
   grpdata = read.table(paste0(opt$input, "_profile_fragment.groups.txt"), header=TRUE, sep="\t", 
                        row.names = 1, check.names = F)
-  clrs <- colorRampPalette(brewer.pal(9, 'Reds'))(255)
+  clrs <- colorRampPalette(brewer.pal(9, 'YlOrRd'))(255)
   plot_profile_hm(fprofdata, 0, opt$fmax, clrs, grpdata,
          "ChIP fragment density profile around merged peak midpoints",
          paste0(opt$input,"_profile_fragment_hm"))
