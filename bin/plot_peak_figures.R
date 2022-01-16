@@ -445,8 +445,8 @@ if(file.exists(qfile)) {
 	    qdata <- qdata[,2:ncol(qdata)]
 	  }
       qdata[is.na(qdata)] <- 0
-      plot_mean_hm(qdata, 0, opt$qmax, colorRampPalette(brewer.pal(9, 'Reds'))(255), 
-             "Mean Q-Value over merged peaks",
+      plot_mean_k_hm(qdata, 0, opt$qmax, 4, colorRampPalette(brewer.pal(9, 'Reds'))(255), 
+             color4, "Mean Q-Value over merged peaks, 4 Clusters",
              paste0(opt$input,"_qvalue_hm"))
     }
  }
