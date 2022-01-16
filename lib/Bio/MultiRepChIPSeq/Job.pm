@@ -1163,14 +1163,21 @@ sub generate_lambda_control_commands {
 		my $log = $self->lambda_bdg;
 		$log =~ s/bdg/meanbdg.out.txt/;
 		my $chipfile; # we can use either bw or bdg
-		if (-e $self->chip_bw) {
-			$chipfile = $self->chip_bw;
-		}
-		elsif (-e $self->chip_bdg) {
+		              # but prefer bdg to match the original chromosome order
+		              # without having to resort to separate expensive reordering
+		              # since our bw adapter dumps chromosomes in random order - sigh
+		              # this should in most cases default to the bdg
+		if (-e $self->chip_bdg) {
 			$chipfile = $self->chip_bdg;
 		}
-		my $command = sprintf("%s $chipfile 2>&1 > $log", 
-			$self->meanbdg_app || 'generate_mean_bedGraph.pl');
+		elsif (-e $self->chip_bw) {
+			$chipfile = $self->chip_bw;
+		}
+		my $command = sprintf("%s --in %s --out %s 2>&1 > $log", 
+			$self->meanbdg_app || 'generate_mean_bedGraph.pl', 
+			$chipfile,
+			$self->lambda_bdg
+		);
 		$name2done->{ $self->lambda_bdg } = 1;
 		return [$command, $self->lambda_bdg, $log];
 	}
