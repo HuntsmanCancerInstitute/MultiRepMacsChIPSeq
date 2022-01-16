@@ -181,14 +181,20 @@ complexity. See the Pysano folder for example scripts.
 
 - Genome size
 
-    The effective size of the genome in bp is required by Macs2 when calculating
-    statistical enrichment. This is the size of mappable space in the genome, i.e.
-    not counting repetitive and `N` spacers. Pre-computed values can be used, but
-    these are usually based on specific size k-mers. A more reliable method is to
-    simply count the mappable space in the actual provided samples, which takes into
-    account the read length and sequencing depth of the given experiment. The script
+    The effective size of the genome in bp is required when calculating the
+    background signal when determining statistical enrichment. This is the size of
+    mappable space in the genome, i.e. not counting repetitive and `N` spacers.
+    Pre-computed values could be used, but these are usually based on specific size
+    k-mers. An alternative, empirical method is to simply determine the coverage of the
+    actual provided samples, which takes into account the read length and sequencing
+    depth of the given experiment. The script
     [report_mappable_space](applications.md#report_mappable_spacepl) will do this
     automatically, unless an explicit genome size is provided.
+    
+    **Note** that ChIPSeq experiments with low genomic coverage (50% or less), 
+    common with early genomic sequencing technologies, will benefit more if given the 
+    explicit genome size rather than empirical, as it will lead to lower expected 
+    background signal and better statistical scores.
 
 - Duplication levels
 
@@ -252,8 +258,9 @@ complexity. See the Pysano folder for example scripts.
     available to down-weight multiple-mapping alignments, which usually have low
     mapping qualities. Rather than scoring the alignment as 1 (prior to depth
     normalization), the alignment is scored as a fraction of the number of hits,
-    recorded in the alignment tag `NH`, essentially as `1/NH`. This allows for more 
-    comprehensive coverage while avoiding high coverage from low quality alignments.
+    recorded in the alignment tag `NH` (when available), essentially as `1/NH`. This
+    allows for more comprehensive coverage while avoiding high coverage from low
+    quality alignments.
 
 - Fragment size and coverage tracks
 
@@ -324,11 +331,13 @@ complexity. See the Pysano folder for example scripts.
 
 - Peak detection
 
-    The pipeline uses the generated q-value (FDR) track to call peaks. The `--threshold` 
-    parameter is the -log10(qvalue) minimum value for calling a peak, so 2 is equivalent 
-    to 0.01 or 1% FDR. The minimum peak size (length) and gap for joining nearby peaks. 
-    Typically, peak size is fragment size or a little larger, and gap size is around half 
-    of the fragment size.
+    The pipeline uses the generated q-value (FDR) track to call peaks. The
+    `--cutoff` parameter is the -log10(qvalue) minimum value for calling a peak,
+    so 2 is equivalent to 0.01 or 1% FDR. The minimum peak size (length) and gap
+    distance for joining nearby peaks may also be explicitly set. Typically for point
+    source or narrow peaks, peak size should be equivalent to the mean fragment size
+    or a little larger, and gap size is around half of the fragment size, or mean
+    read length. 
     
         --cutoff 2 \
         --peaksize 250 \
