@@ -30,7 +30,7 @@ eval {
 	$parallel = 1;
 };
 
-my $VERSION = 5.1;
+my $VERSION = 5.2;
 
 my $DOC = <<END;
 
@@ -649,6 +649,8 @@ sub count_alignments_singlethread {
 		
 		# add chromosome counts to global values
 		$totalCount += $data->{totalCount};
+		$opticalCount += $data->{optCount};
+		$coordErrorCount += $data->{coordError};
 		printf("   %d $items counted on $seq_id\n", $data->{totalCount}) if $verbose;
 		while (my ($d, $c) = each %{ $data->{depth2count} } ) {
 			$depth2count{$d} += $c;
