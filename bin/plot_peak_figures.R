@@ -27,6 +27,8 @@ opts <-  list(
          help="Maximum q-value to plot, default 30"),
     make_option(c("-r","--fmax"), default = 4,
          help="Maximum fragment value to plot, default 4"),
+    make_option(c("--mincluster"), default = 500,
+         help="Minimum number of peaks to generate k-means plots, default 500"),
     make_option(c("-p","--palette"), default = "Set1",
          help="RColorBrewer palette for samples, default Set1"),
     make_option(c("-f","--format"), default="png",
@@ -260,17 +262,20 @@ if(file.exists(countfile)) {
   sampledata <- read.table(samplefile, header=TRUE, sep="\t", row.names = 1, 
                            check.names = FALSE)
   
-  if ( colnames(countdata)[1] == "Name" ) {
-    # exclude this column name
-    countdata <- countdata[,2:ncol(countdata)]
-  }
-  countdata[is.na(countdata)] <- 0
+  # only plot if we have at least 3 samples
+  if (ncol(countdata) > 3) {
+     if ( colnames(countdata)[1] == "Name" ) {
+         # exclude this column name
+         countdata <- countdata[,2:ncol(countdata)]
+     }
+     countdata[is.na(countdata)] <- 0
   
-  # plot
-  makeDist(countdata,sampledata,paste0(opt$input,"_distance.", opt$format))
-  makePearCorr(countdata,sampledata,paste0(opt$input,"_pearson.", opt$format))
-  makeSpearCorr(countdata,sampledata,paste0(opt$input,"_spearman.", opt$format))
-  makePCA(countdata,sampledata,paste0(opt$input,"_PCA.", opt$format))
+     # plot
+     makeDist(countdata,sampledata,paste0(opt$input,"_distance.", opt$format))
+     makePearCorr(countdata,sampledata,paste0(opt$input,"_pearson.", opt$format))
+     makeSpearCorr(countdata,sampledata,paste0(opt$input,"_spearman.", opt$format))
+     makePCA(countdata,sampledata,paste0(opt$input,"_PCA.", opt$format))
+  }
 }
 
 
@@ -416,12 +421,12 @@ qfile <- paste0(opt$input, "_meanQvalue.txt")
 if(file.exists(qfile)) {
     qdata = read.table(qfile, header=TRUE, sep="\t", 
                        row.names = 1, check.names = F, na.strings = '.')
-    if ( colnames(qdata)[1] == "Name" ) {
-        # exclude this column name
-        qdata <- qdata[,2:ncol(qdata)]
-    }
-    if (ncol(qdata > 1)) {
+    if (ncol(qdata) > 2) {
       # only make a heat map file if there is more than one sample
+	  if ( colnames(qdata)[1] == "Name" ) {
+	    # exclude this column name
+	    qdata <- qdata[,2:ncol(qdata)]
+	  }
       qdata[is.na(qdata)] <- 0
       plot_mean_hm(qdata, 0, opt$qmax, colorRampPalette(brewer.pal(9, 'Reds'))(255), 
              "Mean Q-Value over merged peaks",
@@ -436,26 +441,28 @@ lfefile <- paste0(opt$input,"_meanLog2FE.txt")
 if(file.exists(lfefile)) {
     lfedata = read.table(lfefile,header=TRUE,sep="\t", 
                          row.names = 1, check.names = F, na.strings = '.')
-    if ( colnames(lfedata)[1] == "Name" ) {
-        # exclude this column name
-        lfedata <- lfedata[,2:ncol(lfedata)]
-    }
-    if (ncol(lfedata) > 1) {
+    if (ncol(lfedata) > 2) {
       # only make heat map files if there is more than one sample
+      if ( colnames(lfedata)[1] == "Name" ) {
+          # exclude this column name
+          lfedata <- lfedata[,2:ncol(lfedata)]
+      }
       lfedata[is.na(lfedata)] <- 0
       clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(255)
       plot_mean_hm(lfedata, opt$min, opt$max, clrs, 
              "Mean Log2 Fold Enrichment over merged peaks",
              paste0(opt$input,"_log2FE_hm"))
-      plot_mean_k_hm(lfedata, opt$min, opt$max, 4, clrs, color4, 
-                 "Mean Log2 Fold Enrichment over merged peaks, 4 Clusters",
-                 paste0(opt$input,"_log2FE_hm_K4"))
-      plot_mean_k_hm(lfedata, opt$min, opt$max, 6, clrs, color6, 
+      if ( nrow(lfedata) >= opt$mincluster) {
+        plot_mean_k_hm(lfedata, opt$min, opt$max, 4, clrs, color4, 
+                  "Mean Log2 Fold Enrichment over merged peaks, 4 Clusters",
+                  paste0(opt$input,"_log2FE_hm_K4"))
+        plot_mean_k_hm(lfedata, opt$min, opt$max, 6, clrs, color6, 
                  "Mean Log2 Fold Enrichment over merged peaks, 6 Clusters",
                  paste0(opt$input,"_log2FE_hm_K6"))
-      plot_mean_k_hm(lfedata, opt$min, opt$max, 8, clrs, color8, 
+        plot_mean_k_hm(lfedata, opt$min, opt$max, 8, clrs, color8, 
                  "Mean Log2 Fold Enrichment over merged peaks, 8 Clusters",
                  paste0(opt$input,"_log2FE_hm_K8"))
+      }
     }
 }
 
@@ -477,9 +484,11 @@ if(file.exists(fproffile)) {
   plot_profile_hm(fprofdata, 0, opt$fmax, clrs, grpdata,
          "ChIP fragment density profile around merged peak midpoints",
          paste0(opt$input,"_profile_fragment_hm"))
-  plot_profile_k_hm(fprofdata, 0, opt$fmax, 4, clrs, color4, grpdata, 
-                    "ChIP fragment density profile around merged peak midpoints, 4 Clusters",
-                    paste0(opt$input, "_profile_fragment_hm_K4"))
+  if (nrow(fprofdata) >= opt$mincluster) {
+     plot_profile_k_hm(fprofdata, 0, opt$fmax, 4, clrs, color4, grpdata, 
+                       "ChIP fragment density profile around merged peak midpoints, 4 Clusters",
+                       paste0(opt$input, "_profile_fragment_hm_K4"))
+  }
 }
 
 
@@ -500,9 +509,11 @@ if(file.exists(lfeproffile)) {
   plot_profile_hm(lfeprofdata, opt$min, opt$max, clrs, grpdata,
          "ChIP Log2 Fold Enrichment profile around merged peak midpoints",
          paste0(opt$input,"_profile_log2FE_hm"))
-  plot_profile_k_hm(lfeprofdata, opt$min, opt$max, 4, clrs, color4, grpdata, 
+  if (nrow(lfeprofdata) >= opt$mincluster) {
+      plot_profile_k_hm(lfeprofdata, opt$min, opt$max, 4, clrs, color4, grpdata, 
                     "ChIP Log2 Fold Enrichment profile around merged peak midpoints, 4 Clusters",
                     paste0(opt$input, "_profile_log2FE_hm_K4"))
+  }
 }
 
 
