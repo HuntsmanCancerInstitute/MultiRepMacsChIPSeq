@@ -1,5 +1,5 @@
 package Bio::MultiRepChIPSeq::Runner;
-our $VERSION = 17.5;
+our $VERSION = 17.6;
 
 =head1 name
 
@@ -1465,6 +1465,7 @@ sub run_efficiency {
 	# collect count files for each job
 	foreach my $Job ($self->list_jobs) {
 		next unless defined $Job->clean_peak;
+		next unless scalar($Job->chip_count_bw) > 0;
 		my $output = File::Spec->catfile($self->dir, $Job->job_name . '.efficiency.txt');
 		my $command = sprintf("%s --in %s --group %s --out %s --cpu %d ", 
 			$self->geteff_app || 'get_chip_efficiency.pl', 
@@ -1489,7 +1490,12 @@ sub run_efficiency {
 		push @commands, [$command, $output, $log];
 	}
 	
-	# execute the efficiency commands
+	# execute the efficiency commands if present
+	unless (@commands) {
+		# nothing to do? so return
+		$self->update_progress_file('efficiency');
+		return;
+	}
 	$self->execute_commands(\@commands);
 	
 	# proceed no further if dry run
