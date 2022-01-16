@@ -1328,10 +1328,13 @@ sub convert_bw_to_bdg {
 		# generate command if bigWig file exists or we're in dry run mode
 		my $log = $self->chip_bdg;
 		$log =~ s/bdg$/bw2bdg.out.txt/;
-		my $command = sprintf("%s %s %s 2>> $log", 
-			$self->bw2bdg_app || 'bigWigToBedGraph', 
+		my $command = sprintf("%s --in %s --out %s --skip \'%s\' --apply \'%s\' --bw2w %s 2>&1 > $log", 
+			$self->manwig_app || 'manipulate_wig.pl', 
 			$self->chip_bw, 
-			$self->chip_bdg
+			$self->chip_bdg,
+			$self->chrskip,
+			$self->chrskip, # use apply for tiny performance gain 
+			$self->bw2bdg_app || 'bigWigToBedGraph' # to enforce bedGraph
 		);
 		push @commands, [$command, $self->chip_bdg, $log];
 	}
