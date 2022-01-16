@@ -1593,30 +1593,25 @@ sub run_plot_peaks {
 		return;
 	}
 	my $outbase = File::Spec->catfile($self->dir, $self->out);
-	if (not $self->dryrun and not -e "$outbase.bed") {
-		print "No output files for plotting\n";
-		return;
-	}
-	my $command = sprintf("%s %s --input %s ", $self->rscript_app, 
+	my $command = sprintf("%s --verbose %s --input %s ", $self->rscript_app, 
 		$self->plotpeak_app, $outbase);
 	my $log = $outbase . '.plot_figures.out.txt';
-	$command .= " 2>&1 > $log";
+	$command .= " > $log 2>&1"; # error redirect needs to last with Rscript
 	
-	# there are multiple output files from this script
-	# only using one as an example
-	my $example = File::Spec->catfile($self->dir, $self->out . '_PCA.png');
-	my @commands = ( [$command, $example, $log] );
+	# there are multiple possible output files, including none, from this script
+	# hard to predict, so don't put any
+	my @commands = ( [$command, '', $log] );
 	
 	# add independent peak calls
 	if ($self->independent) {
 		foreach my $Job ($self->list_jobs) {
 			next if (scalar($Job->rep_peaks) == 1); # nothing to compare
 			my $jobbase = File::Spec->catfile($self->dir, $Job->job_name);
-			my $command = sprintf("%s %s --input %s ", $self->rscript_app, 
+			my $command = sprintf("%s --verbose %s --input %s ", $self->rscript_app, 
 				$self->plotpeak_app, $jobbase);
 			my $example = $jobbase . '.jaccard.png';
 			my $log = $jobbase . '.plot_figures.out.txt';
-			$command .= " 2>&1 > $log"; 
+			$command .= " > $log 2>&1"; # error redirect needs to last with Rscript
 			push @commands, [$command, $example, $log];
 		}
 	}
