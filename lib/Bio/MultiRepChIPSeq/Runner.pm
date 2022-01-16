@@ -442,17 +442,28 @@ sub _check_command_finished {
 			return 4;
 		}
 	}
-	elsif (substr($command_string, 0, 2) eq 'rm') {
-		# remove command doesn't leave an output (duh!) or log file
-		# gotta check each one
-		my $check = 0; 
-		foreach my $item (split /\s+/, $command_string) {
-			next if $item eq 'rm';
-			$check++ if -e $item; # check true if file is present
+	elsif (length($command_out) == 0) {
+		# no output files
+		if (substr($command_string, 0, 2) eq 'rm') {
+			# remove command doesn't leave an output (duh!) or log file
+			# gotta check each one
+			my $check = 0; 
+			foreach my $item (split /\s+/, $command_string) {
+				next if $item eq 'rm';
+				$check++ if -e $item; # check true if file is present
+			}
+			if ($check == 0) {
+				print "=== Job: $command_string\n    previously finished, target files missing\n" if $talk;
+				return 5;
+			}
 		}
-		if ($check == 0) {
-			print "=== Job: $command_string\n    previously finished, target files missing\n" if $talk;
-			return 5;
+		elsif ($command_string =~ /Rscript/) {
+			# plot peaks may leave lots of files or none
+			if (-e $command_log) {
+				# output log file exists, presume to be finished
+				print "=== Job: $command_string\n    presumed finished, have $command_log file\n" if $talk;
+				return 2;
+			}
 		}
 	}
 	
