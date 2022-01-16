@@ -1185,24 +1185,28 @@ sub run_rescore {
 	
 	# generate four get_dataset and two get_relative commands
 	# go ahead and make the fourth genome-wide command, even though we may not use it
+	my @command_lengths;
 	my $command1 = sprintf("%s --method mean --cpu %s --in %s --out %s --format 3 ",
 		$self->getdata_app || 'get_datasets.pl', 
 		$self->cpu, 
 		$input, 
 		$output1
 	);
+	push @command_lengths, length($command1);
 	my $command2 = sprintf("%s --method mean --cpu %s --in %s --out %s --format 3 ",
 		$self->getdata_app || 'get_datasets.pl', 
 		$self->cpu, 
 		$input, 
 		$output2
 	);
+	push @command_lengths, length($command2);
 	my $command3 = sprintf("%s --method sum --cpu %s --in %s --out %s --format 0 ",
 		$self->getdata_app || 'get_datasets.pl', 
 		$self->cpu, 
 		$input, 
 		$output3
 	);
+	push @command_lengths, length($command3);
 	my $command4 = sprintf("%s --method mean --cpu %s --in %s --out %s --win %s --num 25 --pos m --long --format 3 --groups --sum ",
 		$self->getrel_app || 'get_relative_data.pl', 
 		$self->cpu, 
@@ -1210,6 +1214,7 @@ sub run_rescore {
 		$output4, 
 		$self->binsize
 	);
+	push @command_lengths, length($command4);
 	my $command5 = sprintf("%s --method mean --cpu %s --in %s --out %s --win %s --num 25 --pos m --long --format 3 --groups --sum ",
 		$self->getrel_app || 'get_relative_data.pl', 
 		$self->cpu, 
@@ -1217,6 +1222,7 @@ sub run_rescore {
 		$output5, 
 		$self->binsize
 	);
+	push @command_lengths, length($command5);
 	my $command6 = sprintf("%s --method sum --cpu %s --feature genome --win %d --discard %s --out %s --format 0 ",
 		$self->getdata_app || 'get_datasets.pl', 
 		$self->cpu, 
@@ -1224,6 +1230,7 @@ sub run_rescore {
 		$self->discard, 
 		$output6
 	);
+	push @command_lengths, length($command6);
 	
 	# add dataset files
 	my %name2done;
@@ -1254,38 +1261,47 @@ sub run_rescore {
 	
 	
 	# add log outputs to commands
+	# check the length of each command string to make sure it's valid
 	my @commands;
-	my $log = $output1;
-	$log =~ s/txt$/out.txt/;
-	$command1 .= " 2>&1 > $log";
-	push @commands, [$command1, $output1, $log];
 	
-	$log = $output2;
-	$log =~ s/txt$/out.txt/;
-	$command2 .= " 2>&1 > $log";
-	push @commands, [$command2, $output2, $log];
-	
-	$log = $output3;
-	$log =~ s/txt$/out.txt/;
-	$command3 .= " 2>&1 > $log";
-	push @commands, [$command3, $output3, $log];
-	
-	$log = $output4;
-	$log =~ s/txt$/out.txt/;
-	$command4 .= " 2>&1 > $log";
-	push @commands, [$command4, $output4, $log];
-	
-	$log = $output5;
-	$log =~ s/txt$/out.txt/;
-	$command5 .= " 2>&1 > $log";
-	push @commands, [$command5, $output5, $log];
-	
-	if ($self->genomewin) {
-		# user has given an actual genome window size, so we'll run this command
-		$log = $output6;
-		$log =~ s/txt\.gz$/out.txt/;
-		$command6 .= " 2>&1 > $log";
-		push @commands, [$command6, $output6, $log];
+	if (length $command1 > shift @command_lengths) {
+		my $log = $output1;
+		$log =~ s/txt$/out.txt/;
+		$command1 .= " 2>&1 > $log";
+		push @commands, [$command1, $output1, $log];
+	}
+	if (length $command2 > shift @command_lengths) {
+		my $log = $output2;
+		$log =~ s/txt$/out.txt/;
+		$command2 .= " 2>&1 > $log";
+		push @commands, [$command2, $output2, $log];
+	}
+	if (length $command3 > shift @command_lengths) {
+		my $log = $output3;
+		$log =~ s/txt$/out.txt/;
+		$command3 .= " 2>&1 > $log";
+		push @commands, [$command3, $output3, $log];
+	}
+	if (length $command4 > shift @command_lengths) {
+		my $log = $output4;
+		$log =~ s/txt$/out.txt/;
+		$command4 .= " 2>&1 > $log";
+		push @commands, [$command4, $output4, $log];
+	}
+	if (length $command5 > shift @command_lengths) {
+		my $log = $output5;
+		$log =~ s/txt$/out.txt/;
+		$command5 .= " 2>&1 > $log";
+		push @commands, [$command5, $output5, $log];
+	}
+	if (length $command6 > shift @command_lengths) {
+		if ($self->genomewin) {
+			# user has given an actual genome window size, so we'll run this command
+			my $log = $output6;
+			$log =~ s/txt\.gz$/out.txt/;
+			$command6 .= " 2>&1 > $log";
+			push @commands, [$command6, $output6, $log];
+		}
 	}
 	
 	
@@ -1320,18 +1336,23 @@ sub run_rescore {
 			$input2, 
 			$output7
 		);
+		push @command_lengths, length($command7);
 		my $command8 = sprintf("%s --method mean --cpu %s --in %s --out %s --format 3 ",
 			$self->getdata_app || 'get_datasets.pl', 
 			$self->cpu, 
 			$input2, 
 			$output8
 		);
+		push @command_lengths, length($command8);
 		my $command9 = sprintf("%s --method sum --cpu %s --in %s --out %s --format 0 ",
 			$self->getdata_app || 'get_datasets.pl', 
 			$self->cpu, 
 			$input2, 
 			$output9
 		);
+		push @command_lengths, length($command8);
+		
+		# add dataset files for broad peaks
 		%name2done = ();
 		foreach my $Job ($self->list_jobs) {
 			if ($Job->qvalue_bw) {
@@ -1351,28 +1372,33 @@ sub run_rescore {
 		}
 	
 		# add log outputs to commands
-		my @commands;
-		my $log = $output7;
-		$log =~ s/txt$/out.txt/;
-		$command7 .= " 2>&1 > $log";
-		push @commands, [$command7, $output7, $log];
-		
-		$log = $output8;
-		$log =~ s/txt$/out.txt/;
-		$command8 .= " 2>&1 > $log";
-		push @commands, [$command8, $output8, $log];
-		
-		$log = $output9;
-		$log =~ s/txt$/out.txt/;
-		$command9 .= " 2>&1 > $log";
-		push @commands, [$command9, $output9, $log];
+		if (length($command7) > shift @command_lengths) {
+			my $log = $output7;
+			$log =~ s/txt$/out.txt/;
+			$command7 .= " 2>&1 > $log";
+			push @commands, [$command7, $output7, $log];
+		}
+		if (length($command8) > shift @command_lengths) {
+			my $log = $output8;
+			$log =~ s/txt$/out.txt/;
+			$command8 .= " 2>&1 > $log";
+			push @commands, [$command8, $output8, $log];
+		}
+		if (length($command9) > shift @command_lengths) {
+			my $log = $output9;
+			$log =~ s/txt$/out.txt/;
+			$command9 .= " 2>&1 > $log";
+			push @commands, [$command9, $output9, $log];
+		}
 	}
 	
 	
 	
-	
-	### Execute commands
+	### Execute data collection commands
 	$self->execute_commands(\@commands);
+	
+	
+	
 	
 	### Replicate Merge
 	# do this here so that we still know the output commands
@@ -1393,7 +1419,7 @@ sub run_rescore {
 			$output3m, 
 			$self->sample_file
 		);
-		$log = $output3m;
+		my $log = $output3m;
 		$log =~ s/txt/out.txt/;
 		$command10 .= " 2>&1 > $log";
 		push @commands2, [$command10, $output3m, $log];
