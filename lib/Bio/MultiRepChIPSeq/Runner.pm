@@ -692,39 +692,64 @@ sub run_mappable_space_report {
 	my $self = shift;
 	print "\n\n======= Determining mappable genome space\n";
 	
-	# check the user supplied value
-	if ($self->genome and not $self->dryrun and not $self->{progress}{mappable_size}) {
-		
-		# get the full genome size from the chromosome file
+	# first collect all available bam files - can't run without bam files
+	my @bamlist;
+	foreach my $Job ($self->list_jobs) {
+		push @bamlist, $Job->control_use_bams;
+		push @bamlist, $Job->chip_use_bams;
+	}
+	
+	# next get the official genome size from the chromosome file
+	my $genome_size = 0;
+	{
 		my $fh = IO::File->new($self->chromofile, 'r');
-		my $genome_size = 0;
 		while (my $line = $fh->getline) {
 			if ($line =~ /\s+(\d+)$/) {
 				$genome_size += $1;
 			}
 		}
 		$fh->close;
+	}
+	
+	# check the user supplied value
+	if ($self->genome and not $self->dryrun and not $self->{progress}{mappable_size}) {
 		
 		# double-check the user value
 		my $ratio = $self->genome / $genome_size;
-		if ($ratio > 1) {
-			printf "\nUser supplied genome size (%d) is larger than actual genome size (%d)!!!\nDetermining actual empirical mappable size\n",
+		if ($ratio > 1.01) {
+			printf "\n User supplied genome size (%d) is larger than actual genome size (%d)!!!\n",
 				$self->genome, $genome_size;
-			$self->genome = 0;
+			if (@bamlist) {
+				printf " Determining actual empirical mappable size\n",
+				$self->genome(0);
+			}
 		}
 		elsif ($ratio < 0.6) {
-			printf "\nUser supplied genome size (%d) is considerably smaller than actual genome size (%d)!\nDetermining actual empirical mappable size\n",
+			printf "\n User supplied genome size (%d) is considerably smaller than actual genome size (%d)!\n",
 				$self->genome, $genome_size;
-			$self->genome = 0;
+			if (@bamlist) {
+				printf " Determining actual empirical mappable size\n",
+				$self->genome(0);
+			}
 		}
 		else {
 			# ratio is somewhere between 50-100% of actual genome size, so assume ok
-			printf "\nUsing user-specified size of %d\n", $self->genome;
+			printf "\n Using user-specified size of %d\n", $self->genome;
 			return;
 		}
 	}
 	elsif ($self->genome and $self->dryrun) {
-		printf "\nPretending that user supplied genome size is ok\n";
+		printf "\n Pretending that user supplied genome size is ok\n";
+		return;
+	}
+	
+	# Check that we have bam files to continue
+	unless (@bamlist) {
+		# use a default genome size of 90% of actual size
+		# this should be close enough for most eukaryotic genomes
+		$self->genome(int($genome_size * 0.9));
+		printf "\n Input Bam files are not available. Using genome size of %d\n", $self->genome;
+		$self->update_progress_file('mappable_size');
 		return;
 	}
 	
@@ -740,12 +765,6 @@ sub run_mappable_space_report {
 	else {
 		unless ($self->reportmap_app =~ /\w+/ or $self->dryrun) {
 			croak "no report_mappable_space.pl application in path!\n";
-		}
-		# collect all available bam files
-		my @bamlist;
-		foreach my $Job ($self->list_jobs) {
-			push @bamlist, $Job->control_use_bams;
-			push @bamlist, $Job->chip_use_bams;
 		}
 		my $command = sprintf("%s --cpu %d ", 
 			$self->reportmap_app || 'report_mappable_space.pl', 
