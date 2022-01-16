@@ -13,15 +13,16 @@
 
 
 use strict;
+use Getopt::Long;
 use File::Basename qw(fileparse);
 use Bio::ToolBox 1.65;
 
-my $VERSION = 2;
+my $VERSION =3;
 
 # a script to generate mean coverage bedGraph track 
 
-unless (@ARGV) {
-print <<USAGE;
+
+my $docs = <<USAGE;
   
   A script to generate a chromosomal mean coverage bedGraph track 
   to be used in Macs2 as the global control track when there is 
@@ -40,27 +41,70 @@ print <<USAGE;
   Usage: $0 <file1.bw> ...
   
 USAGE
-exit;
+
+### Options
+unless (@ARGV) {
+	print $docs;
+	exit;
 }
 
-foreach my $file (@ARGV) {
-	
-	# check file and process appropriately
-	if ($file =~ /\.bw$/) {
-		process_bw($file);
-	}
-	elsif ($file =~ /\.(?:bdg|bedgraph)(?:\.gz)?$/i) {
-		process_bdg($file);
-	}
-	else {
-		print " '$file' has unrecognized file extension! Try .bw .bdg .bedgraph\n";
-	}
+my $infile;
+my $outfile;
+my $help;
+GetOptions(
+	'i|in=s'            => \$infile,
+	'o|out=s'           => \$outfile,
+	'h|help!'           => \$help,
+) or die "unrecognized option! See help\n";
+
+# check options
+if ($help) {
+	print $docs;
+	exit;
 }
 
+
+#### input file
+if (@ARGV and not $infile) {
+	$infile = shift @ARGV;
+}
+unless ($infile) {
+	die "must provide an input bigWig or bedGraph file!\n";
+}
+my ($basename, $path, $extension) = fileparse($infile, 
+	qw(.bw .bdg .bedgraph .bdg.gz .bedgraph.gz));
+
+#### Output file
+if ($outfile) {
+	# check user provided filename for extension
+	unless ($outfile =~ /\.(?:bdg|bedgraph)$/) {
+		$outfile .= '.bdg';
+	}
+}
+else {
+	# generate a new one
+	$outfile = $path . $basename . '.global_mean.bdg';
+}
+
+
+
+#### Process input file	accordingly
+if ($extension eq '.bw') {
+	process_bw($infile);
+}
+elsif ($extension =~ /(?:bdg|bedgraph)/i) {
+	process_bdg($infile);
+}
+else {
+	die " '$infile' has unrecognized file extension! Try .bw .bdg .bedgraph\n";
+}
+
+
+
+######## subroutines
 
 sub process_bw {
 	my $file = shift;
-	my ($basename, $path, $extension) = fileparse($file, qq(.bw));
 	
 	# open database
 	my $db = Bio::ToolBox->open_database($file) or 
@@ -110,8 +154,7 @@ sub process_bw {
 	}
 		
 	# write out the file
-	my $out_bdg = $path . $basename . '.global_mean.bdg';
-	my $s = $Data->save($out_bdg);
+	my $s = $Data->save($outfile);
 	print " wrote file $s\n";
 }
 
@@ -120,8 +163,6 @@ sub process_bdg {
 	my $file = shift;
 	
 	# open file handle
-	my ($basename, $path, $extension) = fileparse($file, 
-		qw(.bdg .bedgraph .bdg.gz .bedgraph.gz));
 	my $infh = Bio::ToolBox->read_file($file) or 
 		die "unable to open file '$file'!\n";
 	
@@ -161,8 +202,7 @@ sub process_bdg {
 	}
 	
 	# write out the file
-	my $out_bdg = $path . $basename . '.global_mean.bdg';
-	my $s = $Data->save($out_bdg);
+	my $s = $Data->save($outfile);
 	print " wrote file $s\n";
 	
 }
