@@ -22,7 +22,7 @@ use Bio::ToolBox::db_helper 1.50 qw(
 	$BAM_ADAPTER
 );
 
-my $VERSION = 1;
+my $VERSION = 1.1;
 
 my @bamfiles;
 my $min_mapq = 10;
@@ -75,6 +75,9 @@ unless (@bamfiles) {
 foreach my $f (@bamfiles) {
 	unless (-e $f and -r _ ) {
 		die " Input Bam file '$f' does not exist or can't be read!\n";
+	}
+	unless ($f =~ /\.bam$/) {
+		die " File '$f' not a Bam file! Only Bam files are supported\n";
 	}
 }
 
