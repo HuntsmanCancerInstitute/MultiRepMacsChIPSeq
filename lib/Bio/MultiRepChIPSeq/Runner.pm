@@ -490,7 +490,6 @@ sub run_input_peak_detection {
 		# we have at least one reference bam file to process
 		# set the name of the exclusion list file
 		$blacklist = File::Spec->catfile($self->dir, sprintf("%s.control_peak", $self->out));
-		$self->blacklist($blacklist . '.bed'); # set the actual output file
 	}
 	else {
 		# no reference bam files!
@@ -559,24 +558,47 @@ sub run_input_peak_detection {
 		$blacklist
 	);
 	
-	# add the peak conversion 
-	$command .= sprintf(" && %s %s.narrowPeak 2>&1 >> $logfile", 
-		$self->peak2bed_app || 'peak2bed.pl', 
-		$blacklist
-	);
+	# execute the call
+	$self->execute_commands( [ [$command, "$blacklist.narrowPeak", $logfile], ] );
 	
-	# clean up
-	$command .= sprintf(" && rm -f %s.bdg %s.global_mean.bdg %s.qvalue.bdg %s.narrowPeak %s.summit.bed",
-		$blacklist, 
-		$blacklist, 
-		$blacklist, 
-		$blacklist, 
-		$blacklist
-	);
+	# check whether peaks were found
+	if (-e "$blacklist.narrowPeak" and -s _) {
+		# we have identified peaks
+		
+		$self->blacklist($blacklist . '.bed'); # set the actual output file
+		
+		# convert to simple bed
+		$command = sprintf("%s %s.narrowPeak 2>&1 >> $logfile", 
+			$self->peak2bed_app || 'peak2bed.pl', 
+			$blacklist
+		);
+		
+		# and clean up
+		$command .= sprintf("&& rm %s.bdg %s.global_mean.bdg %s.qvalue.bdg %s.narrowPeak %s.summit.bed",
+			$blacklist, 
+			$blacklist, 
+			$blacklist, 
+			$blacklist, 
+			$blacklist
+		);
+		$self->execute_commands( [ [$command, $self->blacklist, $logfile], ] );
+	}
+	else {
+		# no peaks were identified
+		print "\n No peaks were found in control\n\n";
+		$self->blacklist('');
+		
+		# clean up
+		$command = sprintf("rm %s.bdg %s.global_mean.bdg %s.qvalue.bdg ",
+			$blacklist, 
+			$blacklist, 
+			$blacklist
+		);
+		$command .= "$blacklist.narrowPeak " if -e "$blacklist.narrowPeak";
+		$self->execute_commands( [ [$command, '', ''], ] );
+	}
 	
-	
-	# execute job
-	$self->execute_commands( [ [$command, $self->blacklist, $logfile], ] );
+	# finished
 	$self->update_progress_file('control_peak');
 }
 
