@@ -352,7 +352,7 @@ sub execute_commands {
 			# check for simple rm commands
 			if ($command->[0] =~ /^rm (.+)$/) {
 				# we don't need to fork a new process just to execute a rm command
-				unlink($1);
+				unlink(split(' ', $1));
 				next;
 			}
 			
@@ -368,6 +368,15 @@ sub execute_commands {
 		foreach my $command (@$commands) {
 			next if $self->_check_command_finished($command, 1);
 			printf "=== Job: %s\n", $command->[0];
+			
+			# check for simple rm commands
+			if ($command->[0] =~ /^rm (.+)$/) {
+				# we don't need to fork a new process just to execute a rm command
+				unlink(split(' ', $1));
+				next;
+			}
+			
+			# execute
 			system($command->[0]);
 		}
 	}
