@@ -248,13 +248,17 @@ mean. Intervals without coverage are not included in the calculation.
 It will write out a simple bedGraph representing the genome 
 with the respective mean for each chromosome. 
 
-It will write out a bedgraph file in the same directory with the 
-basename appended with '.global_mean.bdg'. More than one file may 
-be provided at a time.
+Provide an input file in either bigWig or bedGraph format. 
 
-Version: 2
-	
-	Usage: $0 <file1.bw> ...
+USAGE:
+	generate_mean_bedGraph.pl -i file.bw -o mean.bdg
+
+OPTIONS:
+
+    -i --in <file>      The input bigWig or bedGraph file
+    -o --out <file>     The output bedGraph file (input.global_mean.bdg)
+    -h --help           Display help
+        
 
 
 ## intersect_peaks.pl
@@ -489,6 +493,9 @@ Options:
 		
 		-r FMAX, --fmax=FMAX
 			Maximum fragment value to plot, default 4
+		
+		--mincluster=MINCLUSTER
+			Minimum number of peaks to generate k-means plots, default 500
 		
 		-p --palette=NAME
 			RColorBrewer palette for samples, default Set1
