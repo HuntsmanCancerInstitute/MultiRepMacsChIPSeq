@@ -342,7 +342,7 @@ complexity. See the Pysano folder for example scripts.
         --cutoff 2 \
         --peaksize 250 \
         --peakgap 150 \
-    
+
     Peaks and peak summits are reported as simple
     [bed](http://genome.ucsc.edu/FAQ/FAQformat.html#format1) files with 5 columns. 
     
@@ -356,6 +356,12 @@ complexity. See the Pysano folder for example scripts.
     peak calling can be improved as enrichment is not averaged out between strong and
     weak replicates. The replicate peaks are merged into a single condition peak file
     prior to merging with the other conditions. 
+
+    Separate parameters are provided for broad peak calling, which are supplemental to 
+    narrow peak calling, including `--broadcut` and `--broadgap`. In general, Macs2 
+    uses these additional parameters to merge distant peak signals into broader 
+    intervals. These are provided to the user as is, and no further analysis is 
+    automatically performed with them.
 
 - Peak scoring
 
@@ -392,7 +398,19 @@ complexity. See the Pysano folder for example scripts.
 
 ## Variation with ATAC-seq
 
-For ATACSeq, there are two variations of analysis. 
+There are some variations with ATACSeq compared to ChIPSeq. 
+
+First, duplication rates are often considerably higher than with ChIPSeq, and this is
+generally expected and desirable. Duplication events are much more likely to be
+biological than PCR-derived. If normalizing duplication rates through subsampling,
+set as high of percentage as possible to retain this biological signal. Remember,
+however, that artificial optical duplicates are still bad, and should be discarded
+when possible. If you wish to keep all duplicates but still discard optical
+duplicates, set the maximum-depth to something particularly high, such as 10000, and
+set the optical pixel distance to an appropriate value (2500 for patterned Illumina 
+flow cells).
+
+Second, there are two possible strategies for analysis. 
 
 - Fragment analysis
 
@@ -427,6 +445,24 @@ For ATACSeq, there are two variations of analysis.
     If de-duplicating bam files and you have paired-end alignments, use the `--deduppair`
     option to de-duplicate as paired-end alignments, but the remainder of the pipeline 
     as single-end.
+
+## Variation with MNase-Seq
+
+Processing MNase-Seq files can be done, but with caveats. Generally, "peaks" are not 
+necessarily called in these types of analysis for a few reasons. First, the number of 
+differences are so many that it considerably reduces statistical significance scores 
+for peaks to be called. Second, shifts in nucleosomes can create differences that are 
+generally too small to be reliably called. Third, differences between conditions can 
+go in either direction, up or down, and Macs2 is not suited for these types of 
+differential significance calls.
+
+In personal experience, calling differences as a delta coverage score is generally 
+more reliable. See the [generate_differential.pl](applications.md#generate_differentialpl)
+application as a convenient tool to do this.
+
+Duplication is also a concern, and similar to ATAC-Seq, MNase-derived nucleosome 
+fragments exhibit extremely high biological duplication. The same cautions should be 
+applied with MNase-Seq as with ATAC-Seq (see above).
 
 # Interpretation and advanced analysis
 
