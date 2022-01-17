@@ -1,6 +1,26 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v17.6
+	multirep_macs2_pipeline.p.
+	- Improve processing when given ChIP fragment coverage bigWig files instead of 
+	  Bam files
+	- Always run plot peak script
+	- Safely handle no exclusion peaks found in control
+	
+	plot_peak_figures.R
+	- Add new fragment duplication bar chart summary
+	- Only generate correlation plots with three or more samples
+	- Only generate k-means heat maps with 500 or more peaks. Adjustable with command 
+	  line option.
+	- Tweak colors to improve visualization
+	
+	generate_mean_bedGraph.pl
+	- Require explicit input and output file names. Only one input now allowed.
+	
+	report_mappable_space.pl
+	- Check for non-Bam input files
+
 v17.5
 	multirep_macs2_pipeline.pl
 	- When run in independent replicate mode, also generate a separate Fragment 
