@@ -38,10 +38,14 @@ opts <-  list(
 parser <- OptionParser(option_list=opts, description = "
 This script generates a number of heat maps and plots for identified peak calls, 
 including the following:
+  - Stacked bar chart of unique and duplicate fragment counts
   - Scatter plot of before and after duplication counts versus non-duplicate
   - PCA plot between all sample replicates based on fragment counts in peak
   - Multiple pairwise correlation (Pearson, Spearman, and Euclidean distance) 
     heat maps and clusters of the counts between sample replicates
+  - Bar chart plots for peak number and genomic space for each sample peaks
+  - Box and whisker plots for peak length distributions
+  - Line plot for ranked peak signals for each sample replicate
   - Heat map and cluster of the number of peak intersections
   - Heat map and cluster of jaccard (spatial overlap) statistic between peaks
   - Pie chart of spatial overlap fraction of total merged peak coverage for 
