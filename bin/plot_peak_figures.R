@@ -261,21 +261,42 @@ if(file.exists(countfile)) {
                           check.names = FALSE, na.strings = ".")
   sampledata <- read.table(samplefile, header=TRUE, sep="\t", row.names = 1, 
                            check.names = FALSE)
-  
-  # only plot if we have at least 3 samples
-  if (ncol(countdata) > 3) {
-     if ( colnames(countdata)[1] == "Name" ) {
-         # exclude this column name
-         countdata <- countdata[,2:ncol(countdata)]
-     }
-     countdata[is.na(countdata)] <- 0
-  
-     # plot
-     makeDist(countdata,sampledata,paste0(opt$input,"_distance.", opt$format))
-     makePearCorr(countdata,sampledata,paste0(opt$input,"_pearson.", opt$format))
-     makeSpearCorr(countdata,sampledata,paste0(opt$input,"_spearman.", opt$format))
-     makePCA(countdata,sampledata,paste0(opt$input,"_PCA.", opt$format))
+
+  # discard name
+  if ( colnames(countdata)[1] == "Name" ) {
+    # exclude this column name
+    countdata <- countdata[,2:ncol(countdata)]
   }
+  
+  # only plot correlations if we have at least 3 samples
+  if (ncol(countdata) > 2) {
+    countdata[is.na(countdata)] <- 0
+    
+    # plot
+    makeDist(countdata,sampledata,paste0(opt$input,"_distance.", opt$format))
+    makePearCorr(countdata,sampledata,paste0(opt$input,"_pearson.", opt$format))
+    makeSpearCorr(countdata,sampledata,paste0(opt$input,"_spearman.", opt$format))
+    makePCA(countdata,sampledata,paste0(opt$input,"_PCA.", opt$format))
+  }
+  
+  # ranked peak signal
+  d <- data.frame("Rank" = 1:nrow(countdata))
+  for (i in 1:ncol(countdata)){
+    n <-names(countdata)[i]
+    d[n] <- sort(countdata[,i], decreasing = FALSE)
+  }
+  dlong <- melt(d, id="Rank", 
+                measure.vars = names(d)[2:ncol(d)], 
+                variable.name = "Samples")
+  p <- ggplot(data = dlong, aes(Rank, value)) +
+    geom_line(aes(color=Samples), size = 0.25) + 
+    scale_fill_brewer(palette=opt$palette) +
+    scale_x_continuous(name = "Individual Peak Rank") + 
+    ylab("Normalized Signal Count") +
+    ggtitle("Ranked Peak Signal For Each Sample")
+  ggsave(plot = p, filename = paste0(opt$input, '_rankedSignal.', opt$format), 
+         width = 8, height = 4)
+
 }
 
 
