@@ -16,6 +16,8 @@ use strict;
 use IO::File;
 use List::Util qw(sum0);
 
+my $VERSION = 1.1;
+
 unless (@ARGV) {
 	print <<END;
 A script to combine 
@@ -28,6 +30,8 @@ It parses this information from standard output and/or error text files from the
 programs. It will also parse the stderr.txt and stdout.txt files from Pysano job
 directories. It will write out a single tab-delimited with the numbers. Sample 
 names are the given input file names or directory names.
+
+Version: $VERSION
 
 Usage: 
     
@@ -95,6 +99,7 @@ while (@ARGV) {
 			die "unable to read $file! $!\n";
 		while (my $line = $fh->getline) {
 			
+			
 			# total
 			if ($line =~  /^  Total mapped:\s+(\d+)$/) {
 				# bam_partial_dedup
@@ -104,15 +109,23 @@ while (@ARGV) {
 				# bam_umi_dedup
 				$total_mapped = $1;
 			}
+			elsif ($line =~ /^\s+(\d+) total alignments$/) {
+				# bam_umi_dedup
+				$total_mapped = $1;
+			}
 			
 			# non-duplicate
-			elsif ($line =~ /^  Non-duplicate count:\s+(\d+)$/) {
+			elsif ($line =~ /^  Non\-duplicate count:\s+(\d+)$/) {
 				# bam_partial_dedup
 				$nondup = $1;
 			}
-			elsif ($line =~ /^\s+(\d+) \(\d+\.\d%\) UMI-unique .*alignments retained$/) {
+			elsif ($line =~ /^\s+(\d+) \(\d+\.\d%\) UMI\-unique .*alignments retained$/) {
 				# bam_umi_dedup
 				$nondup = $1;
+			}
+			elsif ($line =~ /^\s+(\d+) \(\d+\.\d%\) UMI\-unique .*end retained$/) {
+				# bam_umi_dedup
+				$nondup += $1;
 			}
 			
 			# optical duplicate
@@ -120,9 +133,13 @@ while (@ARGV) {
 				# optical bam_partial_dedup
 				$optdup = $1;
 			}
+			elsif ($line =~ /^\s+(\d+) \(\d+\.\d%\) UMI\-unique .*end (?:marked|discarded)$/) {
+				# optical bam_umi_dedup
+				$optdup += $1;
+			}
 			
 			# duplicate
-			elsif ($line =~ /^  Non-optical duplicate count:\s+(\d+)$/) {
+			elsif ($line =~ /^  Non\-optical duplicate count:\s+(\d+)$/) {
 				# non-optical bam_partial_dedup
 				$dup = $1;
 			}
@@ -130,13 +147,17 @@ while (@ARGV) {
 				# old bam_partial_dedup
 				$dup = $1;
 			}
-			elsif ($line =~ /^\s+(\d+) \(\d+\.\d%\) UMI-duplicate .*alignments/) {
+			elsif ($line =~ /^\s+(\d+) \(\d+\.\d%\) UMI\-duplicate .*alignments/) {
 				# bam_umi_dedup
 				$dup = $1;
 			}
+			elsif ($line =~ /^\s+(\d+) \(\d+\.\d%\) UMI\-duplicate .*end (?:marked|discarded)$/) {
+				# bam_umi_dedup
+				$dup += $1;
+			}
 			
 			# rate
-			elsif ($line =~ /^  Non-optical duplication rate:\s+(\d\.\d+)$/) {
+			elsif ($line =~ /^  Non\-optical duplication rate:\s+(\d\.\d+)$/) {
 				# non-optical bam_partial_dedup
 				$duprate = $1;
 			}
@@ -155,7 +176,7 @@ while (@ARGV) {
 				# oops, there may be a space at the end
 				$keepdup = $1;
 			}
-			elsif ($line =~ /^  Non-optical working count:\s+(\d+)\s*$/) {
+			elsif ($line =~ /^  Non\-optical working count:\s+(\d+)\s*$/) {
 				# non-optical working count bam_partial_dedup
 				$workcount = $1;
 			}
