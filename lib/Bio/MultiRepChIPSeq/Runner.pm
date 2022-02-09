@@ -1663,6 +1663,16 @@ sub run_plot_peaks {
 	# hard to predict, so don't put any
 	my @commands = ( [$command, '', $log] );
 	
+	# broad peak
+	if ($self->broad) {
+		my $outbase2 = File::Spec->catfile($self->dir, $self->out) . '_broad';
+		my $command2 = sprintf("%s --verbose %s --input %s ", $self->rscript_app, 
+			$self->plotpeak_app, $outbase2);
+		my $log2 = $outbase2 . '.plot_figures.out.txt';
+		$command2 .= " > $log2 2>&1";
+		push @commands, [$command2, '', $log2];
+	}
+	
 	# add independent peak calls
 	if ($self->independent) {
 		foreach my $Job ($self->list_jobs) {
@@ -1674,6 +1684,19 @@ sub run_plot_peaks {
 			my $log = $jobbase . '.plot_figures.out.txt';
 			$command .= " > $log 2>&1"; # error redirect needs to last with Rscript
 			push @commands, [$command, $example, $log];
+			
+			# broad peak
+			if ($self->broad) {
+				my $jobbase2 = $Job->clean_gappeak;
+				$jobbase2 =~ s/\.bed$//;
+				my $command2 = sprintf("%s --verbose %s --input %s ", $self->rscript_app, 
+					$self->plotpeak_app, $jobbase2);
+				$example = $jobbase2 . '.jaccard.png';
+				my $log2 = $jobbase2 . '.plot_figures.out.txt';
+				$command2 .= " > $log2 2>&1";
+				push @commands, [$command2, $example, $log2];
+			}
+	
 		}
 	}
 	
