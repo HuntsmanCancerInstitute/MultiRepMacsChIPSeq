@@ -351,11 +351,12 @@ if(file.exists(svennfile)) {
     geom_bar(width = 1, stat = "identity") +
     coord_polar("y", start = 0) +
     scale_fill_brewer(palette=opt$palette) +
-    theme_minimal() + 
+    theme_classic() + 
     theme(axis.title.x = element_blank(),
           axis.title.y = element_blank(),
           axis.ticks = element_blank(),
           panel.grid=element_blank(),
+          axis.line = element_blank(),
           axis.text.x=element_blank()) +
     ggtitle("Spatial occupancy fraction for each sample")
   ggsave(plot = p, filename = paste0(opt$input, '.spatialVenn.pie.', opt$format), 
