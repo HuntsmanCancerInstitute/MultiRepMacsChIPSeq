@@ -1548,7 +1548,7 @@ sub generate_independent_peakcall_commands {
 				);
 				my $out = ($self->rep_gappeaks)[$i];
 				my $log = $out;
-				$log =~ s/ggappedPeak$/broadcall.out.txt/;
+				$log =~ s/gappedPeak$/broadcall.out.txt/;
 				$command .= "2> $log ";
 				push @commands, [$command, $out, $log];
 			}
