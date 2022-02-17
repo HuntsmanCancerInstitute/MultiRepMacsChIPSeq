@@ -77,6 +77,8 @@ if( opt$input == "NA" ){
 library(ggplot2)
 library(reshape2)
 library(pheatmap)
+library(UpSetR)
+library(grid)
 library(RColorBrewer)
 
 # annotation colors for different numbers of clusters
@@ -339,7 +341,100 @@ if(file.exists(intersectfile)) {
 
 
 
-# spatial venn pie chart
+# Intersection UpSet plots
+interfile <- paste0(opt$input, '.intersection.txt')
+if (file.exists(interfile)) {
+  interdata <- read.table(interfile, header=TRUE, sep="\t", 
+                          check.names = F, na.strings = '.')
+  
+  # change names to be &-delimited strings for UpSetR
+  n <- interdata$Peaks
+  for (i in 1:length(n)) {
+    n[i] <- paste(unlist(strsplit(interdata[i,1], ",")), collapse = "&")
+  }
+  
+  # collect data for upset plots
+  intercounts <- as.vector(interdata$Count)
+  names(intercounts) <- n
+  interspace <- as.vector(interdata$BasePairs)
+  names(interspace) <- n
+  
+  # UpSet plots upset based on output
+  if (opt$format == "png") {
+    
+    png(filename = paste0(opt$input, '.intersection_upset.png'), width = 6, height = 5, units = "in", res = 300)
+    print(
+      upset(fromExpression(intercounts), order.by = "freq", mainbar.y.label = "Peak Intersection Counts", 
+            sets.x.label = "Peak Counts", number.angles = 30, nsets = length(n))
+    )
+    grid.text("Counts of Peak Intersections",x = 0.65, y=0.97, gp=gpar(fontsize=10))
+    dev.off()
+    
+    png(filename = paste0(opt$input, '.spatial_upset.png'), width = 6, height = 5, units = "in", res = 300)
+    print(
+      upset(data = fromExpression(interspace), order.by = "freq", mainbar.y.label = "Spatial Overlap (bp)", 
+            sets.x.label = "Peak Total Size (bp)", number.angles = 30, nsets = length(n))
+    )
+    grid.text("Spatial Overlap of Peak Intersections",x = 0.65, y=0.97, gp=gpar(fontsize=10))
+    dev.off()
+  } else if (opt$format == "pdf") {
+    
+    pdf(file = paste0(opt$input, '.intersection_upset.pdf'), width = 6, height = 5, onefile = F)
+    print(
+      upset(fromExpression(intercounts), order.by = "freq", mainbar.y.label = "Peak Intersection Counts", 
+            sets.x.label = "Peak Counts", number.angles = 30, nsets = length(n))
+    )
+    grid.text("Counts of Peak Intersections",x = 0.65, y=0.97, gp=gpar(fontsize=10))
+    dev.off()
+    
+    pdf(file = paste0(opt$input, '.spatial_upset.pdf'), width = 6, height = 5, onefile = F)
+    print(
+      upset(data = fromExpression(interspace), order.by = "freq", mainbar.y.label = "Spatial Overlap", 
+            sets.x.label = "Peak Total Size", number.angles = 30, nsets = length(n))
+    )
+    grid.text("Spatial Overlap of Peak Intersections",x = 0.65, y=0.97, gp=gpar(fontsize=10))
+    dev.off()
+  }
+  
+  # Spatial intersection pie chart
+  svenndata <- subset(interdata, interdata$BasePairFraction >= 0.02)
+  svenndata <- head(svenndata[order(svenndata$BasePairFraction, decreasing = T),], 9)
+  p <- ggplot(svenndata, aes(x="", y=BasePairFraction, fill=Peaks)) +
+    geom_bar(width = 1, stat = "identity") +
+    coord_polar("y", start = 0) +
+    scale_fill_brewer(palette=opt$palette) +
+    theme_classic() + 
+    theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          axis.ticks = element_blank(),
+          panel.grid=element_blank(),
+          axis.line = element_blank(),
+          axis.text.x=element_blank()) +
+    ggtitle("Spatial Fraction for Each Peak Intersection")
+  ggsave(plot = p, filename = paste0(opt$input, '.spatial_pie.', opt$format), 
+         width = 6, height = 4)
+  
+  # Count intersection pie chart
+  p <- ggplot(svenndata, aes(x="", y=CountFraction, fill=Peaks)) +
+    geom_bar(width = 1, stat = "identity") +
+    coord_polar("y", start = 0) +
+    scale_fill_brewer(palette=opt$palette) +
+    theme_classic() + 
+    theme(axis.title.x = element_blank(),
+          axis.title.y = element_blank(),
+          axis.ticks = element_blank(),
+          panel.grid=element_blank(),
+          axis.line = element_blank(),
+          axis.text.x=element_blank()) +
+    ggtitle("Count Fraction for Each Peak Intersection")
+  ggsave(plot = p, filename = paste0(opt$input, '.intersection_pie.', opt$format), 
+         width = 6, height = 4)
+  
+}
+
+
+
+# spatial venn pie chart - OLD
 svennfile <- paste0(opt$input, '.spatialVenn.txt')
 if(file.exists(svennfile)) {
   svenndata <- read.table(svennfile, header=TRUE, sep="\t", 
