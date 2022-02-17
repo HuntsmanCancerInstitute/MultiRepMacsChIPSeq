@@ -17,16 +17,17 @@ use Getopt::Long;
 use File::Spec;
 use File::Which;
 use Bio::ToolBox 1.65;
-use List::Util qw(min max);
+use List::Util qw(min max uniqstr);
 use Statistics::Descriptive;
 
-my $VERSION = 4.2;
+my $VERSION = 5.0;
 
 # variables
 my $tool = which('bedtools');
 my $outfile;
 my $peak_basename;
 my $genome_file;
+my $merge_gap = 1;
 my @files;
 my $help;
 
@@ -34,31 +35,28 @@ my $help;
 ### Documentation
 my $docs = <<DOC;
 
-A script to intersect two or more peak files. This is a wrapper around the bedtools 
-program.
+A script to intersect two or more peak interval files and generate a single 
+union interval file, as well as numerous statistics describing the peaks and 
+intersections. It uses the bedtools application for intersection calculations.
 
-It will first calculate a number of descriptive statistics for the interval lengths 
-for each input file, including count, sum, standard deviation, and quartiles.
+It will first calculate a number of descriptive statistics for the input files, 
+including count, sum, standard deviation, and quartiles of peak lengths.
 
-It will merge all of the peak files into a single representative bed file.
-Peak intervals will be renamed to the given name. 
+It will then run a multi-way intersection with the bedtools application, and 
+the output parsed into a union interval bed file and a summary statistics.
 
-It will run the bedtools Jaccard statistic pairwise across all of the peak 
-files and write out a merged table of the results. The Jaccard statistic measures 
-the amount of spatial overlap between two peak files (intersection/union) reported 
-as a fraction between 0 and 1.
+It will also report the pairwise number of intersections and spatial overlap 
+(Jaccard statistic) between all peak intervals. 
 
-Finally, it will run bedtools multiinter tool to perform a multi-way intersection 
-and calculate the intervals for each category of overlap. This is parsed into a 
-summary file suitable for drawing a Venn diagram based on spatial overlap.
 
-Six files will be written:
-    basename.bed                    the merged peaks
-    basename.jaccard.txt            the Jaccard results in a table
-    basename.n_intersection.txt     the number of intersections in a table
-    basename.multi.txt              data file from multi-intersection 
-    basename.spatialVenn.txt        summary of spatial overlap for each category
-    basename.lengthStats.txt        interval length statistics for each file
+Seven files will be written:
+    output.bed                    the merged peaks in bed format
+    output.txt                    the merged peaks in text format
+    output.jaccard.txt            pairwise Jaccard statistic (bp overlap) table
+    output.n_intersection.txt     pairwise intersection count table
+    output.multi.txt              data file from bedtools multi-intersect tool 
+    output.intersection.txt       intersection statistics for each peak combination
+    output.lengthStats.txt        interval length statistics for each peak input
 
 VERSION: $VERSION
 
@@ -66,7 +64,8 @@ USAGE: intersect_peaks.pl --out <basename> peak1.narrowPeak peak2.narrowPeak ...
 
 OPTIONS:
     --out basename          Provide the output basename
-    --name text             Provide text to rename the merged peaks
+    --name text             Merged peak name (default out basename)
+    --gap integer           Maximum gap before merging neighboring peaks ($merge_gap bp)
     --genome path           Provide a genome file for sort consistency
     --bed path              Path to bedtools ($tool)
     --help                  Print documentation
@@ -83,6 +82,7 @@ unless (@ARGV) {
 GetOptions(
 	'out=s'             => \$outfile,
 	'name=s'            => \$peak_basename,
+	'gap=i'             => \$merge_gap,
 	'genome=s'          => \$genome_file,
 	'bed=s'             => \$tool,
 	'help!'             => \$help,
@@ -111,64 +111,12 @@ if ($genome_file and (not -e $genome_file or not -r _ )) {
 }
 
 
-### Interval length statistics
-print " Collecting descriptive statistics on peak lengths...\n";
-my @numcols; # remember how many columns each input file has
-my @names;
-my $LengthStats = Bio::ToolBox->new_data('File', 'Count', 'Sum', 
-	'Mean', 'StandardDev', 'Min', 'Percentile5','FirstQuartile', 'Median', 
-	'ThirdQuartile', 'Percentile95', 'Max');
-my @sortfiles;
-for my $file (@files) {
-	
-	# open file
-	print "   $file\n";
-	my $Data = Bio::ToolBox->load_file(file => $file)
-		or die "unable to open '$file' $!"; 
-	unless ($Data->bed) {
-		die "file '$file' does not appear to be a BED file format!\n";
-	}
-	
-	# remember stuff about this file
-	push @names, $Data->basename;
-	push @numcols, $Data->number_columns;
-	
-	# collect length numbers
-	my $Stat = Statistics::Descriptive::Full->new();
-	$Data->iterate( sub {
-		my $feature = shift;
-		$Stat->add_data( $feature->length );
-	} );
-	
-	# record stats
-	$LengthStats->add_row( [
-		$Data->basename,
-		$Stat->count,
-		$Stat->sum,
-		sprintf("%.0f", $Stat->mean),
-		sprintf("%.0f", $Stat->standard_deviation),
-		$Stat->min,
-		sprintf("%.0f", $Stat->percentile(5)),
-		sprintf("%.0f", $Stat->quantile(1)),
-		sprintf("%.0f", $Stat->quantile(2)), # median
-		sprintf("%.0f", $Stat->quantile(3)),
-		sprintf("%.0f", $Stat->percentile(95)),
-		$Stat->max
-	] );
-	
-	# sort the file just for sanity purposes
-	$Data->gsort_data;
-	my $sortfile = File::Spec->catfile($out_path, $Data->basename . ".sort.$$." . $Data->extension);
-	$Data->save($sortfile);
-	push @sortfiles, $sortfile;
-}
-$LengthStats->save("$outfile\.lengthStats.txt");
 
-
-### Sort genome file
+### Check genome file
 # yeah, this may seem counter intuitive, but by sorting EVERY file in the SAME manner
 # I can avoid a bucket load of head aches because bedtools is a stickler for sort order
 # the problem is that I can't guarantee that the peaks files match the chromosome file
+my %chromosomes;
 if ($genome_file) {
 	my $Data = Bio::ToolBox->load_file(
 		file     => $genome_file,
@@ -185,71 +133,258 @@ if ($genome_file) {
 	$Data->iterate( sub {
 		my $row = shift;
 		$fh->printf("%s\t%s\n", $row->value(0), $row->value(1));
+		$chromosomes{ $row->value(0) } = $row->value(1);
 	});
 	$fh->close;
 }
 
 
-### Merge the peaks
-print " Merging peak files....\n";
-my $merge_peak_file = $outfile . '.bed';
-my $command = sprintf("cat %s | ", join(" ", @sortfiles));
-if (min(@numcols) != max(@numcols)) {
-	# unequal columns, must trim excess columns
-	$command .= sprintf("cut -f%d-%d | ", 1, min(@numcols));
+### Interval length statistics
+print " Collecting descriptive statistics on peak lengths...\n";
+my @names;
+my $LengthStats = Bio::ToolBox->new_data('File', 'Count', 'Sum', 
+	'Mean', 'StandardDev', 'Min', 'Percentile5','FirstQuartile', 'Median', 
+	'ThirdQuartile', 'Percentile95', 'Max');
+my @sortfiles;
+my %name2count; # hash for total count of each peak file for later use
+for my $file (@files) {
+	
+	# open file
+	my $Data = Bio::ToolBox->load_file(file => $file)
+		or die "unable to open '$file' $!"; 
+	unless ($Data->bed) {
+		die "file '$file' does not appear to be a BED file format!\n";
+	}
+	printf "   %s has %d intervals\n", $file, $Data->last_row;
+	
+	# remember stuff about this file
+	push @names, $Data->basename;
+	
+	# collect length numbers
+	my $Stat = Statistics::Descriptive::Full->new();
+	my @unwanted;
+	$Data->iterate( sub {
+		my $row = shift;
+		if (%chromosomes and not exists $chromosomes{ $row->seq_id }) {
+			push @unwanted, $row->row_index;
+			next;
+		}
+		$Stat->add_data( $row->length );
+	} );
+	if (@unwanted) {
+		printf "    excluding %d intervals not in genome file for intersection\n", scalar(@unwanted);
+		$Data->delete_row(@unwanted);
+	}
+	
+	# record stats
+	$LengthStats->add_row( [
+		$Data->basename,
+		$Stat->count,
+		$Stat->sum,
+		sprintf("%.0f", $Stat->mean),
+		sprintf("%.0f", $Stat->standard_deviation),
+		$Stat->min,
+		sprintf("%.0f", $Stat->percentile(5)),
+		sprintf("%.0f", $Stat->quantile(1)),
+		sprintf("%.0f", $Stat->quantile(2)), # median
+		sprintf("%.0f", $Stat->quantile(3)),
+		sprintf("%.0f", $Stat->percentile(95)),
+		$Stat->max
+	] );
+	$name2count{ $Data->basename } = $Stat->count;
+	
+	# sort the file just for sanity purposes
+	$Data->gsort_data;
+	my $sortfile = File::Spec->catfile($out_path, $Data->basename . ".sort.$$" . $Data->extension);
+	$Data->save($sortfile);
+	push @sortfiles, $sortfile;
 }
-$command .= sprintf("%s sort ", $tool);
-if ($genome_file) {
-	$command .= "-faidx $genome_file ";
-}
-$command .= sprintf("-i - | %s merge ", $tool);
-if (min(@numcols) >= 5) {
-	# record an average score
-	$command .= "-c 5 -o mean ";
-}
-$command .= sprintf("-i - > %s", $merge_peak_file);
-# print "   Executing $command\n";
+$LengthStats->save("$outfile\.lengthStats.txt");
+
+
+
+
+
+### Multiple intersection
+print " Calculating multi-way intersection....\n";
+my $multi_file = $outfile . '.multi.txt';
+my $command = sprintf("%s multiinter -header -names %s -i %s > %s", 
+	$tool, join(' ', @names), join(' ', @sortfiles), $multi_file);
 if (system($command)) {
 	die "something went wrong! command:\n $command\n";
 }
 
-# Clean up the merged peaks
-if (-e $merge_peak_file and -s _ ) {
-	my $Data = Bio::ToolBox->load_file($merge_peak_file) or 
-		die "unable to open $merge_peak_file!";
+## parse intersections
+print " Parsing intersections....\n";
+my $MultiData = Bio::ToolBox->load_file($multi_file) or 
+	die "can't load $multi_file!\n";
+$MultiData->name(1, 'Start0'); # because it's actually 0-based, and this will trigger it
+$MultiData->add_comment(
+	sprintf("Output from bedtools multi-intersect tool between %s", 
+	join(', ', @names))
+);
+
+# initialize counters
+my $total_bp = 0;
+my $total_count = 0;
+my %key2space;
+my %key2count;
+my %current = (
+	chromo => $MultiData->value(1,0),
+	start  => 1,
+	end    => 1,
+	names  => '',
+);
+
+# output for merged peak
+my $MergeData = Bio::ToolBox->new_data('Chromosome', 'Start', 'End', 'Name', 'NumberIntervals', 'Peaks');
+$MergeData->add_comment(sprintf("Merged '%s' peaks from %s", $peak_basename, 
+	join(', ', @names)));
+
+# iterate through the multi-intersections
+$MultiData->iterate( sub {
+	my $row = shift;
 	
-	# sort the file correctly, not asciibetically - necessary????
-	$Data->gsort_data;
+	# skip unwanted chromosomes
+	next if (%chromosomes and not exists $chromosomes{ $row->seq_id });
 	
-	# rename intervals
-	if ($Data->number_columns == 3) {
-		$Data->add_column('Name'); 
+	# process length
+	my $length = $row->length;
+	my @keys = sort {$a cmp $b} split(',', $row->value(4));
+	my $key = join(',', @keys);
+	$key2space{$key} += $length;
+	$total_bp += $length;
+	
+	# check current window
+	if (
+		$row->seq_id ne $current{chromo} or 
+		($row->start - $current{end}) > $merge_gap
+	) {
+		# we have moved to the next merged block
+		# store the current one
+		unless ($current{start} == 1 and $current{end} == 1) {
+			# but not if it's the fake startup data!
+			process_merged_peak();
+		}
+		
+		# start the new one
+		$current{chromo} = $row->seq_id;
+		$current{start}  = $row->start;
+		$current{end}    = $row->end;
+		$current{names}  = $key;
 	}
-	$Data->iterate( sub {
-		my $row = shift;
-		$row->value(3, sprintf("%s.%d", $peak_basename, $row->row_index));
-	});
-	$Data->save;
+	else {
+		# same block, update end
+		$current{end} = $row->end;
+		if ($current{names}) {
+			$current{names} .= sprintf(";%s", $key);
+		}
+		else {
+			$current{names}  = $key;
+		}
+	}
+} );
+
+# save the last peak
+process_merged_peak();
+
+# re-save
+$MultiData->save; 
+undef $MultiData;
+
+
+
+
+## Write an intersection Venn file
+my $VennData = Bio::ToolBox->new_data('Peaks', 'BasePairs', 'BasePairFraction', 
+	'Count', 'CountFraction');
+foreach my $key (sort {$a cmp $b} keys %key2space) {
+	my @data = ($key, $key2space{$key}, sprintf("%.3f", $key2space{$key} / $total_bp) );
+	if (exists $key2count{$key} ) {
+		push @data, ($key2count{$key}, sprintf("%.3f", $key2count{$key} / $total_count));
+	}
+	else {
+		push @data, (0, '0.000');
+	}
+	$VennData->add_row(\@data);
 }
+$VennData->add_comment("Intersection coverage in bp and fraction of total for each input combination");
+$VennData->add_comment("Intersection count and fraction of total for each input combination");
+my $venn_file = $outfile . '.intersection.txt';
+$VennData->save($venn_file);
+
+
+
+## Write merged peak data file
+my $merge_peak_bed = $outfile . '.bed';
+my $merged_fh = Bio::ToolBox->write_file($merge_peak_bed) or 
+	die "unable to write $merge_peak_bed! $!";
+$MergeData->iterate( sub {
+	my $row = shift;
+	$merged_fh->printf("%s\n", $row->bed_string(bed => 4));
+} );
+$merged_fh->close;
+my $merge_peak_file = $outfile . '.txt';
+$MergeData->save($merge_peak_file);
+printf "  wrote %d intersected peaks to $merge_peak_bed and $merge_peak_file\n", $total_count;
+printf "  wrote intersection statistics to $venn_file\n";
+
+
+
+
+
 
 
 
 ### Calculate Jaccard statistic
 print " Calculating Jaccard overlap....\n";
+
+# output for intersection data
 my $JaccardData = Bio::ToolBox->new_data('File', @names);
+foreach my $n (@names) {
+	$JaccardData->add_row([$n, (map {0} @names)]);
+}
+$JaccardData->add_comment("Pairwise fraction overlap of the union between each input file");
 my $IntersectionData = Bio::ToolBox->new_data('File', @names);
+foreach my $n (@names) {
+	$IntersectionData->add_row([$n, (map {0} @names)]);
+}
+$IntersectionData->add_comment("Number of pairwise intersections between each input file");
+my %name2i;
+{
+	my $i = 1;
+	%name2i = map {$_ => $i++} @names;
+}
+
+# bedtools jaccard base command
 my $jaccard_cmdbase = "$tool jaccard ";
 $jaccard_cmdbase .= "-g $genome_file " if $genome_file;
 my $jaccard_warn;
 
-for my $f1 (0..$#names) {
-	my $j = $JaccardData->add_row();
-	my $i = $IntersectionData->add_row();
+# loop through files
+my %reciprocal;
+foreach my $f1 (0..$#names)  {
 	
-	$JaccardData->value($j, 0, $names[$f1]);
-	$IntersectionData->value($i, 0, $names[$f1]);
-	
-	for my $f2 (0..$#names) {
+	foreach my $f2 (0..$#names) {
+		
+		# skip those we don't need to do
+		if (exists $reciprocal{"$f1\_$f2"}) {
+			# don't need to do reciprocal
+			next;
+		}
+		elsif ($f1 == $f2) {
+			# self intersection - we know the answer to this
+			my $i = $name2i{$names[$f1]};
+			$JaccardData->value($i, $i, '1.0000');
+			$IntersectionData->value($i, $i, $name2count{$names[$f1]});
+			$reciprocal{"$f2\_$f1"} = 1; 
+			next;
+		}
+		
+		# coordinates
+		my $x = $name2i{ $names[$f1] };
+		my $y = $name2i{ $names[$f2] };
+		
 		my $result = qx($jaccard_cmdbase -a $sortfiles[$f1] -b $sortfiles[$f2] 2>&1);
 		if ($result =~ /error/i) {
 			# there was some sort of error - the most likely is lexicographic 
@@ -257,17 +392,24 @@ for my $f1 (0..$#names) {
 			# sorted properly or intervals are not present on all the chromosomes
 			printf "   jaccard between %s and %s failed!!\n", $names[$f1], $names[$f2];
 			$jaccard_warn = $result;
-			$JaccardData->value($j, $f2 + 1, '.');
-			$IntersectionData->value($i, $f2 + 1, '.');
+			$JaccardData->value($x,$y, '.');
+			$JaccardData->value($y,$x, '.');
+			$IntersectionData->value($x,$y, '.');
+			$IntersectionData->value($y,$x, '.');
 		}
 		else {
 			# likely worked
 			printf "   jaccard between %s and %s succeeded\n", $names[$f1], $names[$f2];
 			my @lines = split("\n", $result);
 			my (undef, undef, $jaccard, $number) = split(/\s+/, $lines[1]);
-			$JaccardData->value($j, $f2 + 1, $jaccard);
-			$IntersectionData->value($i, $f2 + 1, $number);
+			$JaccardData->value($x,$y, sprintf("%.4f", $jaccard));
+			$JaccardData->value($y,$x, sprintf("%.4f", $jaccard));
+			$IntersectionData->value($x,$y, $number);
+			$IntersectionData->value($y,$x, $number);
 		}
+		
+		# done
+		$reciprocal{"$f2\_$f1"} = 1; 
 	}
 }
 if ($jaccard_warn) {
@@ -279,45 +421,36 @@ $IntersectionData->save("$outfile\.n_intersection.txt");
 
 
 
-### Multiple intersection
-print " Calculating multi-way intersection....\n";
-my $multi_file = $outfile . '.multi.txt';
-$command = sprintf("%s multiinter -header -names %s -i %s > %s", 
-	$tool, join(' ', @names), join(' ', @sortfiles), $multi_file);
-if (system($command)) {
-	die "something went wrong! command:\n $command\n";
-}
-
-# parse lengths
-my $total = 0;
-my %name2space;
-my $MultiData = Bio::ToolBox->load_file($multi_file) or 
-	die "can't load $multi_file!\n";
-$MultiData->name(1, 'Start0'); # because it's actually 0-based, and this will trigger it
-$MultiData->iterate( sub {
-	my $row = shift;
-	my $length = $row->length;
-	my $key = $row->value(4); # this should the list column
-	$name2space{$key} += $length;
-	$total += $length;
-});
-$MultiData->save; # re-save with the new name.
-undef $MultiData;
-
-# write a spatial Venn file
-my $VennData = Bio::ToolBox->new_data('File', 'BasePairs', 'Fraction');
-foreach my $key (sort {$a cmp $b} keys %name2space) {
-	$VennData->add_row( [$key, $name2space{$key}, 
-		sprintf("%.3f", $name2space{$key} / $total) ]);
-}
-$VennData->add_comment("Coverage in bp for each category and fraction of total");
-$VennData->save("$outfile\.spatialVenn.txt");
-
 
 
 ### clean up
 unlink @sortfiles;
 if ($genome_file) {
 	unlink $genome_file;
+}
+
+
+
+sub process_merged_peak {
+	# this should work on global variables, nothing is passed
+	
+	# generate a representative key of all overlapping peak names
+	my $peakstring = join(',',
+		sort {$a cmp $b} 
+		uniqstr( split(/,|;/, $current{names}) )
+	);
+	
+	# add merged peak data
+	$key2count{$peakstring} += 1;
+	$total_count++;
+	$MergeData->add_row( [
+		$current{chromo},
+		$current{start},
+		$current{end},
+		sprintf("%s.%d", $peak_basename, $total_count),
+		scalar(split(';', $current{names})),
+		$peakstring
+	] );
+	
 }
 
