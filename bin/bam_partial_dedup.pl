@@ -320,6 +320,7 @@ $htext .= " --optical --distance=$optical_thresh " if ($do_optical);
 $htext .= " --keepoptical" if $keep_optical;
 $htext .= " --chrskip='$chr_exclude'" if $chr_exclude;
 $htext .= " --blacklist=$black_list" if $black_list;
+$htext .= " --qual=$min_mapq" if $min_mapq;
 $htext .= " --coord $name_coordinates" if $name_coordinates;
 $htext .= " --bam $BAM_ADAPTER --in $infile --out $outfile\n";
 
