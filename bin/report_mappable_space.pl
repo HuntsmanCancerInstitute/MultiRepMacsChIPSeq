@@ -47,11 +47,11 @@ USAGE:  report_mappable_space.pl *.bam
 VERSION: $VERSION
        
 OPTIONS:
-  --in <file>         An input bam file, must be sorted and indexed
-                        Repeat for each input file
-  --qual <int>        Minimum mapping quality to be considered unique ($min_mapq)
-  --chrskip <regex>   Provide a regular expression for skipping unwanted chromosomes
-  --cpu <int>         Specify the number of threads to use ($cpu)
+  -i --in <file>         An input bam file, must be sorted and indexed
+                           Repeat for each input file
+  -q --qual <int>        Minimum mapping quality to be considered unique ($min_mapq)
+  --chrskip <regex>      Provide a regular expression for skipping unwanted chromosomes
+  -c --cpu <int>         Specify the number of threads to use ($cpu)
 
 END
 	exit;
@@ -59,11 +59,11 @@ END
 
 
 GetOptions( 
-	'in=s'          => \@bamfiles, # the input bam file path
-	'qual|mapq=i'   => \$min_mapq, # minimum mapping quality
-	'chrskip=s'     => \$chr_exclude, # skip chromosomes
-	'cpu=i'         => \$cpu, # number of cpu cores to use
-	'bam=s'         => \$BAM_ADAPTER, # specifically set the bam adapter, advanced!
+	'i|in=s'          => \@bamfiles, # the input bam file path
+	'q|qual|mapq=i'   => \$min_mapq, # minimum mapping quality
+	'chrskip=s'       => \$chr_exclude, # skip chromosomes
+	'c|cpu=i'         => \$cpu, # number of cpu cores to use
+	'bam=s'           => \$BAM_ADAPTER, # specifically set the bam adapter, advanced!
 ) or die "unrecognized parameters\n";
 
 if (scalar(@ARGV)) {
