@@ -1,5 +1,5 @@
 package Bio::MultiRepChIPSeq::Runner;
-our $VERSION = 17.7;
+our $VERSION = 17.8;
 
 =head1 name
 
@@ -546,8 +546,10 @@ sub run_input_peak_detection {
 	$command .= " 2>&1 > $logfile ";
 	
 	# add the mean bedgraph file
-	$command .= sprintf(" && %s %s.bdg 2>&1 >> $logfile ", 
+	$command .= sprintf(" && %s --in %s.bdg --genome %d --out %s.global_mean.bdg 2>&1 >> $logfile ", 
 		$self->meanbdg_app || 'generate_mean_bedGraph.pl', 
+		$blacklist,
+		$self->genome || 0,
 		$blacklist
 	);
 	
@@ -726,13 +728,13 @@ sub run_mappable_space_report {
 	# first collect all available bam files - can't run without bam files
 	my @bamlist;
 	foreach my $Job ($self->list_jobs) {
-		push @bamlist, $Job->control_use_bams;
-		push @bamlist, $Job->chip_use_bams;
+		push @bamlist, ($Job->control_use_bams) || ($Job->control_bams);
+		push @bamlist, ($Job->chip_use_bams) || ($Job->chip_bams);
 	}
 	
 	# next get the official genome size from the chromosome file
 	my $genome_size = 0;
-	{
+	if (not $self->dryrun) {
 		my $fh = IO::File->new($self->chromofile, 'r');
 		while (my $line = $fh->getline) {
 			if ($line =~ /\s+(\d+)$/) {

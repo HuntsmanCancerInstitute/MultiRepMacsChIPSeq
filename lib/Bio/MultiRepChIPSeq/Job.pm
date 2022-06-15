@@ -1173,10 +1173,11 @@ sub generate_lambda_control_commands {
 		elsif (-e $self->chip_bw) {
 			$chipfile = $self->chip_bw;
 		}
-		my $command = sprintf("%s --in %s --out %s 2>&1 > $log", 
+		my $command = sprintf("%s --in %s --out %s --genome %d 2>&1 > $log", 
 			$self->meanbdg_app || 'generate_mean_bedGraph.pl', 
 			$chipfile,
-			$self->lambda_bdg
+			$self->lambda_bdg,
+			$self->genome || 0  # value of zero will default to empirical
 		);
 		$name2done->{ $self->lambda_bdg } = 1;
 		return [$command, $self->lambda_bdg, $log];
