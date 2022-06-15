@@ -619,11 +619,12 @@ sub generate_dedup_commands {
 		}
 		
 		# generate command
-		my $command = sprintf "%s --in %s --out %s --cpu %s ", 
+		my $command = sprintf "%s --in %s --out %s --cpu %s --qual %d ", 
 			$self->bamdedup_app || 'bam_partial_dedup.pl',
 			$in,
 			$out,
-			$self->cpu;
+			$self->cpu,
+			$self->mapq;
 		if ($self->paired or $self->deduppair) {
 			$command .= "--pe ";
 		}
