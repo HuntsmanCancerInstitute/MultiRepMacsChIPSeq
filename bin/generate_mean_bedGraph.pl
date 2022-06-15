@@ -17,7 +17,7 @@ use Getopt::Long;
 use File::Basename qw(fileparse);
 use Bio::ToolBox 1.65;
 
-my $VERSION =3;
+my $VERSION =3.1;
 
 # a script to generate mean coverage bedGraph track 
 
@@ -26,13 +26,16 @@ my $docs = <<USAGE;
   
 A script to generate a chromosomal mean coverage bedGraph track 
 to be used in Macs2 as the global control track when there is 
-no input for generating a control_lambda chromatin bias track.
-This uses a bigWig or bedGraph coverage file to calculate a global 
-mean. Intervals without coverage are not included in the calculation.
-It will write out a simple bedGraph representing the genome 
-with the respective mean for each chromosome. 
+no input for generating a control_lambda chromatin bias track. 
 
-Provide an input file in either bigWig or bedGraph format. 
+For sparse or low coverage datasets, provide an effective genome 
+size to calculate the mean. Otherwise, the non-zero coverage length 
+is used, which may be too sparse, resulting in too high of average 
+for reliable peak calling of sparse datasets.
+
+It will write out a simple bedGraph representing the genomic mean.
+
+Provide an input file in either bigWig or text bedGraph format. 
 
 VERSION: $VERSION
 
@@ -41,6 +44,8 @@ USAGE: $0 -i file.bw -o mean.bdg
 OPTIONS:
     -i --in <file>      The input bigWig or bedGraph file
     -o --out <file>     The output bedGraph file (input.global_mean.bdg)
+    -g --genome <int>   The effective genome size (bp) to be used
+                          (default is actual non-zero coverage)
     -h --help           Display help
         
 USAGE
@@ -53,10 +58,12 @@ unless (@ARGV) {
 
 my $infile;
 my $outfile;
+my $genome_size = 0;
 my $help;
 GetOptions(
 	'i|in=s'            => \$infile,
 	'o|out=s'           => \$outfile,
+	'g|genome=i'        => \$genome_size,
 	'h|help!'           => \$help,
 ) or die "unrecognized option! See help\n";
 
@@ -147,9 +154,10 @@ sub process_bw {
 		}
 	}
 	
+	
 	# prepare output
+	my $global_mean = calculate_mean($score_sum, $cov_len);
 	my $Data = Bio::ToolBox->new_data(qw(Chromo Start0 End Score));
-	my $global_mean = sprintf "%.6f", ($score_sum / $cov_len);
 	foreach my $c (sort {$a cmp $b} keys %$chromhash) {
 		# the bigWig chromosome hash is random and loses original file order
 		# so might as well just sort asciibetically
@@ -196,10 +204,14 @@ sub process_bdg {
 		$cov_len += $length; 
 		$score_sum += ($length * $data[3]);
 	}
+	$infh->close;
+	unless ($score_sum and $cov_len) {
+		die "no coverage score collected! Was a proper bedGraph provided?\n";
+	}
 	
 	# prepare output
+	my $global_mean = calculate_mean($score_sum, $cov_len);
 	my $Data = Bio::ToolBox->new_data(qw(Chromo Start0 End Score));
-	my $global_mean = sprintf "%.6f", ($score_sum / $cov_len);
 	foreach my $c (@chroms) {
 		$Data->add_row( [$c, 0, $chromo2length{$c}, $global_mean] );
 	}
@@ -210,4 +222,15 @@ sub process_bdg {
 	
 }
 
+sub calculate_mean {
+	my ($signal, $non_zero_length) = @_;
+	if ($genome_size) {
+		# user provided size
+		return sprintf "%.6f", ($signal / $genome_size);
+	}
+	else {
+		# calculated non-zero coverage
+		return sprintf "%.6f", ($signal / $non_zero_length);
+	}
+}
 
