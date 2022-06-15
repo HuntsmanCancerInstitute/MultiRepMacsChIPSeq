@@ -137,6 +137,10 @@ while (@ARGV) {
 				# optical bam_umi_dedup
 				$optdup += $1;
 			}
+			elsif ($line =~ /^\s+(\d+) \(\d+\.\d%\) optical duplicate (?:single|paired)\-end alignments were (?:marked|discarded)$/) {
+				# optical bam_umi_dedup
+				$optdup += $1;
+			}
 			
 			# duplicate
 			elsif ($line =~ /^  Non\-optical duplicate count:\s+(\d+)$/) {
@@ -224,7 +228,7 @@ while (@ARGV) {
 		$duprate = sprintf("%.4f", $dup / ($dup + $nondup));
 	}
 	if (not $workcount) {
-		$workcount = $total_mapped;
+		$workcount = $total_mapped - $optdup;
 	}
 	
 	# clean up path in case we had a file
