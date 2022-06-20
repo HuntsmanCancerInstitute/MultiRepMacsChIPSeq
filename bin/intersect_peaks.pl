@@ -237,7 +237,7 @@ my %current = (
 );
 
 # output for merged peak
-my $MergeData = Bio::ToolBox->new_data('Chromosome', 'Start', 'End', 'Name', 'NumberIntervals', 'Peaks');
+my $MergeData = Bio::ToolBox->new_data('Chromosome', 'Start', 'End', 'Name', 'Peaks');
 $MergeData->add_comment(sprintf("Merged '%s' peaks from %s", $peak_basename, 
 	join(', ', @names)));
 
@@ -448,7 +448,6 @@ sub process_merged_peak {
 		$current{start},
 		$current{end},
 		sprintf("%s.%d", $peak_basename, $total_count),
-		scalar(split(';', $current{names})),
 		$peakstring
 	] );
 	
