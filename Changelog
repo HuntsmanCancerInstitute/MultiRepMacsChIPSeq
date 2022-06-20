@@ -1,8 +1,45 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v17.8
+	multirep_macs2_pipeline.pl
+	- Use provided genome size when calculating mean genome coverage for lambda. 
+	  This should improve q-value estimations for sparse coverage datasets.
+	- Fix bugs with generating plots for broad peaks and independent call peaks.
+	
+	generate_mean_bedGraph.pl
+	- Use provided genome size instead of empirically calculated one. Print result.
+	
+	intersect_peaks.pl
+	- Minor fixes
+	
+	plot_peak_figures.R
+	- Generate peak count score distributions.
+	- Adjust ranked peak enrichment y-axis.
+	
+	bam_partial_dedup.pl
+	- include mapq parameter in header command line string
+	
+	combine_std_chipstats.pl
+	- Handle optical duplicates from UMIScripts bam_umi_dedup.pl
+
+v17.7
+	multirep_macs2_pipeline.pl
+	- Fix bug in running independent peak calls
+	- Include broad peaks when generating plots
+	
+	intersect_peaks.pl
+	- Major update to improve efficiency
+	- Write spatial and count intersection statistics to new files
+	- Skip unwanted chromosomes based on provided genome file
+	
+	plot_peak_figures.R
+	- Generate a ranked peak enrichment plot line from count data
+	- Generate new UpSet plots for spatial and count intersections
+	- Fix transparent background in pie charts
+
 v17.6
-	multirep_macs2_pipeline.p.
+	multirep_macs2_pipeline.pl
 	- Improve processing when given ChIP fragment coverage bigWig files instead of 
 	  Bam files
 	- Always run plot peak script
