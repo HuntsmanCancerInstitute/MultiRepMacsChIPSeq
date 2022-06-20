@@ -48,6 +48,7 @@ the output parsed into a union interval bed file and a summary statistics.
 It will also report the pairwise number of intersections and spatial overlap 
 (Jaccard statistic) between all peak intervals. 
 
+Results may be plotted using plot_peak_figures.R using the out basename as input.
 
 Seven files will be written:
     output.bed                    the merged peaks in bed format
@@ -308,8 +309,8 @@ foreach my $key (sort {$a cmp $b} keys %key2space) {
 	}
 	$VennData->add_row(\@data);
 }
-$VennData->add_comment("Intersection coverage in bp and fraction of total for each input combination");
-$VennData->add_comment("Intersection count and fraction of total for each input combination");
+$VennData->add_comment("Intersection coverage in bp and fraction of total for each source combination");
+$VennData->add_comment("Intersection count and fraction of total for each source combination");
 my $venn_file = $outfile . '.intersection.txt';
 $VennData->save($venn_file);
 
@@ -344,12 +345,12 @@ my $JaccardData = Bio::ToolBox->new_data('File', @names);
 foreach my $n (@names) {
 	$JaccardData->add_row([$n, (map {0} @names)]);
 }
-$JaccardData->add_comment("Pairwise fraction overlap of the union between each input file");
+$JaccardData->add_comment("Pairwise fraction overlap of the union between each source file");
 my $IntersectionData = Bio::ToolBox->new_data('File', @names);
 foreach my $n (@names) {
 	$IntersectionData->add_row([$n, (map {0} @names)]);
 }
-$IntersectionData->add_comment("Number of pairwise intersections between each input file");
+$IntersectionData->add_comment("Number of pairwise intersections between each source file");
 my %name2i;
 {
 	my $i = 1;
