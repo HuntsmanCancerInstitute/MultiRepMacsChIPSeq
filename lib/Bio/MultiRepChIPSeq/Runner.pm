@@ -261,6 +261,18 @@ sub write_samples_file {
 			$fh->print($_);
 		}
 		$fh->close;
+		
+		# write broad specific samples file
+		# not that it's any different but the plot peaks expects it
+		if ($self->broad) {
+			my $broad_sample_file = File::Spec->catfile($self->dir, 
+				$self->out . '_broad_samples.txt');
+			my $fh = IO::File->new($broad_sample_file, "w");
+			foreach (@conditions) {
+				$fh->print($_);
+			}
+			$fh->close;
+		}
 	}
 	
 	$self->{sample_file} = $samplefile;
