@@ -285,7 +285,20 @@ if(file.exists(countfile)) {
     makePCA(countdata,sampledata,paste0(opt$input,"_PCA.", opt$format))
   }
   
-  # ranked peak signal
+  # peak score distributions
+  count_long <- melt(countdata, measure.vars = colnames(countdata), 
+                     variable.name = "Samples")
+  p <- ggplot(count_long, aes(Samples, value)) +
+    geom_boxplot() +
+    geom_boxplot(outlier.alpha = 0.1) +
+    scale_y_log10() +
+    ylab("Normalized Signal Count") +
+    ggtitle("Peak Signal Count distribution")
+  ggsave(plot = p, filename = paste0(opt$input, '_signalDistribution.', opt$format),
+         width = 8, height = 4)
+  
+  
+  # ranked peak scores
   d <- data.frame("Rank" = 1:nrow(countdata))
   for (i in 1:ncol(countdata)){
     n <-names(countdata)[i]
