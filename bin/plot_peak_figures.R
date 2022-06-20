@@ -298,6 +298,7 @@ if(file.exists(countfile)) {
     geom_line(aes(color=Samples), size = 0.25) + 
     scale_fill_brewer(palette=opt$palette) +
     scale_x_continuous(name = "Individual Peak Rank") + 
+    scale_y_log10() +
     ylab("Normalized Signal Count") +
     ggtitle("Ranked Peak Signal For Each Sample")
   ggsave(plot = p, filename = paste0(opt$input, '_rankedSignal.', opt$format), 
