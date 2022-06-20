@@ -223,14 +223,19 @@ sub process_bdg {
 }
 
 sub calculate_mean {
-	my ($signal, $non_zero_length) = @_;
+	my ($signal, $empirical) = @_;
+	my $m;
 	if ($genome_size) {
 		# user provided size
-		return sprintf "%.6f", ($signal / $genome_size);
+		$m = sprintf "%.6f", ($signal / $genome_size);
+		print " Using provided genome size of $genome_size bp\n";
 	}
 	else {
 		# calculated non-zero coverage
-		return sprintf "%.6f", ($signal / $non_zero_length);
+		$m = sprintf "%.6f", ($signal / $empirical);
+		print " Using empirical genome length of $empirical bp\n";
 	}
+	print " Genomic mean calculated at $m\n";
+	return $m;
 }
 
