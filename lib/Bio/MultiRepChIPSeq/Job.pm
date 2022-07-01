@@ -756,11 +756,10 @@ sub generate_bam_filter_commands {
 		my $command;
 		if ($self->blacklist and $self->blacklist ne 'none') {
 			# bedtools piped to samtools
-			$command = sprintf "%s intersect -v -ubam -a %s -b %s | %s %s - ",
+			$command = sprintf "%s intersect -v -ubam -a %s -b %s | %s - ",
 				$self->bedtools_app,
 				$in,
 				$self->blacklist,
-				$self->samtools_app,
 				$sam_command;
 		}
 		else {
