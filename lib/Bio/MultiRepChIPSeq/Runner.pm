@@ -495,7 +495,7 @@ sub _check_command_finished {
 
 sub run_input_peak_detection {
 	my $self = shift;
-	return unless ($self->blacklist =~ /^(?:input|control)$/i);
+	return unless ($self->blacklist eq 'input');
 	print "\n\n======= Generating exclusion list from reference control\n";
 	if ($self->{progress}{control_peak}) {
 		print "\nStep is completed\n";
@@ -516,7 +516,7 @@ sub run_input_peak_detection {
 	else {
 		# no reference bam files!
 		print " No control reference bam files to process. Skipping\n";
-		$self->blacklist('');
+		$self->blacklist('none');
 		$self->update_progress_file('control_peak');
 		return;
 	}

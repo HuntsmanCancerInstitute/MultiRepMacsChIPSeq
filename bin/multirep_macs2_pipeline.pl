@@ -94,7 +94,8 @@ Options:
  Bam filtering options
   --chrskip   "text"            Chromosome skip regex ($opts->{chrskip})
   --blacklist file              Bed file of repeats or hotspots to avoid
-                                  Determined empirically from control (Input) samples
+                                  Default determined empirically from control samples.
+                                  Specify 'none' for no filtering.
   
  Duplication filtering
   --nodedup                     Skip deduplication and take everything as is
@@ -470,7 +471,7 @@ MESSAGE
 	# check exclusion list
 	if (
 		$Runner->blacklist and 
-		$Runner->blacklist ne 'input' and 
+		($Runner->blacklist ne 'input' or $Runner->blacklist ne 'none') and 
 		not -e $Runner->blacklist
 	) {
 		printf("\nWARNING! Unable to find specified black list file '%s'!\n", 
@@ -480,10 +481,13 @@ MESSAGE
 			$Runner->blacklist('input');
 		}
 		else {
-			$Runner->blacklist(q());
+			$Runner->blacklist('none');
 		}
 	}
-	if (not defined $Runner->blacklist and scalar($Runner->control)) {
+	elsif (
+		not defined $Runner->blacklist and 
+		scalar($Runner->control)
+	) {
 		$Runner->blacklist('input');
 	}
 	

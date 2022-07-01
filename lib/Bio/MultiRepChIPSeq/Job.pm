@@ -660,7 +660,7 @@ sub generate_dedup_commands {
 				$command .= sprintf("--optical --distance %s ", $self->optdist);
 			}
 		}
-		if ($self->blacklist) {
+		if ($self->blacklist and $self->blacklist ne 'none') {
 			$command .= sprintf("--blacklist %s ", $self->blacklist);
 		}
 		if ($self->chrskip) {
@@ -867,7 +867,7 @@ sub generate_bam2wig_frag_commands {
 		if ($self->fraction) {
 			$frag_base .= "--fraction ";
 		}
-		if ($self->blacklist) {
+		if ($self->blacklist and $self->blacklist ne 'none') {
 			$frag_base .= sprintf("--blacklist %s ", $self->blacklist);
 		}
 		if ($self->chrskip) {
@@ -953,7 +953,7 @@ sub generate_bam2wig_frag_commands {
 		if ($self->fraction) {
 			$frag_command .= "--fraction ";
 		}
-		if ($self->blacklist) {
+		if ($self->blacklist and $self->blacklist ne 'none') {
 			$frag_command .= sprintf("--blacklist %s ", $self->blacklist);
 		}
 		if ($self->chrskip) {
@@ -1093,7 +1093,7 @@ sub generate_bam2wig_frag_commands {
 		}
 		
 		# additional filters
-		if ($self->blacklist) {
+		if ($self->blacklist and $self->blacklist ne 'none') {
 			$frag_command .= sprintf("--blacklist %s ", $self->blacklist);
 		}
 		if ($self->chrskip) {
@@ -1155,7 +1155,7 @@ sub generate_bam2wig_count_commands {
 		if ($self->fraction) {
 			$count_command .= "--fraction ";
 		}
-		if ($self->blacklist) {
+		if ($self->blacklist and $self->blacklist ne 'none') {
 			$count_command .= sprintf("--blacklist %s ", $self->blacklist);
 		}
 		if ($self->chrskip) {
@@ -1225,7 +1225,7 @@ sub generate_bam2wig_count_commands {
 		if ($self->fraction) {
 			$count_command .= "--fraction ";
 		}
-		if ($self->blacklist) {
+		if ($self->blacklist and $self->blacklist ne 'none') {
 			$count_command .= sprintf("--blacklist %s ", $self->blacklist);
 		}
 		if ($self->chrskip) {
