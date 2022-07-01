@@ -290,6 +290,7 @@ $Runner->run_generate_chr_file();
 $Runner->run_mappable_space_report();
 $Runner->run_input_peak_detection();
 $Runner->run_dedup();
+$Runner->run_bam_filter();
 $Runner->run_bam_check();
 $Runner->run_bam_fragment_conversion();
 $Runner->run_bam_count_conversion();

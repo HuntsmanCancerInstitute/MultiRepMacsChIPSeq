@@ -1,5 +1,5 @@
 package Bio::MultiRepChIPSeq::Runner;
-our $VERSION = 17.8;
+our $VERSION = 17.9;
 
 =head1 name
 
@@ -165,6 +165,7 @@ sub progress_file {
 		$self->{progress} = {
 			control_peak  => 0,
 			deduplication => 0,
+			bamfilter     => 0,
 			mappable_size => 0,
 			fragment      => 0,
 			count         => 0,
@@ -715,11 +716,37 @@ sub run_dedup {
 	$self->update_progress_file('deduplication');
 }
 
+sub run_bam_filter {
+	my $self = shift;
+	# filtering the bam file is only really required when not de-duplicating and 
+	# running independent peak calls
+	# both bam_partial_dedup and bam2wig include these filtration steps
+	# but macs2 does not
+	return if ($self->dedup); 
+	return unless ($self->independent);
+	print "\n\n======= Filtering bam files\n";
+	if ($self->{progress}{bamfilter}) {
+		print "\nStep is completed\n";
+		return;
+	}
+	
+	### Run filter
+	my @commands;
+	my %name2done;
+	foreach my $Job ($self->list_jobs) {
+		push @commands, $Job->generate_bam_filter_commands(\%name2done);
+	}
+	if (@commands) {
+		$self->execute_commands(\@commands);
+	}
+	$self->update_progress_file('bamfilter');
+}
+
 sub run_bam_check {
 	my $self = shift;
 	print "\n\n======= Checking bam files\n";
 	foreach my $Job ($self->list_jobs) {
-		$Job->find_dedup_bams;
+		$Job->find_new_bams;
 	}
 	
 	# check for independent peak call and universal control
@@ -1817,12 +1844,12 @@ sub run_cleanup {
 	print "\n\n======= Deleting temporary files\n";
 	unless ($self->savebam) {
 		foreach my $Job ($self->list_jobs) {
-			foreach my $b ($Job->chip_dedup_bams) {
+			foreach my $b ($Job->chip_dedup_bams, $Job->chip_filter_bams) {
 				unlink $b if -e $b;
 				$b .= ".bai";
 				unlink $b if -e $b;
 			}
-			foreach my $b ($Job->control_dedup_bams) {
+			foreach my $b ($Job->control_dedup_bams, $Job->control_filter_bams) {
 				unlink $b if -e $b;
 				$b .= ".bai";
 				unlink $b if -e $b;

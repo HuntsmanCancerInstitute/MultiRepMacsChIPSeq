@@ -180,6 +180,7 @@ sub new {
 	    job_name            => $job_name, # name for this ChIP job
 	    chip_bams           => [], # array of initial chip bam file names
 	    chip_dedup_bams     => [], # array of deduplicated bam file names
+	    chip_filter_bams    => [], # array of filtered bam file names
 	    chip_use_bams       => [], # array of final bam file names to use
 	    chip_count_bw       => [], # array of ChIP count bigWig file names
 	    chip_rep_names      => [], # array of ChIP file base names
@@ -187,6 +188,7 @@ sub new {
 	    rep_gappeaks        => [], # array of ChIP replicate gapped peaks
 	    control_bams        => [], # array of initial control bam file names
 	    control_dedup_bams  => [], # array of deduplicated control bam files
+	    control_filter_bams => [], # array of filtered control bam files
 	    control_use_bams    => [], # array of final control bam files to use
 	    control_count_bw    => [], # array of control count bigWig file names
 	    chip_scale          => [], # array of scaling factors for chip signal
@@ -259,8 +261,9 @@ sub new {
 			my $base = File::Spec->catfile($self->dir, $fname);
 			# count bigWig
 			$self->chip_count_bw("$base.count.bw");
-			# dedup bam
+			# dedup and filter bams
 			$self->chip_dedup_bams("$base.dedup.bam");
+			$self->chip_filter_bams("$base.filter.bam");
 			# if running independent peak calls
 			if ($self->independent) {
 				# add peak and coverage files
@@ -338,8 +341,9 @@ sub new {
 			my $base = File::Spec->catfile($self->dir, $fname);
 			# count bigWig
 			$self->control_count_bw("$base.count.bw");
-			# dedup bam
+			# dedup and filter bams
 			$self->control_dedup_bams("$base.dedup.bam");
+			$self->control_filter_bams("$base.filter.bam");
 		}
 	}
 	else {
@@ -381,6 +385,12 @@ sub chip_dedup_bams {
 	return @{ $self->{chip_dedup_bams} };
 }
 
+sub chip_filter_bams {
+	my $self = shift;
+	push @{ $self->{chip_filter_bams} }, @_ if @_;
+	return @{ $self->{chip_filter_bams} };
+}
+
 sub chip_use_bams {
 	my $self = shift;
 	push @{ $self->{chip_use_bams} }, @_ if @_;
@@ -391,6 +401,12 @@ sub control_dedup_bams {
 	my $self = shift;
 	push @{ $self->{control_dedup_bams} }, @_ if @_;
 	return @{ $self->{control_dedup_bams} };
+}
+
+sub control_filter_bams {
+	my $self = shift;
+	push @{ $self->{control_filter_bams} }, @_ if @_;
+	return @{ $self->{control_filter_bams} };
 }
 
 sub control_use_bams {
@@ -660,7 +676,110 @@ sub generate_dedup_commands {
 	return @commands;
 }
 
-sub find_dedup_bams {
+sub generate_bam_filter_commands {
+	my $self = shift;
+	my $name2done = shift;
+	unless ($self->bedtools_app =~ /\w+/ or $self->dryrun) {
+		croak "no bedtools application in path!\n";
+	}
+	unless ($self->samtools_app =~ /\w+/ or $self->dryrun) {
+		croak "no samtools application in path!\n";
+	}
+	
+	# first collect all the bam files
+	my @bamfiles;
+	if ($self->chip_bams) {
+		my @b = $self->chip_bams;
+		my @fb = $self->chip_filter_bams;
+		for my $i (0 .. $#b) {
+			push @bamfiles, [
+				$i,
+				'chip',
+				$b[$i], # input bam
+				$fb[$i] # output filter bam
+			];
+		}
+	}
+	if ($self->control_bams) {
+		my @b = $self->control_bams;
+		my @db = $self->control_filter_bams;
+		for my $i (0 .. $#b) {
+			push @bamfiles, [
+				$i,
+				'control',
+				$b[$i], # input bam
+				$db[$i] # output filter bam
+			];
+		}
+	}
+	
+	# generate samtool filter options
+	my $filter;
+	if ($self->paired) {
+		# exclude filter: UNMAP,MUNMAP,SECONDARY,QCFAIL,DUP,SUPPLEMENTARY
+		# include filter: PROPER_PAIR
+		$filter = "-f 2 -F 3852 ";
+	}
+	else {
+		# exclude filter: UNMAP,SECONDARY,QCFAIL,DUP,SUPPLEMENTARY
+		$filter = "-F 3844 ";
+	}
+	if ($self->mapq) {
+		$filter .= sprintf "-q %d ", $self->mapq;
+	}
+	
+	# generate the commands
+	my @commands;
+	foreach my $set (@bamfiles) {
+		my $in  = $set->[2];
+		my $out = $set->[3];
+		
+		# check if this has been done, should only matter with shared control files
+		if (exists $name2done->{$in}) {
+			# this file has already been done, but we need to update the name
+			# this is quite ugly, but I want to be able to do an exact replacement
+			if ($set->[1] eq 'control') {
+				$self->{control_filter_bams}->[ $set->[0] ] = $name2done->{$in};
+			}
+			elsif ($set->[1] eq 'chip') {
+				# this is likely a mistake or duplicate
+				$self->{chip_filter_bams}->[ $set->[0] ] = $name2done->{$in};
+			}
+			next;
+		}
+		
+		# generate command
+		my $sam_command = sprintf "%s view $filter --threads %d --bam --output %s",
+			$self->samtools_app,
+			$self->cpu, 
+			$out;
+		my $command;
+		if ($self->blacklist and $self->blacklist ne 'none') {
+			# bedtools piped to samtools
+			$command = sprintf "%s intersect -v -ubam -a %s -b %s | %s %s - ",
+				$self->bedtools_app,
+				$in,
+				$self->blacklist,
+				$self->samtools_app,
+				$sam_command;
+		}
+		else {
+			# samtools alone
+			$command = sprintf "%s %s ", $sam_command, $in;
+		}
+		my $log = $out;
+		$log =~ s/\.bam$/.out.txt/i;
+		$command .= "2>&1 > $log";
+		push @commands, [$command, $out, $log];
+		$name2done->{$in} = $out; # remember that this has been done
+	}
+	
+	return @commands;
+}
+
+
+
+sub find_new_bams {
 	my $self = shift;
 	
 	# ChIP bams
@@ -668,12 +787,18 @@ sub find_dedup_bams {
 		printf " Checking ChIP bams for %s:\n", $self->job_name;
 		my @b  = $self->chip_bams;
 		my @db = $self->chip_dedup_bams;
+		my @fb = $self->chip_filter_bams;
 		for my $i (0 .. $#b) {
 			my $in  = $b[$i];
-			my $out = $db[$i];
-			if (-e $out and -s _) {
-				$self->chip_use_bams($out);
-				printf "  Found $out\n";
+			my $out1 = $db[$i];
+			my $out2 = $fb[$i];
+			if (-e $out1 and -s _ ) {
+				$self->chip_use_bams($out1);
+				printf "  Found $out1\n";
+			}
+			elsif (-e $out2 and -s _ ) {
+				$self->chip_use_bams($out2);
+				printf "  Found $out2\n";
 			}
 			else {
 				$self->chip_use_bams($in);
@@ -687,12 +812,18 @@ sub find_dedup_bams {
 		printf " Checking control bams for %s:\n", $self->job_name;
 		my @b  = $self->control_bams;
 		my @db = $self->control_dedup_bams;
+		my @fb = $self->control_filter_bams;
 		for my $i (0 .. $#b) {
 			my $in  = $b[$i];
-			my $out = $db[$i];
-			if (-e $out and -s _) {
-				$self->control_use_bams($out);
-				printf "  Found $out\n";
+			my $out1 = $db[$i];
+			my $out2 = $fb[$i];
+			if (-e $out1 and -s _ ) {
+				$self->control_use_bams($out1);
+				printf "  Found $out1\n";
+			}
+			if (-e $out2 and -s _ ) {
+				$self->control_use_bams($out2);
+				printf "  Found $out2\n";
 			}
 			else {
 				$self->control_use_bams($in);
