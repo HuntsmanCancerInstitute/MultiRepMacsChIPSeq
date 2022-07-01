@@ -178,6 +178,8 @@ complexity. See the Pysano folder for example scripts.
     generate an exclusion list from provided reference control (Input) Bam files. 
     Usually, empirically derived lists are superior to externally provided lists, as 
     they account for duplicate and repetitive regions in the actual cells of interest. 
+    
+    To disable automatic exclusion lists from the reference control, specify "none".
 
 - Genome size
 

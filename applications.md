@@ -369,7 +369,8 @@ Options:
 	 Bam filtering options
 	  --chrskip   "text"            Chromosome skip regex (chrM|MT|lambda|Adapter|PhiX)
 	  --blacklist file              Bed file of repeats or hotspots to avoid
-	                                  Determined empirically from control (Input) samples
+	                                  Default determined empirically from control samples.
+	                                  Specify 'none' for no filtering.
 	
 	 Duplication filtering
 	  --nodedup                     Skip deduplication and take everything as is
