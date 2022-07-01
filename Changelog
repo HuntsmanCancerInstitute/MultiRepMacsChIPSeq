@@ -1,6 +1,15 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v17.9
+	multirep_macs2_pipeline.pl
+	- Filter unwanted alignments, including duplicates, secondary, supplemental, 
+	  singletons, and those in exclusion intervals, from bam files when running 
+	  macs2 callpeak in independent mode. This makes it more consistent with 
+	  calls made in the standard mode.
+	- Explicitly allow turning off exclusion list generation from the reference 
+	  control bam files by specifying "none".
+
 v17.8
 	multirep_macs2_pipeline.pl
 	- Use provided genome size when calculating mean genome coverage for lambda. 
