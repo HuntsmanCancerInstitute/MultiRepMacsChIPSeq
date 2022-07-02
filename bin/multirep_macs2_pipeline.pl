@@ -98,7 +98,7 @@ Options:
                                   Specify 'none' for no filtering.
   
  Duplication filtering
-  --nodedup                     Skip deduplication and take everything as is
+  --nodedup                     Skip deduplication and use all primary, nondup alignments
   --dupfrac   float             Target duplication rate for subsampling ($opts->{dupfrac})
   --maxdepth  integer           Maximum position alignment depth ($opts->{maxdepth})
                                   set to 1 to remove all duplicates
@@ -151,23 +151,24 @@ Options:
  Application  Paths
   --bam2wig   path             ($opts->{bam2wig})
   --bamdedup  path             ($opts->{bamdedup})
-  --macs      path             ($opts->{macs})
-  --manwig    path             ($opts->{manwig})
-  --wig2bw    path             ($opts->{wig2bw})
+  --bedtools  path             ($opts->{bedtools})
   --bw2bdg    path             ($opts->{bw2bdg})
-  --printchr  path             ($opts->{printchr})
+  --combrep   path             ($opts->{combrep})
   --data2wig  path             ($opts->{data2wig})
   --getdata   path             ($opts->{getdata})
   --getrel    path             ($opts->{getrel})
   --geteff    path             ($opts->{geteff})
-  --meanbdg   path             ($opts->{meanbdg})
-  --bedtools  path             ($opts->{bedtools})
   --intersect path             ($opts->{intersect})
+  --macs      path             ($opts->{macs})
+  --manwig    path             ($opts->{manwig})
+  --meanbdg   path             ($opts->{meanbdg})
   --peak2bed  path             ($opts->{peak2bed})
-  --combrep   path             ($opts->{combrep})
   --plotpeak  path             ($opts->{plotpeak})
-  --rscript   path             ($opts->{rscript})
+  --printchr  path             ($opts->{printchr})
   --reportmap path             ($opts->{reportmap})
+  --rscript   path             ($opts->{rscript})
+  --samtools  path             ($opts->{samtools})
+  --wig2bw    path             ($opts->{wig2bw})
 DOC
 
 
@@ -265,6 +266,7 @@ GetOptions(
 	'plotpeak=s',
 	'rscript=s',
 	'reportmap=s',
+	'samtools=s'
 ) or die "unrecognized option(s)!\n";
 
 if ($opts->{help}) {
