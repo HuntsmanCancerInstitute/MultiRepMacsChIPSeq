@@ -820,7 +820,7 @@ sub find_new_bams {
 				$self->control_use_bams($out1);
 				printf "  Found $out1\n";
 			}
-			if (-e $out2 and -s _ ) {
+			elsif (-e $out2 and -s _ ) {
 				$self->control_use_bams($out2);
 				printf "  Found $out2\n";
 			}
