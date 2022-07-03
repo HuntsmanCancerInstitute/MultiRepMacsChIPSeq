@@ -1783,6 +1783,7 @@ sub print_config {
 
 sub run_cleanup {
 	my $self = shift;
+	my $provided_options = shift || undef;
 	return if $self->dryrun;
 	print "\n\n======= Combining log files\n";
 	my @output;
@@ -1793,6 +1794,9 @@ sub run_cleanup {
 	push @output, "Version $VERSION\n";
 	
 	# Configuration
+	if ($provided_options) {
+		push @output, "\nProvided options: $provided_options\n\n";
+	}
 	push @output, $self->print_config(1); # capture it
 	
 	# Combine known output logs

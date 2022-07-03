@@ -192,6 +192,7 @@ Version: $VERSION
 HELP
 	exit 1;
 }
+my $argument_string = join ' ', @ARGV; # save to print below
 
 GetOptions(
 	$opts,
@@ -308,7 +309,7 @@ $Runner->write_samples_file();
 $Runner->run_rescore();
 $Runner->run_efficiency();
 $Runner->run_plot_peaks();
-$Runner->run_cleanup();
+$Runner->run_cleanup($argument_string);
 $Runner->run_organize();
 
 # final statement
@@ -513,6 +514,7 @@ mostly be complete. No files will be generated.
 
 DRYRUN
 	}
+	print "\nProvided options: $argument_string\n\n";
 	$Runner->print_config;
 	print "\n\n";
 }
