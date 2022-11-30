@@ -1,5 +1,5 @@
 package Bio::MultiRepChIPSeq::Runner;
-our $VERSION = 17.9;
+our $VERSION = 17.9.1;
 
 =head1 name
 
@@ -51,6 +51,8 @@ required therein and passes them directly to respective new() method.
 =item run_input_peak_detection - calls peaks on reference control for exclusion
 
 =item run_dedup - run bam deduplication
+
+=item run_bam_filter - filter bam files for exclusions and bad alignments
 
 =item run_bam_check - checks for deduplicated bam files
 
@@ -730,14 +732,64 @@ sub run_bam_filter {
 		return;
 	}
 	
+	### Generate appended exclusion list with skipped chromosomes
+	my $filter_file;
+	if ($self->chrskip) {
+		# need to collect skipped chromosomes
+		# but first need to get them
+		# use the first ChIP bam file as an example - this should've passed
+		# print_chromosomes test earlier so all files have identical chromosomes
+		unless ($self->dryrun) {
+			# only execute this during a real run
+			my $J = ($self->list_jobs)[0]; # first job
+			my $command = sprintf "%s %s", $self->printchr_app, ($J->chip_bams)[0];
+			my @chroms = qx($command);
+			# first add existing exclusion list intervals if present
+			my @exclusions;
+			if ($self->blacklist and $self->blacklist ne 'none') {
+				my $fh = IO::File->new($self->blacklist);
+				foreach my $line ( IO::File->getlines ) {
+					push @exclusions, join "\t", (split /\t/, $line)[0-2];
+				}
+				$fh->close;
+			}
+			# then add unwanted chromosomes
+			my $skip = $self->chrskip;
+			foreach my $c (@chroms) {
+				chomp $c;
+				my ($seqid, $length) = split /\t/, $c;
+				if ($seqid =~ /$skip/i) {
+					push @exclusions, join("\t", $seqid, '0', $length);
+				}
+			}
+			# write exclusion file
+			$filter_file = File::Spec->catfile($self->dir, $self->out . '.bamfilter.bed');
+			my $fh = IO::File->new($filter_file, 'w');
+			foreach my $e (@exclusions) {
+				$fh->print("$e\n");
+			}
+			$fh->close;
+		}
+	}
+	else {
+		# no chromosomes to exclude
+		if ($self->blacklist and $self->blacklist ne 'none') {
+			# still use the black list exclusion file to filter if present
+			$filter_file = $self->blacklist;
+		}
+	}
+	
 	### Run filter
 	my @commands;
 	my %name2done;
 	foreach my $Job ($self->list_jobs) {
-		push @commands, $Job->generate_bam_filter_commands(\%name2done);
+		push @commands, $Job->generate_bam_filter_commands(\%name2done, $filter_file);
 	}
 	if (@commands) {
 		$self->execute_commands(\@commands);
+	}
+	if ($filter_file and -e $filter_file) {
+		unlink $filter_file;
 	}
 	$self->update_progress_file('bamfilter');
 }

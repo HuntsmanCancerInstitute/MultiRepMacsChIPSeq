@@ -679,6 +679,7 @@ sub generate_dedup_commands {
 sub generate_bam_filter_commands {
 	my $self = shift;
 	my $name2done = shift;
+	my $filter_file = shift;
 	unless ($self->bedtools_app =~ /\w+/ or $self->dryrun) {
 		croak "no bedtools application in path!\n";
 	}
@@ -754,12 +755,12 @@ sub generate_bam_filter_commands {
 			$self->cpu, 
 			$out;
 		my $command;
-		if ($self->blacklist and $self->blacklist ne 'none') {
+		if ($filter_file) {
 			# bedtools piped to samtools
 			$command = sprintf "%s intersect -v -ubam -a %s -b %s | %s - ",
 				$self->bedtools_app,
 				$in,
-				$self->blacklist,
+				$filter_file,
 				$sam_command;
 		}
 		else {
