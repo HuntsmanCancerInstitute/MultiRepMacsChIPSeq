@@ -1,5 +1,5 @@
 package Bio::MultiRepChIPSeq::Runner;
-our $VERSION = 17.9.1;
+our $VERSION = '17.9.2';
 
 =head1 name
 
@@ -397,6 +397,7 @@ sub execute_commands {
 	}
 	
 	# check that commands actually produced something
+	sleep 2;
 	my @errors;
 	foreach my $command (@$commands) {
 		unless ( $self->_check_command_finished($command, 0) ) {

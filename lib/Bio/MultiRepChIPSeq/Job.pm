@@ -164,9 +164,11 @@ The commands can be executed by the L<Bio::MultiRepChIPSeq::Runner> object.
 
 use strict;
 use Carp;
+use IO::File;
 use File::Spec;
 use Data::Dumper;
 use base 'Bio::MultiRepChIPSeq::options';
+use Bio::ToolBox::utility qw(format_with_commas);
 
 1;
 
@@ -1734,62 +1736,68 @@ sub generate_cleanpeak_commands {
 		$self->crash("no peak file defined!");
 	}
 	
-	# this is now done by an external script
-	# we do not specify output file names, but it uses the same logic as here
-	# there are no options to this script
-	my $command1 = sprintf("%s ", $self->peak2bed_app || 'peak2bed.pl');
-	my $command2 = 'rm ';
-	my $command_check = length($command1);
-	
-	# narrowPeak
-	if (
-		(-e $self->peak and -s _ > 0) or 
-		$self->dryrun
-	) {
-		# generate the command only if the peak file exists and nonzero in size
-		# or we're in dry run mode
-		$command1 .= sprintf("%s ", $self->peak);
-		$command2 .= sprintf("%s ", $self->peak);
-	}
-	# gappedPeak
-	if (
-		$self->broad and 
-		(-e $self->gappeak or $self->dryrun)
-	) {
-		# generate the command only if the gapped peak file exists
-		# or we're in dry run mode
-		$command1 .= sprintf("%s ", $self->gappeak);
-		$command2 .= sprintf("%s ", $self->gappeak);
+	# first count peaks
+	my $narrow_count = 0;
+	my $gap_count    = 0;
+	if (not $self->dryrun) {
+		printf "\n %s Peak counts\n", $self->name;
+		$narrow_count = $self->_count_lines( $self->peak );
+		printf "  %s narrow peaks were called.\n", format_with_commas($narrow_count);
+		if ($self->broad) {
+			$gap_count = $self->_count_lines( $self->gappeak );
+			printf "  %s gapped peaks were called.\n", format_with_commas($gap_count);
+		}
 	}
 	
-	# check that we have added to the command
-	if (length($command1) > $command_check) {
-		# good, we have output files and are doing something
-		my $log = $self->clean_peak;
-		$log =~ s/bed/cleanpeak.out.txt/;
-		$command1 .= sprintf(" 2>&1 > %s ", $log);
-		$command1 .= sprintf("&& %s", $command2);
-		return [$command1, $self->clean_peak, $log];
+	# generate commands
+	my $log = $self->clean_peak;
+	$log =~ s/bed/cleanpeak.out.txt/;
+	if ($self->dryrun and not $self->broad) {
+		my $command = sprintf "%s %s 2>&1 > $log && rm %s", 
+			$self->peak2bed_app || 'peak2bed.pl', $self->peak, $self->peak;
+		return [$command, $self->clean_peak, $log];
+	}
+	elsif ($self->dryrun and $self->broad) {
+		my $command = sprintf "%s %s %s 2>&1 > $log && rm %s %s", 
+			$self->peak2bed_app || 'peak2bed.pl', $self->peak, $self->gappeak,
+			$self->peak, $self->gappeak;
+		return [$command, $self->clean_peak, $log];
+	}
+	elsif ($narrow_count and $gap_count) {
+		my $command = sprintf "%s %s %s 2>&1 > $log && rm %s %s", 
+			$self->peak2bed_app || 'peak2bed.pl', $self->peak, $self->gappeak,
+			$self->peak, $self->gappeak;
+		return [$command, $self->clean_peak, $log];
+	}
+	elsif ($narrow_count and not $gap_count and $self->broad) {
+		my $command = sprintf "%s %s 2>&1 > $log && rm %s %s", 
+			$self->peak2bed_app || 'peak2bed.pl', $self->peak, $self->peak,
+			$self->gappeak, $self->clean_gappeak;
+		return [$command, $self->clean_peak, $log];
+	}
+	elsif ($narrow_count and not $gap_count and not $self->broad) {
+		my $command = sprintf "%s %s 2>&1 > $log && rm %s", 
+			$self->peak2bed_app || 'peak2bed.pl', $self->peak, $self->peak;
+		return [$command, $self->clean_peak, $log];
+	}
+	elsif (not $narrow_count and $gap_count) {
+		my $command = sprintf "%s %s 2>&1 > $log && rm %s %s", 
+			$self->peak2bed_app || 'peak2bed.pl', $self->gappeak, $self->gappeak,
+			$self->peak, $self->clean_peak;
+		return [$command, $self->clean_gappeak, $log];
+	}
+	elsif (not $narrow_count and not $gap_count and $self->broad) {
+		my $command = sprintf "rm %s %s", 
+			$self->peak, $self->gappeak, $self->clean_peak, $self->clean_gappeak;
+		return [$command, '', ''];
+	}
+	elsif (not $narrow_count and not $gap_count and not $self->broad) {
+		my $command = sprintf "rm %s", 
+			$self->peak, $self->clean_peak;
+		return [$command, '', ''];
 	}
 	else {
-		# empty file(s), let's fake the clean one
-		if ($self->broad) {
-			$command1 = sprintf("touch %s %s %s && rm -f %s %s", 
-				$self->clean_peak, 
-				$self->peak_summit, 
-				$self->clean_gappeak, 
-				$self->peak, 
-				$self->gappeak
-			);
-		}
-		else {
-			$command1 = sprintf("touch %s %s && rm %s", 
-				$self->clean_peak, 
-				$self->peak_summit, 
-				$self->peak
-			);
-		}
-		return [$command1, $self->clean_peak, ''];
+		$self->crash("Programming error: $narrow_count narrow peaks and $gap_count gap peaks!!??");
 	}
 }
 
@@ -1982,6 +1990,20 @@ sub generate_bdg2bw_commands {
 		push @commands, [$command, $self->logfe_bw, $log];
 	}
 	return @commands;
+}
+
+sub _count_lines {
+	my ($self, $file) = @_;
+	return 0 unless ( -e $file );
+	return 0 unless ( -s _ ); 
+	my $fh = IO::File->new($file) or return 0;
+	my $n = 0;
+	while ( my $line = $fh->getline ) {
+		next if $line =~ /^(?: \# | track )/xi;
+		$n++;
+	}
+	$fh->close;
+	return $n;
 }
 
 
