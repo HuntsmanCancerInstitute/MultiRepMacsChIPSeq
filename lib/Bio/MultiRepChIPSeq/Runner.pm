@@ -1173,6 +1173,7 @@ sub run_call_peaks {
 	
 	# independent calls must be merged
 	if ($self->independent) {
+		print "\n\n======= Merging replicate peaks\n\n";
 		@commands = ();
 		foreach my $Job (@jobs) {
 			push @commands, $Job->generate_independent_merge_peak_commands;

@@ -1740,7 +1740,7 @@ sub generate_cleanpeak_commands {
 	my $narrow_count = 0;
 	my $gap_count    = 0;
 	if (not $self->dryrun) {
-		printf "\n %s Peak counts\n", $self->name;
+		printf "\n %s Peak counts\n", $self->job_name;
 		$narrow_count = $self->_count_lines( $self->peak );
 		printf "  %s narrow peaks were called.\n", format_with_commas($narrow_count);
 		if ($self->broad) {
@@ -1814,64 +1814,119 @@ sub generate_independent_merge_peak_commands {
 	}
 	
 	# generate commands
+	my @commands;
 	if (scalar($self->rep_peaks) == 1) {
 		# only one replicate peak? nothing really to merge or clean
 		# just point clean files to the existing files
-		$self->clean_peak( ($self->rep_peaks)[0] );
+		my $file = ($self->rep_peaks)[0];
+		if ($self->dryrun) {
+			$self->clean_peak($file);
+		}
+		else {
+			my $count = $self->_count_lines($file);
+			printf "  %s narrow peaks were called for %s replicate %s\n", 
+				format_with_commas($count), $self->job_name, ($self->chip_rep_names)[0];
+			if ($count) {
+				$self->clean_peak($file);
+			}
+		}
 		if ($self->broad) {
-			$self->clean_gappeak( ($self->rep_gappeaks)[0] );
+			$file = ($self->rep_gappeaks)[0];
+			if ($self->dryrun) {
+				$self->clean_gappeak($file);
+			}
+			else {
+				my $count = $self->_count_lines($file);
+				printf "  %s gapped peaks were called for %s replicate %s\n", 
+					format_with_commas($count), $self->job_name, ($self->chip_rep_names)[0];
+				if ($count) {
+					$self->clean_gappeak($file);
+				}
+			}
 		}
 		return;
 	}
 	elsif (scalar($self->rep_peaks) > 1) {
 		# more than one replicate peak, merge them
-		my $command = sprintf("%s --name %s --out %s --bed %s --genome %s ", 
-			$self->intersect_app || 'intersect_peaks.pl', 
-			$self->job_name, 
-			$self->clean_peak, 
-			$self->bedtools_app || 'bedtools', 
-			$self->chromofile
-		);
-		foreach my $f ($self->rep_peaks) {
-			if (
-				(-e $f and -s _ > 0) or
-				$self->dryrun
-			) {
-				$command .= "$f ";
+		my @files;
+		my @peaks = $self->rep_peaks;
+		for my $i (0 .. $#peaks) {
+			if ($self->dryrun) {
+				push @files, $peaks[$i];
+			}
+			else {
+				my $count = $self->_count_lines( $peaks[$i] );
+				printf "  %s narrow peaks were called for %s replicate %s\n", 
+					format_with_commas($count), $self->job_name,
+					($self->chip_rep_names)[$i];
+				if ($count) {
+					push @files, $peaks[$i];
+				}
 			}
 		}
-		my $out = $self->clean_peak;
-		my $log = $out;
-		$log =~ s/bed/intersect.out.txt/;
-		$command .= " 2>&1 > $log ";
+		if (scalar @files == 0) {
+			# no replicate called peaks, not much to do then
+		}
+		elsif (scalar @files == 1) {
+			# only one replicate called peaks, use it as the de facto sample peak
+			$self->clean_peak( $files[0] );
+		}
+		else {
+			my $command = sprintf("%s --name %s --out %s --bed %s --genome %s %s ", 
+				$self->intersect_app || 'intersect_peaks.pl', 
+				$self->job_name, 
+				$self->clean_peak, 
+				$self->bedtools_app || 'bedtools', 
+				$self->chromofile,
+				join( q( ), @files)
+			);
+			my $log = $self->clean_peak;
+			$log =~ s/bed/intersect.out.txt/;
+			$command .= " 2>&1 > $log ";
+			push @commands, [$command, $self->clean_peak, $log];
+		}
 		
 		# broad gapped peaks
 		if ($self->broad) {
-			my $command2 = sprintf("%s --name %s --out %s --bed %s --genome %s ", 
-				$self->intersect_app || 'intersect_peaks.pl', 
-				$self->job_name, 
-				$self->clean_gappeak, 
-				$self->bedtools_app || 'bedtools', 
-				$self->chromofile
-			);
-			foreach my $f ($self->rep_gappeaks) {
-				if (
-					(-e $f and -s _ > 0) or
-					$self->dryrun
-				) {
-					$command2 .= "$f ";
+			@files = ();
+			@peaks = $self->rep_gappeaks;
+			foreach my $i (0..$#peaks) {
+				if ($self->dryrun) {
+					push @files, $peaks[$i];
+				}
+				else {
+					my $count = $self->_count_lines( $peaks[$i] );
+					printf "  %s gapped peaks were called for %s replicate %s\n", 
+						format_with_commas($count), $self->job_name,
+						($self->chip_rep_names)[$i];
+					if ($count) {
+						push @files, $peaks[$i];
+					}
 				}
 			}
-			my $out2 = $self->clean_gappeak;
-			my $log2 = $out2;
-			$log2 =~ s/bed/intersect.out.txt/;
-			$command2 .= " 2>&1 > $log2 ";
-			# return both narrow and broad commands
-			return ( [$command, $out, $log], [$command2, $out2, $log2] );
+			if (scalar @files == 0) {
+				# only one replicate called peaks, not much to do then
+			}
+			elsif (scalar @files == 1) {
+				# only one replicate called peaks, use it as the de facto sample peak
+				$self->clean_gappeak( $files[0] );
+			}
+			else {
+				my $command = sprintf("%s --name %s --out %s --bed %s --genome %s %s ", 
+					$self->intersect_app || 'intersect_peaks.pl', 
+					$self->job_name, 
+					$self->clean_gappeak, 
+					$self->bedtools_app || 'bedtools', 
+					$self->chromofile,
+					join( q( ), @files)
+				);
+				my $log = $self->clean_gappeak;
+				$log =~ s/bed/intersect.out.txt/;
+				$command .= " 2>&1 > $log ";
+				push @commands, [$command, $self->clean_gappeak, $log];
+			}
 		}
-		else {
-			return [$command, $out, $log];
-		}
+		return @commands;
 	}
 	else {
 		$self->crash("no replicate peaks for merging!?");
