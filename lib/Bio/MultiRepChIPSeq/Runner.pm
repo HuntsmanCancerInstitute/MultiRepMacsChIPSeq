@@ -1,5 +1,5 @@
 package Bio::MultiRepChIPSeq::Runner;
-our $VERSION = '17.9.2';
+our $VERSION = '17.9.3';
 
 =head1 name
 
@@ -501,6 +501,15 @@ sub run_input_peak_detection {
 	return unless ($self->blacklist eq 'input');
 	print "\n\n======= Generating exclusion list from reference control\n";
 	if ($self->{progress}{control_peak}) {
+		# check that we actually have the expected file
+		my $blacklist = File::Spec->catfile($self->dir,
+			sprintf("%s.control_peak.bed", $self->out));
+		if (-e $blacklist) {
+			$self->blacklist($blacklist);
+		}
+		else {
+			$self->blacklist( q() );
+		}
 		print "\nStep is completed\n";
 		return;
 	}
