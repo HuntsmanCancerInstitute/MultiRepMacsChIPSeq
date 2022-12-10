@@ -751,34 +751,52 @@ sub run_bam_filter {
 		# print_chromosomes test earlier so all files have identical chromosomes
 		unless ($self->dryrun) {
 			# only execute this during a real run
-			my $J = ($self->list_jobs)[0]; # first job
-			my $command = sprintf "%s %s", $self->printchr_app, ($J->chip_bams)[0];
-			my @chroms = qx($command);
+			
 			# first add existing exclusion list intervals if present
 			my @exclusions;
 			if ($self->blacklist and $self->blacklist ne 'none') {
-				my $fh = IO::File->new($self->blacklist);
-				foreach my $line ( IO::File->getlines ) {
-					push @exclusions, join "\t", (split /\t/, $line)[0-2];
+				require Bio::ToolBox;
+				my $Data = Bio::ToolBox->load_file($self->blacklist);
+				if ($Data) {
+					$Data->iterate( sub {
+						# generate and store a simple bed3 string
+						my $row = shift;
+						push @exclusions, $row->bed_string( bed => 3 );
+					} );
 				}
-				$fh->close;
 			}
+			
 			# then add unwanted chromosomes
+			my $example_bam;
+			foreach my $Job ($self->list_jobs) {
+				if ($Job->chip_bams) {
+					$example_bam = ($Job->chip_bams)[0];
+					last;
+				}
+			}
+			my $command = sprintf "%s %s", $self->printchr_app, $example_bam;
+			print "\n Executing '$command'\n";
+			my @chroms = qx($command);
 			my $skip = $self->chrskip;
 			foreach my $c (@chroms) {
 				chomp $c;
 				my ($seqid, $length) = split /\t/, $c;
+				next unless ($seqid and $length =~ /^\d+$/);
 				if ($seqid =~ /$skip/i) {
 					push @exclusions, join("\t", $seqid, '0', $length);
 				}
 			}
+			
 			# write exclusion file
 			$filter_file = File::Spec->catfile($self->dir, $self->out . '.bamfilter.bed');
 			my $fh = IO::File->new($filter_file, 'w');
-			foreach my $e (@exclusions) {
-				$fh->print("$e\n");
+			if ($fh) {
+				foreach my $e (@exclusions) {
+					$fh->print("$e\n");
+				}
+				$fh->close;
+				print " Wrote $filter_file\n";
 			}
-			$fh->close;
 		}
 	}
 	else {
@@ -798,7 +816,7 @@ sub run_bam_filter {
 	if (@commands) {
 		$self->execute_commands(\@commands);
 	}
-	if ($filter_file and -e $filter_file) {
+	if ($filter_file and $filter_file ne $self->blacklist and -e $filter_file) {
 		unlink $filter_file;
 	}
 	$self->update_progress_file('bamfilter');
