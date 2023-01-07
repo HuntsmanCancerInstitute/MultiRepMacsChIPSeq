@@ -31,7 +31,9 @@ opts <-  list(
               help="Threshold adjusted p-value for filtering, default 0.01"),
   make_option(c("-m","--min"), default=50,
               help="Minimum base count sum, default 50"),
-  make_option(c("--all"), action="store_true", default=FALSE,
+  make_option("--norm", action="store_true", default=FALSE,
+              help="Input counts are normalized, set SizeFactors to 1"),
+  make_option("--all", action="store_true", default=FALSE,
               help="Report all windows, not just significant")
 )
 
@@ -49,10 +51,8 @@ parser <- OptionParser(option_list=opts, description = "
   
   Result intervals are filtered for the given adjusted  
   threshold as well as a minimum base count (mean of ChIP1 and 
-  ChIP2 replicate counts). Results are written with A bedGraph file of regularized, log2 
-  differences between ChIP1 and ChIP2 (or Reference) is written 
-  for converting into a bigWig for visualization. Merged 
-  significant intervals of enrichment are written as a bed file.
+  ChIP2 replicate counts). Merged significant intervals of 
+  enrichment are written as a bed file.
   
 ")
 
@@ -113,6 +113,9 @@ if (length(chromcol) & length(startcol) & length(stopcol)) {
 dds <- DESeqDataSetFromMatrix(countData=counts[,rownames(cond)], 
                               colData=cond, 
                               design =~ condition)
+if (opt$norm == TRUE) {
+  sizeFactors(dds) <- rep(1, nrow(cond))
+}
 dds <- DESeq(dds)
 ddsResults1 <- results(dds, alpha = opt$threshold, contrast = c('condition', opt$first, opt$second))
 
@@ -145,10 +148,10 @@ if (opt$all == TRUE) {
 
 
 # write bedGraph of log fold changes
-write.table(data.frame(seqnames(targets),start(targets),end(targets), 
-                       round(ddsResults1$log2FoldChange,3)),
-            file=paste0(opt$output,"_logEnrichment.bdg"),
-            sep = "\t", row.names = F, quote = F, col.names = F)
+# write.table(data.frame(seqnames(targets),start(targets),end(targets), 
+#                        round(ddsResults1$log2FoldChange,3)),
+#             file=paste0(opt$output,"_logEnrichment.bdg"),
+#             sep = "\t", row.names = F, quote = F, col.names = F)
 
 
 # select significant results
