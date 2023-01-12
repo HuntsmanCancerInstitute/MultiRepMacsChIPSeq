@@ -1,199 +1,10 @@
 package Bio::MultiRepChIPSeq::options;
 
-=head1 NAME
-
-Bio::MultiRepChIPSeq::options - an object to hold the pipeline options
-
-=head1 DESCRIPTION
-
-This is a base module inherited by the others for holding general configuration 
-parameters and options. The values can be exported as a hash reference for use in
-importing command line options with L<Getopt::Long>. The values can be get or set 
-using methods generally named after the hash key (with the exception of application 
-paths). 
-
-This is not used directly. 
-
-=head1 METHODS
-
-=head2 Initialization
-
-=over 4
-
-=item init_options
-
-Initialize the options hash has and identify application paths in the current 
-environment C<PATH>. 
-
-=item options
-
-Export the hash as a reference.
-
-=back
-
-=head2 Attributes
-
-=over 4
-
-=item dir
-
-=item in
-
-=item out
-
-=item name
-
-=item chip
-
-=item control
-
-=item chscale
-
-=item coscale
-
-=item genome
-
-=item species
-
-=item chromofile
-
-=item paired
-
-=item mapq
-
-=item fraction
-
-=item minsize
-
-=item maxsize
-
-=item dedup
-
-=item maxdup
-
-=item maxdepth
-
-=item dupfrac
-
-=item optdist
-
-=item deduppair
-
-=item savebam
-
-=item fragsize
-
-=item shiftsize
-
-=item slocal
-
-=item llocal
-
-=item cutoff
-
-=item targetdep
-
-=item peaksize
-
-=item peakgap
-
-=item broad
-
-=item broadcut
-
-=item broadgap
-
-=item gaplink
-
-=item lambda
-
-=item independent
-
-=item chrskip
-
-=item blacklist
-
-=item cpu
-
-=item job
-
-=item chipbin
-
-=item slocalbin
-
-=item llocalbin
-
-=item chrnorm
-
-=item chrapply
-
-=item rawcounts
-
-=item savebdg
-
-=item binsize
-
-=item genomewin
-
-=item discard
-
-=item repmean
-
-=item plot
-
-=item dryrun
-
-=item organize
-
-=item bam2wig_app
-
-=item bamdedup_app
-
-=item macs_app
-
-=item manwig_app
-
-=item wig2bw_app
-
-=item bw2bdg_app
-
-=item bedtools_app
-
-=item getdata_app
-
-=item getrel_app
-
-=item geteff_app
-
-=item printchr_app
-
-=item data2wig_app
-
-=item meanbdg_app
-
-=item intersect_app
-
-=item peak2bed_app
-
-=item combrep_app
-
-=item plotpeak_app
-
-=item rscript_app
-
-=item reportmap_app
-
-=item samtools_app
-
-=back
-
-=cut
-
 use strict;
 use Carp;
 use File::Which;
 
-1;
+our $VERSION = 18.0;
 
 sub init_options {
 	my $class = shift;
@@ -207,7 +18,7 @@ sub init_options {
 		chscale     => [],
 		coscale     => [],
 		genome      => 0,
-		species     => '',
+		species     => q(),
 		chromofile  => undef,
 		mapq        => 0,
 		paired      => 0,
@@ -739,6 +550,205 @@ sub samtools_app {
 	return $self->{opts}{samtools};
 }
 
+1;
 
+=head1 NAME
+
+Bio::MultiRepChIPSeq::options - an object to hold the pipeline options
+
+=head1 DESCRIPTION
+
+This is a base module inherited by the others for holding general configuration 
+parameters and options. The values can be exported as a hash reference for use in
+importing command line options with L<Getopt::Long>. The values can be get or set 
+using methods generally named after the hash key (with the exception of application 
+paths). 
+
+This is not used directly. 
+
+=head1 METHODS
+
+=head2 Initialization
+
+=over 4
+
+=item init_options
+
+Initialize the options hash has and identify application paths in the current 
+environment C<PATH>. 
+
+=item options
+
+Export the hash as a reference.
+
+=back
+
+=head2 Attributes
+
+=over 4
+
+=item dir
+
+=item in
+
+=item out
+
+=item name
+
+=item chip
+
+=item control
+
+=item chscale
+
+=item coscale
+
+=item genome
+
+=item species
+
+=item chromofile
+
+=item paired
+
+=item mapq
+
+=item fraction
+
+=item minsize
+
+=item maxsize
+
+=item dedup
+
+=item maxdup
+
+=item maxdepth
+
+=item dupfrac
+
+=item optdist
+
+=item deduppair
+
+=item savebam
+
+=item fragsize
+
+=item shiftsize
+
+=item slocal
+
+=item llocal
+
+=item cutoff
+
+=item targetdep
+
+=item peaksize
+
+=item peakgap
+
+=item broad
+
+=item broadcut
+
+=item broadgap
+
+=item gaplink
+
+=item lambda
+
+=item independent
+
+=item chrskip
+
+=item blacklist
+
+=item cpu
+
+=item job
+
+=item chipbin
+
+=item slocalbin
+
+=item llocalbin
+
+=item chrnorm
+
+=item chrapply
+
+=item rawcounts
+
+=item savebdg
+
+=item binsize
+
+=item genomewin
+
+=item discard
+
+=item repmean
+
+=item plot
+
+=item dryrun
+
+=item organize
+
+=item bam2wig_app
+
+=item bamdedup_app
+
+=item macs_app
+
+=item manwig_app
+
+=item wig2bw_app
+
+=item bw2bdg_app
+
+=item bedtools_app
+
+=item getdata_app
+
+=item getrel_app
+
+=item geteff_app
+
+=item printchr_app
+
+=item data2wig_app
+
+=item meanbdg_app
+
+=item intersect_app
+
+=item peak2bed_app
+
+=item combrep_app
+
+=item plotpeak_app
+
+=item rscript_app
+
+=item reportmap_app
+
+=item samtools_app
+
+=back
+
+=head1 AUTHOR
+
+ Timothy J. Parnell, PhD
+ Huntsman Cancer Institute
+ University of Utah
+ Salt Lake City, UT, 84112
+
+=head1 LICENSE
+
+This package is free software; you can redistribute it and/or modify
+it under the terms of the Artistic License 2.0. 
 
 

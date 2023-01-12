@@ -1,166 +1,5 @@
 package Bio::MultiRepChIPSeq::Job;
 
-=head1 NAME
-
-Bio::MultiRepChIPSeq::Job - an object representing a ChIPSeq Experiment Job
-
-=head1 DESCRIPTION
-
-An object used to represent a ChIPSeq experiment consisting of one or more 
-IP replicates and one or more corresponding reference control (Input) 
-replicates as a Job in the Multi-replica ChIPSeq pipeline. Methods associated 
-with this object represent in the processing steps for analyzing this experiment. 
-Attributes include the input files and various intermediate and output files.
-
-=head1 METHODS
-
-=head2 Initialization
-
-=over 4 
-
-=item new()
-
-Pass an array of seven items: 
-
-=over 4
-
-* A hash reference of options exported from a L<Bio::MultiRepChIPSeq::options> object 
-
-* Name of the experiment
-
-* Comma-delimited list of the ChIP bam files
-
-* Comma-delimited list of the reference bam files, if any
-
-* Comma-delimited list of the ChIP normalization scales, if any
-
-* Comma-delimited list of the reference normalization scales, if any
-
-* A chromosome-specific normalization scale, if defined
-
-=back
-
-=back
-
-=head2 Array attributes
-
-These methods return attributes consisting of an array, usually one or more filenames 
-or values. Passing a value will add it to the list. 
-
-=over 4
-
-=item chip_bams
-
-=item control_bams
-
-=item chip_dedup_bams
-
-=item chip_use_bams
-
-=item control_dedup_bams
-
-=item control_use_bams
-
-=item chip_scale
-
-=item control_scale
-
-=back
-
-=head2 Scalar attributes
-
-These methods return scalar attributes of a single value. Passing a value will 
-replace the existing one.
-
-=over 4
-
-=item job_name
-
-=item chr_normfactor
-
-=item chip_rep_names
-
-=item rep_peaks
-
-=item rep_gappeaks
-
-=item chip_bw
-
-=item chip_bdg
-
-=item chip_count_bw
-
-=item control_count_bw
-
-=item d_control_bdg
-
-=item d_control_bw
-
-=item s_control_bdg
-
-=item l_control_bdg
-
-=item sld_control_file
-
-=item lambda_bdg
-
-=item lambda_bw
-
-=item fe_bdg
-
-=item logfe_bw
-
-=item qvalue_bdg
-
-=item qvalue_bw
-
-=item peak
-
-=item gappeak
-
-=item clean_peak
-
-=item peak_summit
-
-=item clean_gappeak
-
-=back
-
-=head2 Action methods
-
-These methods will generate commands to be acted on the files to process them. 
-The commands can be executed by the L<Bio::MultiRepChIPSeq::Runner> object.
-
-=over 4
-
-=item generate_dedup_commands
-
-=item find_dedup_bams
-
-=item generate_bam2wig_frag_commands
-
-=item generate_bam2wig_count_commands
-
-=item generate_lambda_control_commands
-
-=item convert_bw_to_bdg
-
-=item generate_enrichment_commands
-
-=item generate_peakcall_commands
-
-=item generate_independent_peakcall_commands
-
-=item generate_cleanpeak_commands
-
-=item generate_independent_merge_peak_commands
-
-=item generate_bdg2bw_commands
-
-=back
-
-
-=cut 
 
 use strict;
 use Carp;
@@ -170,7 +9,7 @@ use Data::Dumper;
 use base 'Bio::MultiRepChIPSeq::options';
 use Bio::ToolBox::utility qw(format_with_commas);
 
-1;
+our $VERSION = 18.0;
 
 sub new {
 	# pass name, comma-list of ChIP files, and comma-list of control files
@@ -221,7 +60,7 @@ sub new {
 	my $namepath = File::Spec->catfile($self->dir, $job_name);
 	
 	## check the ChIP files
-	if ($chip =~ /\.(?:bw|bigwig)$/i) {
+	if ($chip =~ /\. (?: bw | bigwig )$/xi) {
 		$self->chip_bw($chip);
 		$self->crash("only one ChIP bigWig file is allowed per experiment!\n") if 
 			$chip =~ /,/;
@@ -237,7 +76,7 @@ sub new {
 		$self->clean_gappeak("$namepath.gapped.bed");
 	}
 	elsif ($chip =~ /\.bam$/i) {
-		my @bams = split(',', $chip);
+		my @bams = split(/,/, $chip);
 		$self->chip_bams(@bams);
 		$self->chip_bdg("$namepath.fragment.bdg");
 		$self->chip_bw("$namepath.fragment.bw");
@@ -251,7 +90,7 @@ sub new {
 		$self->peak_summit($namepath . '.summit.bed');
 		$self->clean_gappeak("$namepath.gapped.bed");
 		if ($chip_scale) {
-			$self->chip_scale(split(',', $chip_scale));
+			$self->chip_scale(split(/,/, $chip_scale));
 			$self->crash("unequal scale factors and bam files!\n") if 
 				scalar($self->chip_scale) != scalar(@bams);
 		}
@@ -278,13 +117,13 @@ sub new {
 	
 	
 	## check the control files
-	if ($control =~ /^Custom\-Universal\-(.+)$/) {
+	if ($control =~ /^Custom \- Universal \- (.+)$/x) {
 		# this is just a ChIP Job using a common universal reference file
 		# the actual control name is embedded in the name, so extract it
 		# we only need to know the bedgraph file name here
 		$self->lambda_bdg( File::Spec->catfile($opts->{dir}, $1 . '.bdg') ); 
 	}
-	elsif ($control =~ /\.(?:bw|bigwig)$/i) {
+	elsif ($control =~ /\.(?: bw | bigwig )$/xi) {
 		# pre-generated reference bigWig file
 		$self->crash("only one control bigWig file is allowed per experiment!\n") if
 			$chip =~ /,/;
@@ -293,17 +132,17 @@ sub new {
 	}
 	elsif ($control =~ /\.bam$/i) {
 		# we have control bams to process
-		my @bams = split(',', $control);
+		my @bams = split(/,/, $control);
 		$self->control_bams(@bams);
 		if ($self->lambda) {
 			my $control_base = $namepath;
-			if ($namepath =~ /\.lambda_control/) {
+			if ($namepath =~ /\.lambda_control/x) {
 				# the lambda_control extension is already appended to the name 
 				# as is the case with universal controls
 				$self->lambda_bdg($namepath . '.bdg');
 				$self->lambda_bw($namepath . '.bw');
 				# strip the lambda_control bit for the other intermediate files
-				$control_base =~ s/\.lambda_control//;
+				$control_base =~ s/\.lambda_control//x;
 			}
 			else {
 				# append the lambda_control extension
@@ -318,7 +157,7 @@ sub new {
 		}
 		else {
 			# even with no lambda, we recycle the hash entries for simplicity
-			if ($namepath =~ /\.control_fragment/) {
+			if ($namepath =~ /\.control_fragment/x) {
 				# the fragment control extension is already appended to the name
 				# as is the case with universal controls
 				$self->lambda_bdg($namepath . '.bdg');
@@ -332,7 +171,7 @@ sub new {
 		}
 		
 		if ($control_scale) {
-			$self->control_scale( split(',', $control_scale) );
+			$self->control_scale( split(/,/, $control_scale) );
 			$self->crash("unequal scale factors and bam files!\n") if 
 				scalar(@bams) != scalar($self->control_scale);
 		}
@@ -1285,7 +1124,7 @@ sub generate_lambda_control_commands {
 	
 	# check whether no reference control was provided at all
 	if (not scalar($self->control_use_bams) and 
-		$self->lambda_bdg =~ /global_mean\.bdg$/ and
+		$self->lambda_bdg =~ /global_mean \.bdg $/x and
 		not -e $self->lambda_bdg
 	) {
 		# no control bam files at all, need to use expected mean
@@ -1527,7 +1366,7 @@ sub generate_enrichment_commands {
 	}
 	$command .= sprintf("-o %s %s ", $self->qvalue_bdg, $self->fe_bdg);
 	my $log = $self->qvalue_bdg;
-	$log =~ s/qvalue\.bdg$/bdgcmp.out.txt/;
+	$log =~ s/qvalue \.bdg $/bdgcmp.out.txt/x;
 	$command .= " 2> $log ";
 	return [$command, $self->qvalue_bdg, $log];
 }
@@ -1552,7 +1391,7 @@ sub generate_peakcall_commands {
 		$self->peak
 	);
 	my $log = $self->peak;
-	$log =~ s/narrowPeak$/peakcall.out.txt/;
+	$log =~ s/narrowPeak$/peakcall.out.txt/x;
 	$command .= " 2> $log";
 	if ($self->broad) {
 		# sneak this in as an extra command
@@ -1568,7 +1407,7 @@ sub generate_peakcall_commands {
 			$self->gappeak
 		);
 		my $log2 = $self->gappeak;
-		$log2 =~ s/gappedPeak$/broadcall.out.txt/;
+		$log2 =~ s/gappedPeak$/broadcall.out.txt/x;
 		$command2 .= " 2> $log2";
 		# return both narrow and broad commands
 		return ( [$command, $self->peak, $log], [$command2, $self->gappeak, $log2] );
@@ -1589,7 +1428,7 @@ sub generate_independent_peakcall_commands {
 	}
 	
 	# generic Macs2 options
-	my $generic = '';
+	my $generic = q();
 	if ($self->paired) {
 		$generic .= '--format BAMPE ';
 	}
@@ -1639,21 +1478,20 @@ sub generate_independent_peakcall_commands {
 			);
 			my $out = ($self->rep_peaks)[$i];
 			my $log = $out;
-			$log =~ s/narrowPeak$/narrowpeakcall.out.txt/;
+			$log =~ s/narrowPeak$/narrowpeakcall.out.txt/x;
 			$command .= "2> $log ";
 			push @commands, [$command, $out, $log];
 			
 			# broad peaks
 			if ($self->broad) {
-				my $command = sprintf("%s callpeak --treatment %s --control %s --name %s $broad_generic ", 
+				$command = sprintf "%s callpeak --treatment %s --control %s --name %s $broad_generic ", 
 					$self->macs_app || 'macs2', 
 					($self->chip_use_bams)[$i],
 					($self->control_use_bams)[$i],
-					($self->chip_rep_names)[$i]
-				);
-				my $out = ($self->rep_gappeaks)[$i];
-				my $log = $out;
-				$log =~ s/gappedPeak$/broadcall.out.txt/;
+					($self->chip_rep_names)[$i];
+				$out = ($self->rep_gappeaks)[$i];
+				$log = $out;
+				$log =~ s/gappedPeak$/broadcall.out.txt/x;
 				$command .= "2> $log ";
 				push @commands, [$command, $out, $log];
 			}
@@ -1670,20 +1508,19 @@ sub generate_independent_peakcall_commands {
 			);
 			my $out = ($self->rep_peaks)[$i];
 			my $log = $out;
-			$log =~ s/narrowPeak$/narrowpeakcall.out.txt/;
+			$log =~ s/narrowPeak$/narrowpeakcall.out.txt/x;
 			$command .= "2> $log ";
 			push @commands, [$command, $out, $log];
 			
 			# broad peak
 			if ($self->broad) {
-				my $command = sprintf("%s callpeak --treatment %s --name %s $broad_generic ", 
+				$command = sprintf "%s callpeak --treatment %s --name %s $broad_generic ", 
 					$self->macs_app || 'macs2', 
 					($self->chip_use_bams)[$i],
-					($self->chip_rep_names)[$i]
-				);
-				my $out = ($self->rep_gappeaks)[$i];
-				my $log = $out;
-				$log =~ s/gappedPeak$/broadcall.out.txt/;
+					($self->chip_rep_names)[$i];
+				$out = ($self->rep_gappeaks)[$i];
+				$log = $out;
+				$log =~ s/gappedPeak$/broadcall.out.txt/x;
 				$command .= "2> $log ";
 				push @commands, [$command, $out, $log];
 			}
@@ -1696,26 +1533,25 @@ sub generate_independent_peakcall_commands {
 			my $command = sprintf("%s callpeak --treatment %s --control %s --name %s $generic ", 
 				$self->macs_app || 'macs2', 
 				($self->chip_use_bams)[$i],
-				join(' ', ($self->control_use_bams)),
+				join(q( ), ($self->control_use_bams)),
 				($self->chip_rep_names)[$i]
 			);
 			my $out = ($self->rep_peaks)[$i];
 			my $log = $out;
-			$log =~ s/_peaks\.narrowPeak$/.narrowpeakcall.out.txt/;
+			$log =~ s/_peaks \.narrowPeak $/.narrowpeakcall.out.txt/x;
 			$command .= "2> $log ";
 			push @commands, [$command, $out, $log];
 			
 			# broad peak
 			if ($self->broad) {
-				my $command = sprintf("%s callpeak --treatment %s --control %s --name %s $broad_generic ", 
+				$command = sprintf "%s callpeak --treatment %s --control %s --name %s $broad_generic ", 
 					$self->macs_app || 'macs2', 
 					($self->chip_use_bams)[$i],
-					join(' ', ($self->control_use_bams)),
-					($self->chip_rep_names)[$i]
-				);
-				my $out = ($self->rep_gappeaks)[$i];
-				my $log = $out;
-				$log =~ s/_peaks\.gappedPeak$/.broadcall.out.txt/;
+					join(q( ), ($self->control_use_bams)),
+					($self->chip_rep_names)[$i];
+				$out = ($self->rep_gappeaks)[$i];
+				$log = $out;
+				$log =~ s/_peaks \.gappedPeak $/.broadcall.out.txt/x;
 				$command .= "2> $log ";
 				push @commands, [$command, $out, $log];
 			}
@@ -1789,12 +1625,12 @@ sub generate_cleanpeak_commands {
 	elsif (not $narrow_count and not $gap_count and $self->broad) {
 		my $command = sprintf "rm %s %s", 
 			$self->peak, $self->gappeak, $self->clean_peak, $self->clean_gappeak;
-		return [$command, '', ''];
+		return [$command, q(), q()];
 	}
 	elsif (not $narrow_count and not $gap_count and not $self->broad) {
 		my $command = sprintf "rm %s", 
 			$self->peak, $self->clean_peak;
-		return [$command, '', ''];
+		return [$command, q(), q()];
 	}
 	else {
 		$self->crash("Programming error: $narrow_count narrow peaks and $gap_count gap peaks!!??");
@@ -1950,7 +1786,7 @@ sub generate_bdg2bw_commands {
 		# we should have both files here
 		if (-e $self->chip_bdg and -e $self->chip_bw) {
 			# bigWig already exists so just delete the bdg
-			push @commands, [sprintf("rm %s",$self->chip_bdg), '', ''];
+			push @commands, [sprintf("rm %s",$self->chip_bdg), q(), q()];
 		}
 		elsif (
 			(-e $self->chip_bdg and not -e $self->chip_bw) or 
@@ -1974,7 +1810,7 @@ sub generate_bdg2bw_commands {
 	) {
 		if (-e $self->lambda_bw ) {
 			# we must have started with a lambda bigWig so remove the bedGraph
-			push @commands, [sprintf("rm %s", $self->lambda_bdg), '', ''];
+			push @commands, [sprintf("rm %s", $self->lambda_bdg), q(), q()];
 			$name2done->{$self->lambda_bdg} = 1;
 		}
 		else {
@@ -2011,7 +1847,7 @@ sub generate_bdg2bw_commands {
 			# qvalue bigWig already exists, probably because recalling peaks
 			unless ($self->savebdg) {
 				my $command = sprintf("rm %s", $self->qvalue_bdg);
-				push @commands, [$command, '', ''];
+				push @commands, [$command, q(), q()];
 			}
 		}
 		elsif (not -e $self->qvalue_bw or $self->dryrun) {
@@ -2061,4 +1897,176 @@ sub _count_lines {
 	return $n;
 }
 
+1;
+
+=head1 NAME
+
+Bio::MultiRepChIPSeq::Job - an object representing a ChIPSeq Experiment Job
+
+=head1 DESCRIPTION
+
+An object used to represent a ChIPSeq experiment consisting of one or more 
+IP replicates and one or more corresponding reference control (Input) 
+replicates as a Job in the Multi-replica ChIPSeq pipeline. Methods associated 
+with this object represent in the processing steps for analyzing this experiment. 
+Attributes include the input files and various intermediate and output files.
+
+=head1 METHODS
+
+=head2 Initialization
+
+=over 4 
+
+=item new()
+
+Pass an array of seven items: 
+
+=over 4
+
+* A hash reference of options exported from a L<Bio::MultiRepChIPSeq::options> object 
+
+* Name of the experiment
+
+* Comma-delimited list of the ChIP bam files
+
+* Comma-delimited list of the reference bam files, if any
+
+* Comma-delimited list of the ChIP normalization scales, if any
+
+* Comma-delimited list of the reference normalization scales, if any
+
+* A chromosome-specific normalization scale, if defined
+
+=back
+
+=back
+
+=head2 Array attributes
+
+These methods return attributes consisting of an array, usually one or more filenames 
+or values. Passing a value will add it to the list. 
+
+=over 4
+
+=item chip_bams
+
+=item control_bams
+
+=item chip_dedup_bams
+
+=item chip_use_bams
+
+=item control_dedup_bams
+
+=item control_use_bams
+
+=item chip_scale
+
+=item control_scale
+
+=back
+
+=head2 Scalar attributes
+
+These methods return scalar attributes of a single value. Passing a value will 
+replace the existing one.
+
+=over 4
+
+=item job_name
+
+=item chr_normfactor
+
+=item chip_rep_names
+
+=item rep_peaks
+
+=item rep_gappeaks
+
+=item chip_bw
+
+=item chip_bdg
+
+=item chip_count_bw
+
+=item control_count_bw
+
+=item d_control_bdg
+
+=item d_control_bw
+
+=item s_control_bdg
+
+=item l_control_bdg
+
+=item sld_control_file
+
+=item lambda_bdg
+
+=item lambda_bw
+
+=item fe_bdg
+
+=item logfe_bw
+
+=item qvalue_bdg
+
+=item qvalue_bw
+
+=item peak
+
+=item gappeak
+
+=item clean_peak
+
+=item peak_summit
+
+=item clean_gappeak
+
+=back
+
+=head2 Action methods
+
+These methods will generate commands to be acted on the files to process them. 
+The commands can be executed by the L<Bio::MultiRepChIPSeq::Runner> object.
+
+=over 4
+
+=item generate_dedup_commands
+
+=item find_dedup_bams
+
+=item generate_bam2wig_frag_commands
+
+=item generate_bam2wig_count_commands
+
+=item generate_lambda_control_commands
+
+=item convert_bw_to_bdg
+
+=item generate_enrichment_commands
+
+=item generate_peakcall_commands
+
+=item generate_independent_peakcall_commands
+
+=item generate_cleanpeak_commands
+
+=item generate_independent_merge_peak_commands
+
+=item generate_bdg2bw_commands
+
+=back
+
+=head1 AUTHOR
+
+ Timothy J. Parnell, PhD
+ Huntsman Cancer Institute
+ University of Utah
+ Salt Lake City, UT, 84112
+
+=head1 LICENSE
+
+This package is free software; you can redistribute it and/or modify
+it under the terms of the Artistic License 2.0. 
 

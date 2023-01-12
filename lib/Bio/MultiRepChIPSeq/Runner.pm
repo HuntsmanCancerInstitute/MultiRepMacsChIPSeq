@@ -1,97 +1,7 @@
 package Bio::MultiRepChIPSeq::Runner;
-our $VERSION = '17.9.3';
-
-=head1 name
-
-Bio::MultiRepChIPSeq::Runner - Object for running the ChIPSeq pipeline
-
-=head1 DESCRIPTION
-
-The main object for running one or more ChIPSeq Experiment Job objects. Jobs 
-are added to the Runner, processing commands generated for action on the Job 
-input files, and executed by the Runner singly or in parallel. 
-
-=head1 METHODS
-
-=over 4
-
-=item new
-
-This initializes the Runner object, which includes the options hash. 
-The options hash should be exported as a reference and provided to 
-L<Getopt::Long> for processing of a script command line options. 
-
-=item add_job
-
-Adds a new L<Bio::MultiRepChIPSeq::Job>. Takes the seven parameters 
-required therein and passes them directly to respective new() method.
-
-=item list_jobs - returns array of Job objects
-
-=item number_of_jobs - number of Job objects
-
-=item add_command - add a command to list of finished commands
-
-=item progress_file - returns name of progress file
-
-=item check_progress_file - checks and loads contents of progress file if present
-
-=item update_progress_file - updates progress hash and file immediately
-
-=item sample_file - return the filename of the samples replicate/conditions file
-
-=item write_samples_file - write the samples replicate/conditions file
-
-=item run_generate_chr_file - generates the chromosome file
-
-=item execute_commands - executes job commands of external applications
-
-=item _check_command_finished - internal function to check if command finished properly
-
-=item run_input_peak_detection - calls peaks on reference control for exclusion
-
-=item run_dedup - run bam deduplication
-
-=item run_bam_filter - filter bam files for exclusions and bad alignments
-
-=item run_bam_check - checks for deduplicated bam files
-
-=item run_mappable_space_report - calculates mappable space
-
-=item run_bam_fragment_conversion - converts ChIP bam to coverage files
-
-=item run_bam_count_conversion - generates ChIP count bw files
-
-=item run_lambda_control - generates lambda control reference file
-
-=item run_bw_conversion - converts bigWigs to bedGraphs
-
-=item run_bdgcmp - generates fold enrichment and q-value tracks with MACS2
-
-=item run_call_peaks - calls peaks with MACS2
-
-=item run_clean_peaks - convert narrowPeak to bed files
-
-=item run_bdg_conversion - convert bedGraph files to bigWig
-
-=item run_peak_merge - intersect between experiment Job peaks
-
-=item run_rescore - rescore the merged peaks
-
-=item run_efficiency - calculate fragment of reads in peaks
-
-=item run_plot_peaks - run Rscript to plot QC metrics and analysis figures
-
-=item run_cleanup - delete temporary files
-
-=item run_organize - move files into subfolders
-
-=back
-
-
-=cut
 
 use strict;
+use English qw(-no_match_vars);
 use Carp;
 use IO::File;
 use File::Spec;
@@ -103,7 +13,7 @@ use Bio::ToolBox::utility qw(simplify_dataset_name);
 use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
 
-1;
+our $VERSION = 18.0;
 
 sub new {
 	my $class = shift;
@@ -153,7 +63,7 @@ sub number_of_jobs {
 
 sub add_command {
 	my ($self, $commands) = @_;
-	push @{ $self->{finished_commands} }, @$commands;
+	push @{ $self->{finished_commands} }, @{$commands};
 }
 
 sub progress_file {
@@ -214,7 +124,7 @@ sub update_progress_file {
 	return 1 if $self->dryrun; # just pretend
 	
 	my $fh = IO::File->new($self->progress_file, '>>') or 
-		croak "can't write to progress file! $!\n";
+		croak "can't write to progress file! $OS_ERROR\n";
 	$fh->print("$key\n");
 	$fh->close;
 	return 1;
@@ -261,7 +171,7 @@ sub write_samples_file {
 	unless ($self->dryrun) {
 		my $fh = IO::File->new($samplefile, "w");
 		foreach (@conditions) {
-			$fh->print($_);
+			$fh->print;
 		}
 		$fh->close;
 		
@@ -270,9 +180,9 @@ sub write_samples_file {
 		if ($self->broad) {
 			my $broad_sample_file = File::Spec->catfile($self->dir, 
 				$self->out . '_broad_samples.txt');
-			my $fh = IO::File->new($broad_sample_file, "w");
+			$fh = IO::File->new($broad_sample_file, "w");
 			foreach (@conditions) {
-				$fh->print($_);
+				$fh->print;
 			}
 			$fh->close;
 		}
@@ -321,9 +231,9 @@ sub run_generate_chr_file {
 		$chromofile
 	);
 	$command .= sprintf("--chrskip '%s' ", $self->chrskip) if $self->chrskip;
-	$command .= join(' ', @sources);
+	$command .= join(q( ), @sources);
 	my $log = $chromofile;
-	$log =~ s/\.temp\.txt/.log.txt/;
+	$log =~ s/ \.temp\ .txt /.log.txt/x;
 	$command .= sprintf(" 2>&1 > $log");
 	return $self->execute_commands([[$command, $chromofile, $log]]);
 }
@@ -331,13 +241,13 @@ sub run_generate_chr_file {
 sub execute_commands {
 	my $self = shift;
 	my $commands = shift;
-	printf "Excecuting %d commands\n", scalar @$commands;
+	printf "Excecuting %d commands\n", scalar @{$commands};
 	
 		
 	# dry run
 	if ($self->dryrun) {
 		# we just go through the motions here
-		foreach my $command (@$commands) {
+		foreach my $command (@{$commands}) {
 			printf "=== Job: %s\n", $command->[0];
 		}
 		$self->add_command($commands);
@@ -360,14 +270,14 @@ sub execute_commands {
 		}
 		
 		# run commands
-		foreach my $command (@$commands) {
+		foreach my $command (@{$commands}) {
 			next if $self->_check_command_finished($command, 1);
 			printf "=== Job: %s\n", $command->[0];
 			
 			# check for simple rm commands
 			if ($command->[0] =~ /^rm (.+)$/) {
 				# we don't need to fork a new process just to execute a rm command
-				unlink(split(' ', $1));
+				unlink(split(q( ), $1));
 				next;
 			}
 			
@@ -380,14 +290,14 @@ sub execute_commands {
 		$pm->wait_all_children;
 	}
 	else {
-		foreach my $command (@$commands) {
+		foreach my $command (@{$commands}) {
 			next if $self->_check_command_finished($command, 1);
 			printf "=== Job: %s\n", $command->[0];
 			
 			# check for simple rm commands
 			if ($command->[0] =~ /^rm (.+)$/) {
 				# we don't need to fork a new process just to execute a rm command
-				unlink(split(' ', $1));
+				unlink(split(q( ), $1));
 				next;
 			}
 			
@@ -399,7 +309,7 @@ sub execute_commands {
 	# check that commands actually produced something
 	sleep 2;
 	my @errors;
-	foreach my $command (@$commands) {
+	foreach my $command (@{$commands}) {
 		unless ( $self->_check_command_finished($command, 0) ) {
 			# zero status indicates something went wrong
 			push @errors, sprintf "=== ERROR: %s\n", $command->[0];
@@ -412,7 +322,7 @@ sub execute_commands {
 		print "\n\n ======= Errors ======\n";
 		print " The following jobs did not generate expected output\n";
 		foreach (@errors) {
-			print $_;
+			print;
 		}
 		croak "\nCheck log files for errors\n";
 	}
@@ -426,7 +336,7 @@ sub _check_command_finished {
 	# returns true if command appears finished
 	
 	# command bits
-	my ($command_string, $command_out, $command_log) = @$command;
+	my ($command_string, $command_out, $command_log) = @{$command};
 	
 	# check
 	if (length($command_out) and length($command_log)) {
@@ -622,7 +532,7 @@ sub run_input_peak_detection {
 	else {
 		# no peaks were identified
 		print "\n No peaks were found in control\n\n";
-		$self->blacklist('');
+		$self->blacklist(q());
 		
 		# clean up
 		$command = sprintf("rm %s.bdg %s.global_mean.bdg %s.qvalue.bdg ",
@@ -631,7 +541,7 @@ sub run_input_peak_detection {
 			$blacklist
 		);
 		$command .= "$blacklist.narrowPeak " if -e "$blacklist.narrowPeak";
-		$self->execute_commands( [ [$command, '', ''], ] );
+		$self->execute_commands( [ [$command, q(), q()], ] );
 	}
 	
 	# finished
@@ -679,26 +589,26 @@ sub run_dedup {
 		next if (not -e $c->[2]);
 		my $fh = IO::File->new($c->[2], 'r');
 		while (my $line = $fh->getline) {
-			if ($line =~  /^  Total mapped:\s+(\d+)$/) {
+			if ($line =~  /^\ \ Total \ mapped: \s+ (\d+) $/x) {
 				# bam_partial_dedup
 				$total = $1;
 			}
-			elsif ($line =~ /^  Non-duplicate count:\s+(\d+)$/) {
+			elsif ($line =~ /^\ \ Non\-duplicate \ count: \s+ (\d+) $/x) {
 				$nondup = $1;
 			}
-			elsif ($line =~ /^  Optical duplicate count:\s+(\d+)$/) {
+			elsif ($line =~ /^\ \ Optical \ duplicate \ count: \s+ (\d+) $/x) {
 				# optical bam_partial_dedup
 				$optdup = $1;
 			}
-			elsif ($line =~ /^  Non-optical duplicate count:\s+(\d+)$/) {
+			elsif ($line =~ /^\ \ Non\-optical \ duplicate \ count: \s+ (\d+) $/x) {
 				# non-optical bam_partial_dedup
 				$dup = $1;
 			}
-			elsif ($line =~ /^  Non-optical duplication rate:\s+(\d\.\d+)$/) {
+			elsif ($line =~ /^\ \ Non\-optical \ duplication \ rate: \s+ (\d \. \d+) $/x) {
 				# non-optical bam_partial_dedup
 				$duprate = $1;
 			}
-			elsif ($line =~ /^  Retained non-optical duplicate count:\s+(\d+)\s*$/) {
+			elsif ($line =~ /^\ \ Retained \ non\-optical \ duplicate \ count: \s+ (\d+) \s* $/x) {
 				# bam_partial_dedup
 				# oops, there may be a space at the end
 				# this might not be found if no deduplication occurred
@@ -709,7 +619,7 @@ sub run_dedup {
 	
 		# name of bam file, extracted from log file
 		my (undef, undef, $name) = File::Spec->splitpath($c->[2]);
-		$name =~ s/\.dedup\.out\.txt$//;
+		$name =~ s/\.dedup \.out \.txt $//x;
 	
 		# store in array
 		push @dedupstats, join("\t", $name, $total, $optdup, $dup, $nondup, $duprate, 
@@ -926,7 +836,7 @@ sub run_mappable_space_report {
 		if ($self->chrskip) {
 			$command .= sprintf("--chrskip \'%s\' ", $self->chrskip);
 		}
-		$command .= join(" ", @bamlist);
+		$command .= join(q( ), @bamlist);
 		$command .= " 2>&1 > $logfile";
 		
 		# execute
@@ -942,7 +852,7 @@ sub run_mappable_space_report {
 			croak " unable to open mappable report file '$logfile'!";
 		while (my $line = $fh->getline) {
 			# we're going to use the all mappable space number
-			if ($line =~ /All mappable space: ([\d\.]+) Mb/) {
+			if ($line =~ /All \ mappable \ space: \ ( [\d\.]+ ) Mb/x) {
 				$self->genome($1 * 1000000);
 				last;
 			}
@@ -1003,16 +913,16 @@ sub run_bam_fragment_conversion {
 	foreach my $com (@commands) {
 		my $log = $com->[2];
 		my $fh = IO::File->new($log, 'r') or  # this should open!!!!
-			croak "something is wrong! Job completed but unable to open $log!? $!";
+			croak "something is wrong! Job completed but unable to open $log!? $OS_ERROR";
 		
 		my @files; # there may be one or more files processed here
 		while (my $line = $fh->getline) {
 			chomp $line;
-			if ($line =~ /^ Processing files (.+)\.\.\.$/) {
+			if ($line =~ /^\  Processing \ files \ (.+) \. \. \. $/x) {
 				# the names of files
 				@files = split(/, /, $1);
 			}
-			elsif ($line =~ /^ Normalizing depth based on ([\d,]+) total counted (?:alignments|fragments)$/) {
+			elsif ($line =~ /^\  Normalizing \ depth \ based \ on \ ( [\d,]+ ) \ total \ counted \ (?: alignments | fragments) $/x) {
 				# only one file was processed
 				# need to grab the name from the list
 				my $count = $1;
@@ -1021,7 +931,7 @@ sub run_bam_fragment_conversion {
 					$bam2count{$files[0]} = sprintf "%.1f", $count / 1_000_000;
 				}
 			}
-			elsif ($line =~ /^  (.+) had ([\d,]+) total counted (?:alignments|fragments)$/) {
+			elsif ($line =~ /^\ \ (.+) \ had \ ( [\d,]+ ) \ total \ counted \ (?: alignments | fragments) $/x) {
 				# multiple files were processed
 				my $file = $1;
 				my $count = $2;
@@ -1743,11 +1653,11 @@ sub run_efficiency {
 			my $combined_eff_out = File::Spec->catfile($self->dir, $self->out . '.chip_efficiency.txt');
 			my $fh = IO::File->new($combined_eff_out, 'w');
 			foreach (@combined_eff_meta) {
-				$fh->print($_);
+				$fh->print;
 			}
 			$fh->print($eff_header);
 			foreach (@combined_eff_data) {
-				$fh->print($_);
+				$fh->print;
 			}
 			$fh->close;
 			print "\nWrote combined ChIP efficiency file $combined_eff_out\n";
@@ -1783,7 +1693,7 @@ sub run_plot_peaks {
 	
 	# there are multiple possible output files, including none, from this script
 	# hard to predict, so don't put any
-	my @commands = ( [$command, '', $log] );
+	my @commands = ( [$command, q(), $log] );
 	
 	# broad peak
 	if ($self->broad) {
@@ -1792,7 +1702,7 @@ sub run_plot_peaks {
 			$self->plotpeak_app, $outbase2);
 		my $log2 = $outbase2 . '.plot_figures.out.txt';
 		$command2 .= " > $log2 2>&1";
-		push @commands, [$command2, '', $log2];
+		push @commands, [$command2, q(), $log2];
 	}
 	
 	# add independent peak calls
@@ -1800,21 +1710,21 @@ sub run_plot_peaks {
 		foreach my $Job ($self->list_jobs) {
 			next unless (scalar($Job->rep_peaks) > 1); # nothing to compare
 			my $jobbase = File::Spec->catfile($self->dir, $Job->job_name);
-			my $command = sprintf("%s --verbose %s --input %s ", $self->rscript_app, 
-				$self->plotpeak_app, $jobbase);
+			my $command2 = sprintf "%s --verbose %s --input %s ", $self->rscript_app, 
+				$self->plotpeak_app, $jobbase;
 			my $example = $jobbase . '.jaccard.png';
-			my $log = $jobbase . '.plot_figures.out.txt';
-			$command .= " > $log 2>&1"; # error redirect needs to last with Rscript
-			push @commands, [$command, $example, $log];
+			my $log2 = $jobbase . '.plot_figures.out.txt';
+			$command2 .= " > $log2 2>&1"; # error redirect needs to last with Rscript
+			push @commands, [$command2, $example, $log2];
 			
 			# broad peak
 			if ($self->broad) {
 				my $jobbase2 = $Job->clean_gappeak;
 				$jobbase2 =~ s/\.bed$//;
-				my $command2 = sprintf("%s --verbose %s --input %s ", $self->rscript_app, 
-					$self->plotpeak_app, $jobbase2);
+				$command2 = sprintf "%s --verbose %s --input %s ", $self->rscript_app, 
+					$self->plotpeak_app, $jobbase2;
 				$example = $jobbase2 . '.jaccard.png';
-				my $log2 = $jobbase2 . '.plot_figures.out.txt';
+				$log2 = $jobbase2 . '.plot_figures.out.txt';
 				$command2 .= " > $log2 2>&1";
 				push @commands, [$command2, $example, $log2];
 			}
@@ -1871,7 +1781,7 @@ sub run_cleanup {
 	
 	# Version
 	push @output, "======== ChIPSeq multi-replicate pipeline ==========\n";
-	push @output, "\nProgram $0\n";
+	push @output, "\nProgram $PROGRAM_NAME\n";
 	push @output, "Version $VERSION\n";
 	
 	# Configuration
@@ -1920,7 +1830,7 @@ sub run_cleanup {
 	my $file = File::Spec->catfile($self->dir, $self->out . "_job_output_logs.txt");
 	my $fh = IO::File->new($file, "w");
 	foreach (@output) {
-		$fh->print($_);
+		$fh->print;
 	}
 	$fh->close;
 	print "\nCombined all job output log files into '$file'\n";
@@ -2029,7 +1939,7 @@ sub run_organize {
 	
 	# text files
 	foreach (glob(File::Spec->catfile($self->dir, '*.txt*')) ) {
-		next if $_ =~ /job_output_logs\.txt$/;
+		next if $_ =~ /job_output_logs\.txt$/x;
 		move($_, $analdir);
 	}
 	
@@ -2067,5 +1977,106 @@ sub run_organize {
 		}
 	}
 }
+
+1;
+
+=head1 name
+
+Bio::MultiRepChIPSeq::Runner - Object for running the ChIPSeq pipeline
+
+=head1 DESCRIPTION
+
+The main object for running one or more ChIPSeq Experiment Job objects. Jobs 
+are added to the Runner, processing commands generated for action on the Job 
+input files, and executed by the Runner singly or in parallel. 
+
+=head1 METHODS
+
+=over 4
+
+=item new
+
+This initializes the Runner object, which includes the options hash. 
+The options hash should be exported as a reference and provided to 
+L<Getopt::Long> for processing of a script command line options. 
+
+=item add_job
+
+Adds a new L<Bio::MultiRepChIPSeq::Job>. Takes the seven parameters 
+required therein and passes them directly to respective new() method.
+
+=item list_jobs - returns array of Job objects
+
+=item number_of_jobs - number of Job objects
+
+=item add_command - add a command to list of finished commands
+
+=item progress_file - returns name of progress file
+
+=item check_progress_file - checks and loads contents of progress file if present
+
+=item update_progress_file - updates progress hash and file immediately
+
+=item sample_file - return the filename of the samples replicate/conditions file
+
+=item write_samples_file - write the samples replicate/conditions file
+
+=item run_generate_chr_file - generates the chromosome file
+
+=item execute_commands - executes job commands of external applications
+
+=item _check_command_finished - internal function to check if command finished properly
+
+=item run_input_peak_detection - calls peaks on reference control for exclusion
+
+=item run_dedup - run bam deduplication
+
+=item run_bam_filter - filter bam files for exclusions and bad alignments
+
+=item run_bam_check - checks for deduplicated bam files
+
+=item run_mappable_space_report - calculates mappable space
+
+=item run_bam_fragment_conversion - converts ChIP bam to coverage files
+
+=item run_bam_count_conversion - generates ChIP count bw files
+
+=item run_lambda_control - generates lambda control reference file
+
+=item run_bw_conversion - converts bigWigs to bedGraphs
+
+=item run_bdgcmp - generates fold enrichment and q-value tracks with MACS2
+
+=item run_call_peaks - calls peaks with MACS2
+
+=item run_clean_peaks - convert narrowPeak to bed files
+
+=item run_bdg_conversion - convert bedGraph files to bigWig
+
+=item run_peak_merge - intersect between experiment Job peaks
+
+=item run_rescore - rescore the merged peaks
+
+=item run_efficiency - calculate fragment of reads in peaks
+
+=item run_plot_peaks - run Rscript to plot QC metrics and analysis figures
+
+=item run_cleanup - delete temporary files
+
+=item run_organize - move files into subfolders
+
+=back
+
+=head1 AUTHOR
+
+ Timothy J. Parnell, PhD
+ Huntsman Cancer Institute
+ University of Utah
+ Salt Lake City, UT, 84112
+
+=head1 LICENSE
+
+This package is free software; you can redistribute it and/or modify
+it under the terms of the Artistic License 2.0. 
 
 
