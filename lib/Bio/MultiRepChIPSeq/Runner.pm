@@ -109,8 +109,8 @@ sub progress_file {
 			bw2bdg        => 0,
 			bdgcmp        => 0,
 			callpeak      => 0,
-			cleanpeak     => 0,
 			bdg2bw        => 0,
+			updatepeak    => 0,
 			peakmerge     => 0,
 			rescore       => 0,
 			efficiency    => 0,
@@ -1188,10 +1188,13 @@ sub run_call_peaks {
 }
 
 sub run_clean_peaks {
+	confess "run_clean_peaks() is deprecated. See run_update_peaks()";
+}
+
+sub run_update_peaks {
 	my $self = shift;
-	return if $self->independent;    # not necessary here
-	print "\n\n======= Cleaning peak files\n";
-	if ( $self->{progress}{cleanpeak} ) {
+	print "\n\n======= Updating peak file scores\n";
+	if ( $self->{progress}{'updatepeak'} ) {
 		print "\nStep is completed\n";
 		return;
 	}
@@ -1206,10 +1209,10 @@ sub run_clean_peaks {
 
 	my @commands;
 	foreach my $Job (@jobs) {
-		push @commands, $Job->generate_cleanpeak_commands;
+		push @commands, $Job->generate_peak_update_commands;
 	}
 	$self->execute_commands( \@commands );
-	$self->update_progress_file('cleanpeak');
+	$self->update_progress_file('updatepeak');
 }
 
 sub run_bdg_conversion {
