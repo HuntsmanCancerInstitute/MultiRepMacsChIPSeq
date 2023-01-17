@@ -1414,7 +1414,7 @@ sub run_peak_merge {
 
 sub run_rescore {
 	my $self = shift;
-	print "\n\n======= Re-scoring all peaks\n";
+	print "\n\n======= Scoring final merged peaks\n";
 	if ( $self->{progress}{rescore} ) {
 		print "\nStep is completed\n";
 		return;
@@ -1426,64 +1426,243 @@ sub run_rescore {
 		croak "no get_relative_data.pl application in path!\n";
 	}
 
-	# prepare filenames
-	my $input;
-	if ( $self->number_of_jobs > 1 ) {
+	# prepare jobs
+	# first replicate-mean peaks
+	my @commands;
+	if ( $self->number_of_jobs == 1 ) {
 
-		# multiple jobs, regenerate the merged peak file name
-		$input = File::Spec->catfile( $self->dir, $self->out . '.bed' );
-		if ( not $self->dryrun and not -e $input ) {
-			print "No merged peak file '$input'!\n";
-			return;
+		# only one job, so take its peak file
+		my $Job = ( $self->list_jobs )[0];
+		if ( $self->dryrun ) {
+			push @commands,
+				$self->_rescore_narrow_input( $self->repmean_merge_base,
+					$Job->repmean_peak );
+			if ( $self->broad ) {
+				push @commands,
+					$self->_rescore_broad_input( $self->repmean_merge_base . '_broad',
+						$Job->repmean_gappeak );
+			}
+		}
+		else {
+
+			# need to validate the input file before we can score it
+			my $c = $Job->count_file_lines( $Job->repmean_peak );
+			if ($c) {
+				push @commands,
+					$self->_rescore_narrow_input( $self->repmean_merge_base,
+						$Job->repmean_peak );
+			}
+			else {
+				printf "No replicate-mean narrow peak file for %s!\n", $Job->job_name;
+			}
+			if ( $self->broad ) {
+				$c = $Job->count_file_lines( $Job->repmean_gappeak );
+				if ($c) {
+					push @commands,
+						$self->_rescore_broad_input( $self->repmean_merge_base . '_broad',
+							$Job->repmean_gappeak );
+				}
+				else {
+					printf "No replicate-mean broad peak file for %s!\n", $Job->job_name;
+				}
+			}
 		}
 	}
 	else {
-		# only one job, so take its peak file
-		$input = ( $self->list_jobs )[0]->clean_peak;
-		if ( not $self->dryrun and not -e $input ) {
-			print "No peak file '$input'!\n";
-			return;
+
+		# more than one file, use the merged file
+		my $peak_file = $self->repmean_merge_base . '.bed';
+		if ( $self->dryrun ) {
+			push @commands,
+				$self->_rescore_narrow_input( $self->repmean_merge_base, $peak_file );
+			if ( $self->broad ) {
+				$peak_file = $self->repmean_merge_base . '_broad.bed';
+				push @commands,
+					$self->_rescore_broad_input( $self->repmean_merge_base . '_broad',
+						$peak_file );
+			}
+		}
+		else {
+			my $Job = ( $self->list_jobs )[0];              # example Job
+			my $c   = $Job->count_file_lines($peak_file);
+			if ($c) {
+				push @commands,
+					$self->_rescore_narrow_input( $self->repmean_merge_base, $peak_file );
+			}
+			else {
+				printf "No replicate-mean, merged-sample, narrow peak file for %s!\n",
+					$self->out;
+			}
+			if ( $self->broad ) {
+				$peak_file = $self->repmean_merge_base . '_broad.bed';
+				$c         = $Job->count_file_lines($peak_file);
+				if ($c) {
+					push @commands,
+						$self->_rescore_broad_input( $self->repmean_merge_base . '_broad',
+							$peak_file );
+				}
+				else {
+					printf "No replicate-mean, merged-sample, broad peak file for %s!\n",
+						$self->out;
+				}
+			}
 		}
 	}
-	my $output1 = File::Spec->catfile( $self->dir, $self->out . '_meanQvalue.txt' );
-	my $output2 = File::Spec->catfile( $self->dir, $self->out . '_meanLog2FE.txt' );
-	my $output3 = File::Spec->catfile( $self->dir, $self->out . '_counts.txt' );
-	my $output4 = File::Spec->catfile( $self->dir, $self->out . '_profile_fragment.txt' );
-	my $output5 = File::Spec->catfile( $self->dir, $self->out . '_profile_log2FE.txt' );
-	my $output6 = File::Spec->catfile( $self->dir, $self->out . '_genome_counts.txt.gz' );
+
+	# then check for independent replicate-merged peaks
+	if ( $self->independent ) {
+		if ( $self->number_of_jobs == 1 ) {
+
+			# only one job, so take its peak file
+			my $Job = ( $self->list_jobs )[0];
+			if ( $self->dryrun ) {
+				push @commands,
+					$self->_rescore_narrow_input( $self->repmerge_merge_base,
+						$Job->repmerge_peak );
+				if ( $self->broad ) {
+					push @commands,
+						$self->_rescore_broad_input(
+							$self->repmerge_merge_base . '_broad',
+							$Job->repmerge_gappeak );
+				}
+			}
+			else {
+
+				# need to validate the input file before we can score it
+				my $c = $Job->count_file_lines( $Job->repmerge_peak );
+				if ($c) {
+					push @commands,
+						$self->_rescore_narrow_input( $self->repmerge_merge_base,
+							$Job->repmerge_peak );
+				}
+				else {
+					printf "No replicate-merged narrow peak file for %s!\n",
+						$Job->job_name;
+				}
+				if ( $self->broad ) {
+					$c = $Job->count_file_lines( $Job->repmerge_gappeak );
+					if ($c) {
+						push @commands, $self->_rescore_broad_input(
+							$self->repmerge_merge_base . '_broad',
+							$Job->repmerge_gappeak
+						);
+					}
+					else {
+						printf "No replicate-merged broad peak file for %s!\n",
+							$Job->job_name;
+					}
+				}
+			}
+		}
+		else {
+
+			# more than one file, use the merged file
+			my $peak_file = $self->repmerge_merge_base . '.bed';
+			if ( $self->dryrun ) {
+				push @commands,
+					$self->_rescore_narrow_input( $self->repmerge_merge_base,
+						$peak_file );
+				if ( $self->broad ) {
+					$peak_file = $self->repmerge_merge_base . '_broad.bed';
+					push @commands,
+						$self->_rescore_broad_input(
+							$self->repmerge_merge_base . '_broad', $peak_file );
+				}
+			}
+			else {
+				my $Job = ( $self->list_jobs )[0];              # example Job
+				my $c   = $Job->count_file_lines($peak_file);
+				if ($c) {
+					push @commands,
+						$self->_rescore_narrow_input( $self->repmerge_merge_base,
+							$peak_file );
+				}
+				else {
+					printf
+						"No replicate-merged, sample-merged, narrow peak file for %s!\n",
+						$self->out;
+				}
+				if ( $self->broad ) {
+					$peak_file = $self->repmerge_merge_base . '_broad.bed';
+					$c         = $Job->count_file_lines($peak_file);
+					if ($c) {
+						push @commands,
+							$self->_rescore_broad_input(
+								$self->repmerge_merge_base . '_broad', $peak_file );
+					}
+					else {
+						printf
+"No replicate-merged, sample-merged, broad peak file for %s!\n",
+							$self->out;
+					}
+				}
+			}
+		}
+	}
+
+	if (@commands) {
+		$self->execute_commands( \@commands );
+		$self->update_progress_file('rescore');
+	}
+}
+
+sub _rescore_narrow_input {
+	my ( $self, $base, $input ) = @_;
+
+	my $output1 = $base . '_maxQvalue.txt.gz';
+	my $output2 = $base . '_meanLog2FE.txt.gz';
+	my $output3 = $base . '_counts.txt.gz';
+	my $output4 = $base . '_profile_fragment.txt.gz';
+	my $output5 = $base . '_profile_log2FE.txt.gz';
+	my $output6 = $base . '_genome_counts.txt.gz';
 
 	# generate four get_dataset and two get_relative commands
 	# go ahead and make the fourth genome-wide command, even though we may not use it
 	my @command_lengths;
 	my $command1 = sprintf
-		"%s --method mean --cpu %s --in %s --out %s --format 3 ",
+		"%s --method max --in %s --out %s --format 3 --cpu %s ",
 		$self->getdata_app || 'get_datasets.pl',
-		$self->cpu, $input, $output1;
+		$input,
+		$output1,
+		$self->cpu;
 	push @command_lengths, length($command1);
 	my $command2 = sprintf
-		"%s --method mean --cpu %s --in %s --out %s --format 3 ",
+		"%s --method mean --in %s --out %s --format 3 --cpu %s ",
 		$self->getdata_app || 'get_datasets.pl',
-		$self->cpu, $input, $output2;
+		$input,
+		$output2,
+		$self->cpu;
 	push @command_lengths, length($command2);
 	my $command3 = sprintf
-		"%s --method sum --cpu %s --in %s --out %s --format 0 ",
+		"%s --method sum --in %s --out %s --format 0 --cpu %s ",
 		$self->getdata_app || 'get_datasets.pl',
-		$self->cpu, $input, $output3;
+		$input,
+		$output3,
+		$self->cpu;
 	push @command_lengths, length($command3);
 	my $command4 = sprintf
-"%s --method mean --cpu %s --in %s --out %s --win %s --num 25 --pos m --long --format 3 --groups --sum ",
+"%s --method mean --in %s --out %s --win %s --num 25 --pos m --long --format 3 --groups --sum --cpu %s ",
 		$self->getrel_app || 'get_relative_data.pl',
-		$self->cpu, $input, $output4, $self->binsize;
+		$input,
+		$output4,
+		$self->binsize,
+		$self->cpu;
 	push @command_lengths, length($command4);
 	my $command5 = sprintf
-"%s --method mean --cpu %s --in %s --out %s --win %s --num 25 --pos m --long --format 3 --groups --sum ",
+"%s --method mean --in %s --out %s --win %s --num 25 --pos m --long --format 3 --groups --sum --cpu %s ",
 		$self->getrel_app || 'get_relative_data.pl',
-		$self->cpu, $input, $output5, $self->binsize;
+		$input,
+		$output5,
+		$self->binsize,
+		$self->cpu;
 	push @command_lengths, length($command5);
 	my $command6 = sprintf
-"%s --method sum --cpu %s --feature genome --win %d --discard %s --out %s --format 0 ",
+"%s --method sum --feature genome --win %d --discard %s --out %s --format 0 --cpu %s ",
 		$self->getdata_app || 'get_datasets.pl',
-		$self->cpu, $self->genomewin, $self->discard, $output6;
+		$self->genomewin,
+		$self->discard,
+		$output6,
+		$self->cpu;
 	push @command_lengths, length($command6);
 
 	# add dataset files
@@ -1558,150 +1737,82 @@ sub run_rescore {
 		}
 	}
 
-	# broad peak rescore
-	my ( $output7, $output8, $output9 );
-	if ( $self->broad ) {
+	return @commands;
+}
 
-		# generate broad file names
-		my $input2;
-		if ( scalar( @{ $self->{Jobs} } ) > 1 ) {
+sub _rescore_broad_input {
+	my ( $self, $base, $input ) = @_;
 
-			# merged broad file name
-			$input2 = File::Spec->catfile( $self->dir, $self->out . '_broad.bed' );
-			if ( not $self->dryrun and not -e $input2 ) {
-				croak "unable to find merged gapped Peak bed file '$input2'!\n";
-			}
-		}
-		else {
-			# just one job, take its broad peak file
-			$input2 = $self->{Jobs}->[0]->{clean_gappeak};
-			if ( not $self->dryrun and not -e $input2 ) {
-				croak "unable to find gapped Peak bed file '$input2'!\n";
-			}
-		}
-		$output7 =
-			File::Spec->catfile( $self->dir, $self->out . '_broad_meanQvalue.txt' );
-		$output8 =
-			File::Spec->catfile( $self->dir, $self->out . '_broad_meanLog2FE.txt' );
-		$output9 = File::Spec->catfile( $self->dir, $self->out . '_broad_counts.txt' );
+	my $output1 = $base . '_meanQvalue.txt.gz';
+	my $output2 = $base . '_meanLog2FE.txt.gz';
+	my $output3 = $base . '_counts.txt.gz';
 
-		# generate three get_dataset commands
-		# we won't run get_relative data for gapped peaks
-		my $command7 = sprintf
-			"%s --method mean --cpu %s --in %s --out %s --format 3 ",
-			$self->getdata_app || 'get_datasets.pl',
-			$self->cpu, $input2, $output7;
-		push @command_lengths, length($command7);
-		my $command8 = sprintf
-			"%s --method mean --cpu %s --in %s --out %s --format 3 ",
-			$self->getdata_app || 'get_datasets.pl',
-			$self->cpu, $input2, $output8;
-		push @command_lengths, length($command8);
-		my $command9 = sprintf
-			"%s --method sum --cpu %s --in %s --out %s --format 0 ",
-			$self->getdata_app || 'get_datasets.pl',
-			$self->cpu, $input2, $output9;
-		push @command_lengths, length($command8);
+	# generate three get_dataset commands
+	# we don't run get_relative data for broad peaks
+	my @command_lengths;
+	my $command1 = sprintf
+		"%s --method mean --in %s --out %s --format 3 --cpu %s ",
+		$self->getdata_app || 'get_datasets.pl',
+		$input,
+		$output1,
+		$self->cpu;
+	push @command_lengths, length($command1);
+	my $command2 = sprintf
+		"%s --method mean --in %s --out %s --format 3 --cpu %s ",
+		$self->getdata_app || 'get_datasets.pl',
+		$input,
+		$output2,
+		$self->cpu;
+	push @command_lengths, length($command2);
+	my $command3 = sprintf
+		"%s --method sum --in %s --out %s --format 0 --cpu %s ",
+		$self->getdata_app || 'get_datasets.pl',
+		$input,
+		$output3,
+		$self->cpu;
+	push @command_lengths, length($command2);
 
-		# add dataset files for broad peaks
-		%name2done = ();
-		foreach my $Job ( $self->list_jobs ) {
-			if ( $Job->qvalue_bw ) {
-				$command7 .= sprintf "--data %s ", $Job->qvalue_bw;
-			}
-			if ( $Job->logfe_bw ) {
-				$command8 .= sprintf "--data %s ", $Job->logfe_bw;
-			}
-			foreach my $b ( $Job->chip_count_bw ) {
-				$command9 .= "--data $b ";
-			}
-			foreach my $b ( $Job->control_count_bw ) {
-				next if exists $name2done{$b};
-				$command9 .= "--data $b ";
-				$name2done{$b} = 1;    # remember it's done
-			}
+	# add dataset files for broad peaks
+	my %name2done;
+	foreach my $Job ( $self->list_jobs ) {
+		if ( $Job->qvalue_bw ) {
+			$command1 .= sprintf "--data %s ", $Job->qvalue_bw;
 		}
-
-		# add log outputs to commands
-		if ( length($command7) > shift @command_lengths ) {
-			my $log = $output7;
-			$log =~ s/txt$/out.txt/;
-			$command7 .= " 2>&1 > $log";
-			push @commands, [ $command7, $output7, $log ];
+		if ( $Job->logfe_bw ) {
+			$command2 .= sprintf "--data %s ", $Job->logfe_bw;
 		}
-		if ( length($command8) > shift @command_lengths ) {
-			my $log = $output8;
-			$log =~ s/txt$/out.txt/;
-			$command8 .= " 2>&1 > $log";
-			push @commands, [ $command8, $output8, $log ];
+		foreach my $b ( $Job->chip_count_bw ) {
+			$command3 .= "--data $b ";
 		}
-		if ( length($command9) > shift @command_lengths ) {
-			my $log = $output9;
-			$log =~ s/txt$/out.txt/;
-			$command9 .= " 2>&1 > $log";
-			push @commands, [ $command9, $output9, $log ];
+		foreach my $b ( $Job->control_count_bw ) {
+			next if exists $name2done{$b};
+			$command3 .= "--data $b ";
+			$name2done{$b} = 1;    # remember it's done
 		}
 	}
 
-	### Execute data collection commands
-	$self->execute_commands( \@commands );
-
-	### Replicate Merge
-	# do this here so that we still know the output commands
-	# must be done after the data collection anyway, so can't be merged above
-	if ( $self->repmean ) {
-
-		# we will generate count means of the replicates
-		unless ( $self->combrep_app =~ /\w+/ or $self->dryrun ) {
-			croak "no combine_replicate_data.pl application in path!\n";
-		}
-		print "\n\n======= Generating sample replicate means\n";
-		my @commands2;
-
-		# narrowPeak counts
-		my $output3m  = File::Spec->catfile( $self->dir, $self->out . '_meanCounts.txt' );
-		my $command10 = sprintf
-			"%s --in %s --out %s --sample %s --method mean --format 0 ",
-			$self->combrep_app || 'combine_replicate_data.pl',
-			$output3, $output3m, $self->sample_file;
-		my $log = $output3m;
-		$log =~ s/txt/out.txt/;
-		$command10 .= " 2>&1 > $log";
-		push @commands2, [ $command10, $output3m, $log ];
-
-		# genome counts
-		if ( $self->genomewin ) {
-			my $output6m = File::Spec->catfile( $self->dir,
-				$self->out . '_genome_meanCounts.txt.gz' );
-			my $command11 = sprintf
-				"%s --in %s --out %s --sample %s --method mean --format 0 ",
-				$self->combrep_app || 'combine_replicate_data.pl',
-				$output6, $output6m, $self->sample_file;
-			$log = $output6m;
-			$log =~ s/txt\.gz/out.txt/;
-			$command11 .= " 2>&1 > $log";
-			push @commands2, [ $command11, $output6m, $log ];
-		}
-
-		# broadPeak Counts
-		if ( $self->broad ) {
-			my $output9m =
-				File::Spec->catfile( $self->dir, $self->out . '_broad_meanCounts.txt' );
-			my $command12 = sprintf
-				"%s --in %s --out %s --sample %s --method mean --format 0 ",
-				$self->combrep_app || 'combine_replicate_data.pl',
-				$output9, $output9m, $self->sample_file;
-			$log = $output9m;
-			$log =~ s/txt/out.txt/;
-			$command12 .= " 2>&1 > $log";
-			push @commands2, [ $command12, $output9m, $log ];
-		}
-
-		# execute
-		$self->execute_commands( \@commands2 );
+	# add log outputs to commands
+	my @commands;
+	if ( length($command1) > shift @command_lengths ) {
+		my $log = $output1;
+		$log =~ s/txt$/out.txt/;
+		$command1 .= " 2>&1 > $log";
+		push @commands, [ $command1, $output1, $log ];
+	}
+	if ( length($command2) > shift @command_lengths ) {
+		my $log = $output2;
+		$log =~ s/txt$/out.txt/;
+		$command2 .= " 2>&1 > $log";
+		push @commands, [ $command2, $output2, $log ];
+	}
+	if ( length($command3) > shift @command_lengths ) {
+		my $log = $output3;
+		$log =~ s/txt$/out.txt/;
+		$command3 .= " 2>&1 > $log";
+		push @commands, [ $command3, $output3, $log ];
 	}
 
-	$self->update_progress_file('rescore');
+	return @commands;
 }
 
 sub run_efficiency {
