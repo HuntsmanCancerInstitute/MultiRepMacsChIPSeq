@@ -1972,50 +1972,88 @@ sub run_plot_peaks {
 		print "Rscript or plot_peak_figures.R script not defined!\n";
 		return;
 	}
-	my $outbase = File::Spec->catfile( $self->dir, $self->out );
-	my $command = sprintf "%s --verbose %s --input %s ",
-		$self->rscript_app, $self->plotpeak_app, $outbase;
-	my $log = $outbase . '.plot_figures.out.txt';
-	$command .= " > $log 2>&1";    # error redirect needs to last with Rscript
 
-	# there are multiple possible output files, including none, from this script
-	# hard to predict, so don't put any
-	my @commands = ( [ $command, q(), $log ] );
+	# set up commands
+	# with Rscript, standard error redirect needs to be the last element
+	# these commands can have multiple, variable output plot files
+	# so we don't specify a specific file as output, but just trust it'll complete
+	# besides, we're near the end of the pipeline
+	my @commands;
+
+	# mean-replicate narrow peaks
+	my $command = sprintf "%s --verbose %s --input %s ",
+		$self->rscript_app,
+		$self->plotpeak_app,
+		$self->repmean_merge_base;
+	my $log = $self->repmean_merge_base . '.plot_figures.out.txt';
+	$command .= " > $log 2>&1";
+	push @commands, [ $command, q(), $log ];
+
+	# merge-replicate narrow peaks
+	if ( $self->independent ) {
+		$command = sprintf "%s --verbose %s --input %s ",
+			$self->rscript_app,
+			$self->plotpeak_app,
+			$self->repmerge_merge_base;
+		$log = $self->repmerge_merge_base . '.plot_figures.out.txt';
+		$command .= " > $log 2>&1";
+		push @commands, [ $command, q(), $log ];
+	}
 
 	# broad peak
 	if ( $self->broad ) {
-		my $outbase2 = File::Spec->catfile( $self->dir, $self->out ) . '_broad';
+
+		# replicate-mean broad peaks
+		my $outbase  = $self->repmean_merge_base . '_broad';
 		my $command2 = sprintf "%s --verbose %s --input %s ",
-			$self->rscript_app, $self->plotpeak_app, $outbase2;
-		my $log2 = $outbase2 . '.plot_figures.out.txt';
-		$command2 .= " > $log2 2>&1";
-		push @commands, [ $command2, q(), $log2 ];
+			$self->rscript_app,
+			$self->plotpeak_app,
+			$outbase;
+		$log = $outbase . '.plot_figures.out.txt';
+		$command .= " > $log 2>&1";
+		push @commands, [ $command, q(), $log ];
+
+		# merge-replicate narrow peaks
+		if ( $self->independent ) {
+			$outbase = $self->repmerge_merge_base . '_broad';
+			$command = sprintf "%s --verbose %s --input %s ",
+				$self->rscript_app,
+				$self->plotpeak_app,
+				$outbase;
+			$log = $outbase . '.plot_figures.out.txt';
+			$command .= " > $log 2>&1";
+			push @commands, [ $command, q(), $log ];
+		}
 	}
 
 	# add independent peak calls
 	if ( $self->independent ) {
-		foreach my $Job ( $self->list_jobs ) {
+		my @Jobs = $self->list_jobs;
+		shift @Jobs if $self->has_universal_control;
+		foreach my $Job (@Jobs) {
 			next unless ( scalar( $Job->rep_peaks ) > 1 );    # nothing to compare
-			my $jobbase  = File::Spec->catfile( $self->dir, $Job->job_name );
-			my $command2 = sprintf "%s --verbose %s --input %s ", $self->rscript_app,
-				$self->plotpeak_app, $jobbase;
-			my $example = $jobbase . '.jaccard.png';
-			my $log2    = $jobbase . '.plot_figures.out.txt';
-			$command2 .= " > $log2 2>&1";    # error redirect needs to last with Rscript
-			push @commands, [ $command2, $example, $log2 ];
+			my $jobbase = $self->repmerge_peak;
+			$jobbase =~ s/\.bed$//;
+			$command = sprintf "%s --verbose %s --input %s ",
+				$self->rscript_app,
+				$self->plotpeak_app,
+				$jobbase;
+			$log = $jobbase . '.plot_figures.out.txt';
+			$command .= " > $log 2>&1";
+			push @commands, [ $command, q(), $log ];
 
 			# broad peak
 			if ( $self->broad ) {
-				my $jobbase2 = $Job->clean_gappeak;
-				$jobbase2 =~ s/\.bed$//;
-				$command2 = sprintf "%s --verbose %s --input %s ", $self->rscript_app,
-					$self->plotpeak_app, $jobbase2;
-				$example = $jobbase2 . '.jaccard.png';
-				$log2    = $jobbase2 . '.plot_figures.out.txt';
-				$command2 .= " > $log2 2>&1";
-				push @commands, [ $command2, $example, $log2 ];
+				$jobbase = $Job->repmerge_gappeak;
+				$jobbase =~ s/\.bed$//;
+				$command = sprintf "%s --verbose %s --input %s ",
+					$self->rscript_app,
+					$self->plotpeak_app,
+					$jobbase;
+				$log = $jobbase . '.plot_figures.out.txt';
+				$command .= " > $log 2>&1";
+				push @commands, [ $command, q(), $log ];
 			}
-
 		}
 	}
 
