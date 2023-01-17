@@ -20,14 +20,25 @@ sub new {
 	my $options = $class->init_options();
 
 	my $self = {
-		opts              => $options,
-		Jobs              => [],
-		finished_commands => [],
-		pm                => undef,
-		progress_file     => undef,
-		sample_file       => undef,
-		universal_control => 0,
+		opts                => $options,
+		Jobs                => [],
+		finished_commands   => [],
+		pm                  => undef,
+		progress_file       => undef,
+		sample_file         => undef,
+		universal_control   => 0,
+		repmean_merge_base  => undef,
+		repmerge_merge_base => undef,
 	};
+	if ( $self->independent ) {
+		$self->repmean_merge_base(
+			File::Spec->catfile( $self->dir, $self->out . '.rep_mean' ) );
+		$self->repmerge_merge_base(
+			File::Spec->catfile( $self->dir, $self->out . '.rep_merge' ) );
+	}
+	else {
+		$self->repmean_merge_base( File::Spec->catfile( $self->dir, $self->out ) );
+	}
 	return bless $self, $class;
 }
 
@@ -39,6 +50,18 @@ sub has_universal_control {
 	my $self = shift;
 	$self->{universal_control} = shift if @_;
 	return $self->{universal_control};
+}
+
+sub repmean_merge_base {
+	my $self = shift;
+	$self->{repmean_merge_base} = $_[0] if @_;
+	return $self->{repmean_merge_base};
+}
+
+sub repmerge_merge_base {
+	my $self = shift;
+	$self->{repmerge_merge_base} = $_[0] if @_;
+	return $self->{repmerge_merge_base};
 }
 
 sub add_job {
