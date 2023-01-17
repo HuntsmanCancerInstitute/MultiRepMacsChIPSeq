@@ -9,6 +9,7 @@ use File::Copy;
 use File::Path qw(make_path);
 use List::Util qw(min);
 use Parallel::ForkManager;
+use Bio::ToolBox;
 use Bio::ToolBox::utility qw(simplify_dataset_name);
 use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
@@ -735,7 +736,6 @@ sub run_bam_filter {
 			# first add existing exclusion list intervals if present
 			my @exclusions;
 			if ( $self->blacklist and $self->blacklist ne 'none' ) {
-				require Bio::ToolBox;
 				my $Data = Bio::ToolBox->load_file( $self->blacklist );
 				if ($Data) {
 					$Data->iterate(
@@ -1825,117 +1825,141 @@ sub run_efficiency {
 	unless ( $self->geteff_app =~ /\w+/ or $self->dryrun ) {
 		croak "no get_chip_efficiency.pl application in path!\n";
 	}
-
-	### ChIP efficiency
-	my @commands;
+	my @Jobs = $self->list_jobs;
 
 	# universal control counts
-	# I have to search for these explicitly, since they're not associated with ChIP job
 	my @universal_counts;
-	foreach my $Job ( $self->list_jobs ) {
-		next
-			unless ( not defined $Job->clean_peak
-				and scalar( $Job->control_count_bw ) > 0 );
+	if ( $self->has_universal_control ) {
+		my $Job = shift @Jobs;
 		push @universal_counts, ( $Job->control_count_bw );
 	}
 
-	# collect count files for each job
-	foreach my $Job ( $self->list_jobs ) {
-		next unless defined $Job->clean_peak;
-		next unless scalar( $Job->chip_count_bw ) > 0;
-		my $output =
-			File::Spec->catfile( $self->dir, $Job->job_name . '.efficiency.txt' );
-		my $command = sprintf
-			"%s --in %s --group %s --out %s --cpu %d ",
-			$self->geteff_app || 'get_chip_efficiency.pl',
-			$Job->clean_peak, $self->sample_file, $output, $self->cpu;
+	# set up efficiency jobs with each sample
+	# we only use narrow peaks for efficiency – should use broad too?????
+	my ( @mean_commands, @merge_commands );
+	foreach my $Job (@Jobs) {
 
-		# add count files, we should have at least one chip and one control
-		foreach my $b ( $Job->chip_count_bw ) {
-			$command .= "$b ";
+		# mean-replicate
+		if ( $Job->count_file_lines( $Job->repmean_peak ) ) {
+			my $output = $Job->repmean_peak;
+			$output =~ s/narrowPeak/efficiency.txt/;
+			push @mean_commands, $self->_setup_efficiency_job(
+				$Job,    $Job->repmean_peak,
+				$output, \@universal_counts
+			);
 		}
-		foreach my $b ( $Job->control_count_bw ) {
-			$command .= "$b ";
+		else {
+			printf "No valid mean-replicate narrow peak file for %s\n", $Job->job_name;
 		}
-		foreach my $b (@universal_counts) {
-			$command .= "$b ";
+
+		# merged independent
+		if ( $Job->count_file_lines( $Job->repmerge_peak ) ) {
+			my $output = $Job->repmerge_peak;
+			$output =~ s/(?:narrowPeak | bed)/efficiency.txt/x;
+			push @merge_commands, $self->_setup_efficiency_job(
+				$Job, $Job->repmerge_peak,
+				\@universal_counts
+			);
 		}
-		my $log = $output;
-		$log =~ s/txt/out.txt/;
-		$command .= sprintf "2>&1 > %s", $log;
-		push @commands, [ $command, $output, $log ];
+		else {
+			printf "No valid replicate-merged narrow peak file for %s\n", $Job->job_name;
+		}
 	}
 
 	# execute the efficiency commands if present
-	unless (@commands) {
-
-		# nothing to do? so return
+	if ( @mean_commands or @merge_commands ) {
+		my @commands = ( @mean_commands, @merge_commands );
+		$self->execute_commands( \@commands );
+	}
+	else {
 		$self->update_progress_file('efficiency');
 		return;
 	}
-	$self->execute_commands( \@commands );
 
 	# proceed no further if dry run
 	return if $self->dryrun;
 
-	# merge the efficiency outputs into one
-	if ( scalar @commands > 1 ) {
-
-		# we're doing this manually to capture all the metadata lines
-		my @combined_eff_data;
-		my @combined_eff_meta;
-		my $eff_header;
-		foreach my $c (@commands) {
-			my $f = $c->[1];
-			unless ( -e $f ) {
-				print " Missing efficiency file $f! Skipping\n";
-				next;
-			}
-			my $fh = IO::File->new( $f, 'r' ) or next;
-			while ( my $line = $fh->getline ) {
-				if ( substr( $line, 0, 1 ) eq '#' ) {
-					push @combined_eff_meta, $line;
-				}
-				elsif ( $line =~ /^Replicate/ ) {
-					$eff_header = $line unless $eff_header;
-				}
-				else {
-					push @combined_eff_data, $line;
-				}
-			}
-			$fh->close;
-			unlink $c->[1];
-		}
-
-		# write merged file
-		if (@combined_eff_data) {
-			my $combined_eff_out =
-				File::Spec->catfile( $self->dir, $self->out . '.chip_efficiency.txt' );
-			my $fh = IO::File->new( $combined_eff_out, 'w' );
-			foreach (@combined_eff_meta) {
-				$fh->print;
-			}
-			$fh->print($eff_header);
-			foreach (@combined_eff_data) {
-				$fh->print;
-			}
-			$fh->close;
-			print "\nWrote combined ChIP efficiency file $combined_eff_out\n";
-		}
-		else {
-			print " No efficiency files combined!\n";
-			return;
-		}
+	# merge efficiency outputs
+	if (@mean_commands) {
+		my $output = $self->repmean_merge_base . '.chip_efficiency.txt';
+		$self->_merge_efficiency( \@mean_commands, $output );
 	}
-	elsif ( scalar @commands == 1 ) {
-
-		# just one, so rename it for consistency sake
-		my $eff_out =
-			File::Spec->catfile( $self->dir, $self->out . '.chip_efficiency.txt' );
-		move( $commands[0]->[1], $eff_out );
+	if (@merge_commands) {
+		my $output = $self->repmerge_merge_base . '.chip_efficiency.txt';
+		$self->_merge_efficiency( \@merge_commands, $output );
 	}
 
 	$self->update_progress_file('efficiency');
+}
+
+sub _setup_efficiency_job {
+	my ( $self, $Job, $input, $universal ) = @_;
+
+	my $output  = File::Spec->catfile( $self->dir, $Job->job_name . '.efficiency.txt' );
+	my $command = sprintf
+		"%s --in %s --group %s --out %s --cpu %d ",
+		$self->geteff_app || 'get_chip_efficiency.pl',
+		$input,
+		$self->sample_file,
+		$output,
+		$self->cpu;
+
+	# add count files, we should have at least one chip and one control
+	foreach my $b ( $Job->chip_count_bw ) {
+		$command .= "$b ";
+	}
+	foreach my $b ( $Job->control_count_bw ) {
+		$command .= "$b ";
+	}
+	foreach my $b ( @{$universal} ) {
+		$command .= "$b ";
+	}
+	my $log = $output;
+	$log =~ s/txt/out.txt/;
+	$command .= sprintf "2>&1 > %s", $log;
+	return [ $command, $output, $log ];
+}
+
+sub _merge_efficiency {
+	my ( $self, $commands, $output ) = @_;
+
+	# merge the efficiency outputs into one
+	my $eff_Data;
+	foreach my $com ( @{$commands} ) {
+		my $f = $com->[1];
+		unless ( -e $f ) {
+			print " Missing efficiency file $f! Skipping\n";
+			next;
+		}
+		my $Data = Bio::ToolBox->load_file($f);
+		if ($eff_Data) {
+
+			# add to existing object
+			foreach my $c ( $Data->comments ) {
+				$Data->add_comment($c);
+			}
+		}
+		else {
+			# duplicate headers
+			$eff_Data = $Data->duplicate_data;
+		}
+
+		# copy rows
+		$Data->iterate(
+			sub {
+				my $row = shift;
+				$eff_Data->add_row($row);
+			}
+		);
+
+		# delete the original file
+		unlink $f;
+	}
+
+	# write merged file
+	$eff_Data->add_file_metadata($output);
+	my $s = $eff_Data->save;
+	print "\nWrote combined ChIP efficiency file $s\n";
 }
 
 sub run_plot_peaks {
