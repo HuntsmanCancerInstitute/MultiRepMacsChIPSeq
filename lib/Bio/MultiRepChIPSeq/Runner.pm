@@ -1256,69 +1256,152 @@ sub run_peak_merge {
 
 	my @commands;
 
-	# narrowPeaks
-	my $merge_file = File::Spec->catfile( $self->dir, $self->out );
-	my $command    = sprintf
-		"%s --name %s_merge --bed %s --out %s --genome %s ",
-		$self->intersect_app || 'intersect_peaks.pl',
-		$self->out, $self->bedtools_app || 'bedtools',
-		$merge_file, $self->chromofile;
-	my $command_check = length($command);
-	my $count_check   = 0;
+	# process replicate-mean narrow Peaks first
+	my @sample_files;
 	foreach my $Job (@jobs) {
-		if ( $Job->clean_peak
-			and ( ( -e $Job->clean_peak and -s _ > 0 ) or $self->dryrun ) )
-		{
-			# only add the file if it exists and non-zero in length
-			# or just fake it if we're running a dry run
-			$command .= sprintf "%s ", $Job->clean_peak;
-			$count_check++;
-		}
-	}
-	if ( length($command) > $command_check and $count_check > 1 ) {
-		my $log = $merge_file . '.merge.out.txt';
-		$command .= sprintf "2>&1 > %s ", $log;
-		push @commands, [ $command, $merge_file . '.bed', $log ];
-
-		# this will have multiple outputs, but one is just a .bed file
-	}
-	else {
-		unless ( $self->dryrun ) {
-			print "One or fewer narrow peak files found, nothing to merge!\n";
-		}
-	}
-
-	# broadPeaks
-	if ( $self->broad ) {
-		my $merge2_file = File::Spec->catfile( $self->dir, $self->out . "_broad" );
-		my $command2    = sprintf
-			"%s --name %s_gapmerge --bed %s --out %s --genome %s ",
-			$self->intersect_app || 'intersect_peaks.pl',
-			$self->out, $self->bedtools_app || 'bedtools',
-			$merge2_file, $self->chromofile;
-		my $command2_check = length($command2);
-		my $count2_check   = 0;
-
-		foreach my $Job (@jobs) {
-			if ( $Job->clean_gappeak
-				and ( ( -e $Job->clean_gappeak and -s _ > 0 ) or $self->dryrun ) )
-			{
-				# only add the file if it exists and non-zero in length
-				# or just fake it if we're running a dry run
-				$command2 .= sprintf "%s ", $Job->clean_gappeak;
-				$count2_check++;
-			}
-		}
-		if ( length($command2) > $command2_check and $count2_check > 1 ) {
-			my $log2 = $merge2_file . '.merge.out.txt';
-			$command2 .= sprintf "2>&1 > %s ", $log2;
-			push @commands, [ $command2, $merge2_file . '.bed', $log2 ];
-
-			# this will have multiple outputs, but one is just a .bed file
+		if ( $self->dryrun ) {
+			push @sample_files, $Job->repmean_peak;
 		}
 		else {
-			unless ( $self->dryrun ) {
-				print "One or fewer gapped peak files found, nothing to merge!\n";
+			my $count = $Job->count_file_lines( $Job->repmean_peak );
+			if ($count) {
+				push @sample_files, $Job->repmean_peak;
+			}
+			else {
+				$Job->repmean_peak(q());
+			}
+		}
+	}
+	if ( @sample_files <= 1 ) {
+
+		# nothing to merge
+		print "One or fewer replicate-mean narrow peak files found, nothing to merge!\n";
+	}
+	else {
+		my $command = sprintf
+			"%s --name %s --out %s --min 1 --genome %s --bed %s %s ",
+			$self->intersect_app || 'intersect_peaks.pl',
+			$self->out,
+			$self->repmean_merge_base,
+			$self->chromofile,
+			$self->bedtools_app || 'bedtools',
+			join( q( ), @sample_files );
+		my $log = $self->repmean_merge_base . '.merge.out.txt';
+		$command .= sprintf "2>&1 > %s ", $log;
+		push @commands, [ $command, $self->repmean_merge_base . '.bed', $log ];
+	}
+
+	# process replicate-mean broad peaks
+	if ( $self->broad ) {
+		@sample_files = ();
+		foreach my $Job (@jobs) {
+			if ( $self->dryrun ) {
+				push @sample_files, $Job->repmean_gappeak;
+			}
+			else {
+				my $count = $Job->count_file_lines( $Job->repmean_gappeak );
+				if ($count) {
+					push @sample_files, $Job->repmean_gappeak;
+				}
+				else {
+					$Job->repmean_gappeak(q());
+				}
+			}
+		}
+		if ( @sample_files <= 1 ) {
+
+			# nothing to merge
+			print
+"One or fewer replicate-mean broad gapped peak files found, nothing to merge!\n";
+		}
+		else {
+			my $merge_base = $self->repmean_merge_base . '_broad';
+			my $command    = sprintf
+				"%s --name %s_merge --out %s --min 1 --genome %s --bed %s %s ",
+				$self->intersect_app || 'intersect_peaks.pl',
+				$self->out,
+				$merge_base,
+				$self->chromofile,
+				$self->bedtools_app || 'bedtools',
+				join( q( ), @sample_files );
+			my $log = $merge_base . '.merge.out.txt';
+			$command .= sprintf "2>&1 > %s ", $log;
+			push @commands, [ $command, $merge_base . '.bed', $log ];
+		}
+	}
+
+	# then process the independent replicate-merged peaks if present
+	if ( $self->independent ) {
+
+		@sample_files = ();
+		foreach my $Job (@jobs) {
+			if ( $self->dryrun ) {
+				push @sample_files, $Job->repmerge_peak;
+			}
+			else {
+				my $count = $Job->count_file_lines( $Job->repmerge_peak );
+				if ($count) {
+					push @sample_files, $Job->repmerge_peak;
+				}
+				else {
+					$Job->repmerge_peak(q());
+				}
+			}
+		}
+		if ( @sample_files <= 1 ) {
+
+			# nothing to merge
+			print "One or fewer narrow peak files found, nothing to merge!\n";
+		}
+		else {
+			my $command = sprintf
+				"%s --name %s --out %s --min 1 --genome %s --bed %s %s ",
+				$self->intersect_app || 'intersect_peaks.pl',
+				$self->out,
+				$self->repmerge_merge_base,
+				$self->chromofile,
+				$self->bedtools_app || 'bedtools',
+				join( q( ), @sample_files );
+			my $log = $self->repmerge_merge_base . '.merge.out.txt';
+			$command .= sprintf "2>&1 > %s ", $log;
+			push @commands, [ $command, $self->repmerge_merge_base . '.bed', $log ];
+		}
+
+		# process replicate-mean broad peaks
+		if ( $self->broad ) {
+			@sample_files = ();
+			foreach my $Job (@jobs) {
+				if ( $self->dryrun ) {
+					push @sample_files, $Job->repmerge_gappeak;
+				}
+				else {
+					my $count = $Job->count_file_lines( $Job->repmerge_gappeak );
+					if ($count) {
+						push @sample_files, $Job->repmerge_gappeak;
+					}
+					else {
+						$Job->repmerge_gappeak(q());
+					}
+				}
+			}
+			if ( @sample_files <= 1 ) {
+
+				# nothing to merge
+				print "One or fewer broad gapped peak files found, nothing to merge!\n";
+			}
+			else {
+				my $merge_base = $self->repmerge_merge_base . '_broad';
+				my $command    = sprintf
+					"%s --name %s_merge --out %s --min 1 --genome %s --bed %s %s ",
+					$self->intersect_app || 'intersect_peaks.pl',
+					$self->out,
+					$merge_base,
+					$self->chromofile,
+					$self->bedtools_app || 'bedtools',
+					join( q( ), @sample_files );
+				my $log = $merge_base . '.merge.out.txt';
+				$command .= sprintf "2>&1 > %s ", $log;
+				push @commands, [ $command, $merge_base . '.bed', $log ];
 			}
 		}
 	}
