@@ -52,11 +52,10 @@ sub new {
 		logfe_bw            => undef,      # log2 fold enrichment bigWig file name
 		qvalue_bdg          => undef,      # q-value bedGraph file name
 		qvalue_bw           => undef,      # q-value bigWig file name
-		peak                => undef,      # narrow peak file name
-		gappeak             => undef,      # gapped peak file name
-		clean_peak          => undef,      # cleaned peak file name
-		peak_summit         => undef,      # cleaned peak summit file name
-		clean_gappeak       => undef,      # cleaned gapped peak file name
+		repmean_peak        => undef,      # mean-replicate peak file name
+		repmean_gappeak     => undef,      # mean-replicate gapped peak file name
+		repmerge_peak       => undef,      # merged-replicate peak file name
+		repmerge_gappeak    => undef,      # merged-replicate gapped peak file name
 	}, $class;
 
 	# base namepath
@@ -67,16 +66,16 @@ sub new {
 		$self->chip_bw($chip);
 		$self->crash("only one ChIP bigWig file is allowed per experiment!\n")
 			if $chip =~ /,/;
+		if ( $self->independent ) {
+			$self->crash("cannot use independent flag with bigwig files!\n");
+		}
 		$self->chip_bdg("$namepath.fragment.bdg");
 		$self->qvalue_bdg("$namepath.qvalue.bdg");
 		$self->qvalue_bw("$namepath.qvalue.bw");
 		$self->fe_bdg("$namepath.FE.bdg");
 		$self->logfe_bw("$namepath.log2FE.bw");
-		$self->peak("$namepath.narrowPeak");
-		$self->gappeak("$namepath.gappedPeak");
-		$self->clean_peak("$namepath.bed");
-		$self->peak_summit( $namepath . '.summit.bed' );
-		$self->clean_gappeak("$namepath.gapped.bed");
+		$self->repmean_peak("$namepath.narrowPeak");
+		$self->repmean_gappeak("$namepath.gappedPeak");
 	}
 	elsif ( $chip =~ /\.bam$/i ) {
 		my @bams = split( /,/, $chip );
@@ -87,12 +86,17 @@ sub new {
 		$self->qvalue_bw("$namepath.qvalue.bw");
 		$self->fe_bdg("$namepath.FE.bdg");
 		$self->logfe_bw("$namepath.log2FE.bw");
-		$self->peak("$namepath.narrowPeak");
-		$self->gappeak("$namepath.gappedPeak");
-		$self->clean_peak("$namepath.bed");
-		$self->peak_summit( $namepath . '.summit.bed' );
-		$self->clean_gappeak("$namepath.gapped.bed");
 
+		if ( $self->independent ) {
+			$self->repmean_peak("$namepath.rep_mean.narrowPeak");
+			$self->repmean_gappeak("$namepath.rep_mean.gappedPeak");
+			$self->repmerge_peak("$namepath.rep_merge.bed");
+			$self->repmerge_gappeak("$namepath.rep_merge.broad.bed");
+		}
+		else {
+			$self->repmean_peak("$namepath.narrowPeak");
+			$self->repmean_gappeak("$namepath.gappedPeak");
+		}
 		if ($chip_scale) {
 			$self->chip_scale( split( /,/, $chip_scale ) );
 			$self->crash("unequal scale factors and bam files!\n")
@@ -117,8 +121,8 @@ sub new {
 			if ( $self->independent ) {
 
 				# add peak and coverage files
-				$self->rep_peaks( $base . '_peaks.narrowPeak' );
-				$self->rep_gappeaks( $base . '_peaks.gappedPeak' );
+				$self->rep_peaks( $base . '.narrowPeak' );
+				$self->rep_gappeaks( $base . '.gappedPeak' );
 				$self->chip_ind_bw("$base.fragment.bw");
 			}
 		}
@@ -405,34 +409,28 @@ sub qvalue_bw {
 	return $self->{qvalue_bw};
 }
 
-sub peak {
+sub repmean_peak {
 	my $self = shift;
-	$self->{peak} = shift if @_;
-	return $self->{peak};
+	$self->{repmean_peak} = shift if @_;
+	return $self->{repmean_peak};
 }
 
-sub gappeak {
+sub repmean_gappeak {
 	my $self = shift;
-	$self->{gappeak} = shift if @_;
-	return $self->{gappeak};
+	$self->{repmean_gappeak} = shift if @_;
+	return $self->{repmean_gappeak};
 }
 
-sub clean_peak {
+sub repmerge_peak {
 	my $self = shift;
-	$self->{clean_peak} = shift if @_;
-	return $self->{clean_peak};
+	$self->{repmerge_peak} = shift if @_;
+	return $self->{repmerge_peak};
 }
 
-sub peak_summit {
+sub repmerge_gappeak {
 	my $self = shift;
-	$self->{peak_summit} = shift if @_;
-	return $self->{peak_summit};
-}
-
-sub clean_gappeak {
-	my $self = shift;
-	$self->{clean_gappeak} = shift if @_;
-	return $self->{clean_gappeak};
+	$self->{repmerge_gappeak} = shift if @_;
+	return $self->{repmerge_gappeak};
 }
 
 sub generate_dedup_commands {
@@ -1446,8 +1444,12 @@ sub generate_peakcall_commands {
 	my $command = sprintf
 		"%s bdgpeakcall -i %s -c %s -l %s -g %s --no-trackline -o %s ",
 		$self->macs_app || 'macs2',
-		$qtrack, $self->cutoff, $self->peaksize, $self->peakgap, $self->peak;
-	my $log = $self->peak;
+		$qtrack,
+		$self->cutoff,
+		$self->peaksize,
+		$self->peakgap,
+		$self->repmean_peak;
+	my $log = $self->repmean_peak;
 	$log =~ s/narrowPeak$/peakcall.out.txt/x;
 	$command .= " 2> $log";
 	if ( $self->broad ) {
@@ -1457,16 +1459,24 @@ sub generate_peakcall_commands {
 		my $command2 = sprintf
 			"%s bdgbroadcall -i %s -c %s -C %s -l %s -g %s -G %s -o %s ",
 			$self->macs_app || 'macs2',
-			$qtrack, $self->cutoff, $self->broadcut, $self->peaksize, $self->peakgap,
-			$self->broadgap, $self->gappeak;
-		my $log2 = $self->gappeak;
+			$qtrack,
+			$self->cutoff,
+			$self->broadcut,
+			$self->peaksize,
+			$self->peakgap,
+			$self->broadgap,
+			$self->repmean_gappeak;
+		my $log2 = $self->repmean_gappeak;
 		$log2 =~ s/gappedPeak$/broadcall.out.txt/x;
 		$command2 .= " 2> $log2";
 
 		# return both narrow and broad commands
-		return ( [ $command, $self->peak, $log ], [ $command2, $self->gappeak, $log2 ] );
+		return (
+			[ $command,  $self->repmean_peak,    $log ],
+			[ $command2, $self->repmean_gappeak, $log2 ]
+		);
 	}
-	return [ $command, $self->peak, $log ];
+	return [ $command, $self->repmean_peak, $log ];
 }
 
 sub generate_independent_peakcall_commands {
@@ -1505,14 +1515,17 @@ sub generate_independent_peakcall_commands {
 	$generic .= sprintf
 		"--qvalue $formatter --min-length %d --max-gap %d --gsize %d --outdir %s ",
 		10**( -1 * $self->cutoff ),
-		$self->peaksize, $self->peakgap, $self->genome, $self->dir;
+		$self->peaksize,
+		$self->peakgap,
+		$self->genome,
+		$self->dir;
 
 	# broad specific options
 	my $broad_generic = $generic;
 	if ( $self->broad ) {
 		$formatter = '%.' . sprintf( "%d", int( $self->broadcut + 1.5 ) ) . 'f';
-		$broad_generic .=
-			sprintf "--broad --broad-cutoff $formatter ", 10**( -1 * $self->broadcut );
+		$broad_generic .= sprintf "--broad --broad-cutoff $formatter ",
+			10**( -1 * $self->broadcut );
 	}
 
 	# generate commands for each ChIP replicate
@@ -2088,15 +2101,13 @@ replace the existing one.
 
 =item qvalue_bw
 
-=item peak
+=item repmean_peak
 
-=item gappeak
+=item repmean_gappeak
 
-=item clean_peak
+=item repmerge_peak
 
-=item peak_summit
-
-=item clean_gappeak
+=item repmerge_gappeak
 
 =back
 
