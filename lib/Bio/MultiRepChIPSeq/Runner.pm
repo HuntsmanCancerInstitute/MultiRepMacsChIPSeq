@@ -442,8 +442,10 @@ sub run_input_peak_detection {
 	if ( $self->{progress}{control_peak} ) {
 
 		# check that we actually have the expected file
-		my $blacklist = File::Spec->catfile( $self->dir,
-			sprintf( "%s.control_peak.bed", $self->out ) );
+		my $blacklist = File::Spec->catfile(
+			$self->dir,
+			sprintf( "%s.control_peak.bed", $self->out )
+		);
 		if ( -e $blacklist ) {
 			$self->blacklist($blacklist);
 		}
@@ -515,20 +517,25 @@ sub run_input_peak_detection {
 	$command .= sprintf
 		" && %s --in %s.bdg --genome %d --out %s.global_mean.bdg 2>&1 >> $logfile ",
 		$self->meanbdg_app || 'generate_mean_bedGraph.pl',
-		$blacklist, $self->genome || 0, $blacklist;
+		$blacklist,
+		$self->genome || 0,
+		$blacklist;
 
 	# add the q-value conversion
 	$command .= sprintf
 " && %s bdgcmp -t %s.bdg -c %s.global_mean.bdg -m qpois -o %s.qvalue.bdg 2>> $logfile ",
 		$self->macs_app || 'macs2',
-		$blacklist, $blacklist, $blacklist;
+		$blacklist,
+		$blacklist,
+		$blacklist;
 
 	# add the peak call
-	# we are using hard coded parameters for now, but I think these should be generic enough
+	# we are using hard coded parameters for now, but these should be generic enough
 	$command .= sprintf
 " && %s bdgpeakcall -i %s.qvalue.bdg -c 3 -l 250 -g 500 --no-trackline -o %s.narrowPeak 2>> $logfile",
 		$self->macs_app || 'macs2',
-		$blacklist, $blacklist;
+		$blacklist,
+		$blacklist;
 
 	# execute the call
 	$self->execute_commands( [ [ $command, "$blacklist.narrowPeak", $logfile ], ] );
@@ -547,7 +554,11 @@ sub run_input_peak_detection {
 		# and clean up
 		$command .= sprintf
 			"&& rm %s.bdg %s.global_mean.bdg %s.qvalue.bdg %s.narrowPeak %s.summit.bed",
-			$blacklist, $blacklist, $blacklist, $blacklist, $blacklist;
+			$blacklist,
+			$blacklist,
+			$blacklist,
+			$blacklist,
+			$blacklist;
 		$self->execute_commands( [ [ $command, $self->blacklist, $logfile ], ] );
 	}
 	else {
@@ -557,7 +568,9 @@ sub run_input_peak_detection {
 
 		# clean up
 		$command = sprintf "rm %s.bdg %s.global_mean.bdg %s.qvalue.bdg ",
-			$blacklist, $blacklist, $blacklist;
+			$blacklist,
+			$blacklist,
+			$blacklist;
 		$command .= "$blacklist.narrowPeak " if -e "$blacklist.narrowPeak";
 		$self->execute_commands( [ [ $command, q(), q() ], ] );
 	}
@@ -651,8 +664,10 @@ sub run_dedup {
 
 		# store in array
 		push @dedupstats,
-			join( "\t", $name, $total, $optdup, $dup, $nondup, $duprate,
-				$retdup || $dup );
+			join(
+				"\t", $name, $total, $optdup, $dup, $nondup, $duprate,
+				$retdup || $dup
+			);
 	}
 
 	# print duplicate stats file

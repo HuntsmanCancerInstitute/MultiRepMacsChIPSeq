@@ -13,9 +13,10 @@ our $VERSION = 18.0;
 sub new {
 
 	# pass name, comma-list of ChIP files, and comma-list of control files
-	my ( $class, $opts, $job_name, $chip, $control, $chip_scale, $control_scale,
-		$chrnorm )
-		= @_;
+	my (
+		$class, $opts, $job_name, $chip, $control, $chip_scale, $control_scale,
+		$chrnorm
+	) = @_;
 
 	# bless early to use methods
 	my $self = bless {
@@ -752,7 +753,9 @@ sub generate_bam2wig_frag_commands {
 		my $frag_command = sprintf
 			"%s --out %s %s --mean --bdg --in %s",
 			$self->bam2wig_app || 'bam2wig.pl',
-			$self->chip_bdg, $frag_base, join( ',', $self->chip_use_bams );
+			$self->chip_bdg,
+			$frag_base,
+			join( ',', $self->chip_use_bams );
 		my $log = $self->chip_bdg;
 		$log =~ s/bdg$/bam2wig.out.txt/;
 		$frag_command .= " 2>&1 > $log";
@@ -766,7 +769,9 @@ sub generate_bam2wig_frag_commands {
 				my $command = sprintf
 					"%s --out %s %s --bw --bwapp %s --in %s",
 					$self->bam2wig_app || 'bam2wig.pl',
-					$out, $frag_base, $self->wig2bw_app || 'wigToBigWig',
+					$out,
+					$frag_base,
+					$self->wig2bw_app || 'wigToBigWig',
 					$bams[$i];
 				$log = $out;
 				$log =~ s/bw/bam2wig.out.txt/;
@@ -845,7 +850,10 @@ sub generate_bam2wig_frag_commands {
 		$command1 = sprintf
 			"%s --out %s %s --bin %s --in %s ",
 			$self->bam2wig_app || 'bam2wig.pl',
-			$self->d_control_bdg, $command1, $self->chipbin, $control_bam_string;
+			$self->d_control_bdg,
+			$command1,
+			$self->chipbin,
+			$control_bam_string;
 		my $log = $self->d_control_bdg;
 		$log =~ s/bdg$/bam2wig.out.txt/;
 		$command1 .= " 2>&1 > $log";
@@ -871,8 +879,12 @@ sub generate_bam2wig_frag_commands {
 			$command2 = sprintf
 				"%s --out %s %s --cspan --extval %s --scale %s --bin %s --in %s ",
 				$self->bam2wig_app || 'bam2wig.pl',
-				$self->s_control_bdg, $command2, $self->slocal, $scale,
-				$self->slocalbin,     $control_bam_string;
+				$self->s_control_bdg,
+				$command2,
+				$self->slocal,
+				$scale,
+				$self->slocalbin,
+				$control_bam_string;
 			$log = $self->s_control_bdg;
 			$log =~ s/bdg$/bam2wig.out.txt/;
 			$command2 .= " 2>&1 > $log";
@@ -899,8 +911,12 @@ sub generate_bam2wig_frag_commands {
 			$command3 = sprintf
 				"%s --out %s %s --cspan --extval %s --scale %s --bin %s --in %s ",
 				$self->bam2wig_app || 'bam2wig.pl',
-				$self->l_control_bdg, $command3, $self->llocal, $scale,
-				$self->llocalbin,     $control_bam_string;
+				$self->l_control_bdg,
+				$command3,
+				$self->llocal,
+				$scale,
+				$self->llocalbin,
+				$control_bam_string;
 			$log = $self->l_control_bdg;
 			$log =~ s/bdg$/bam2wig.out.txt/;
 			$command3 .= " 2>&1 > $log";
@@ -922,22 +938,27 @@ sub generate_bam2wig_frag_commands {
 		my $frag_command = sprintf
 "%s --out %s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --mean --bdg ",
 			$self->bam2wig_app || 'bam2wig.pl',
-			$self->lambda_bdg, $self->mapq, $self->cpu;
+			$self->lambda_bdg,
+			$self->mapq,
+			$self->cpu;
 
 		# single or paired options
 		if ( $self->paired ) {
 			$frag_command .= sprintf "--span --pe --minsize %s --maxsize %s --bin %s ",
-				$self->minsize, $self->maxsize, $self->chipbin;
+				$self->minsize,
+				$self->maxsize,
+				$self->chipbin;
 		}
 		else {
 			$frag_command .= sprintf "--extend --extval %s --shiftval %0.0f --bin %s ",
-				$self->fragsize, $self->shiftsize, $self->chipbin;
+				$self->fragsize,
+				$self->shiftsize,
+				$self->chipbin;
 		}
 
 		# scaling for the fragment command only
 		if ( $self->control_scale ) {
-			$frag_command .=
-				sprintf "--scale %s ", join( ',', ( $self->control_scale ) );
+			$frag_command .= sprintf "--scale %s ", join( ',', ( $self->control_scale ) );
 		}
 		else {
 			# standard scaling
@@ -993,7 +1014,9 @@ sub generate_bam2wig_count_commands {
 		# base count command
 		my $count_command = sprintf
 "--qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --bw --bwapp %s ",
-			$self->mapq, $self->cpu, $self->wig2bw_app || 'wigToBigWig';
+			$self->mapq,
+			$self->cpu,
+			$self->wig2bw_app || 'wigToBigWig';
 
 		# paired or single options
 		if ( $self->paired ) {
@@ -1044,7 +1067,9 @@ sub generate_bam2wig_count_commands {
 			$command = sprintf
 				"%s --out %s %s --in %s ",
 				$self->bam2wig_app || 'bam2wig.pl',
-				$out, $command, $bams[$i];
+				$out,
+				$command,
+				$bams[$i];
 
 			# output log
 			my $log = $out;
@@ -1062,7 +1087,9 @@ sub generate_bam2wig_count_commands {
 		# base count command
 		my $count_command = sprintf
 "--qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --bw --bwapp %s ",
-			$self->mapq, $self->cpu, $self->wig2bw_app || 'wigToBigWig';
+			$self->mapq,
+			$self->cpu,
+			$self->wig2bw_app || 'wigToBigWig';
 
 		# general paired options, restrict size for all
 		if ( $self->paired ) {
@@ -1110,10 +1137,11 @@ sub generate_bam2wig_count_commands {
 
 			# regenerate command with file names
 			my $out = ( $self->control_count_bw )[$i];
-			$command = sprintf
-				"%s --out %s %s --in %s ",
+			$command = sprintf "%s --out %s %s --in %s ",
 				$self->bam2wig_app || 'bam2wig.pl',
-				$out, $command, $bams[$i];
+				$out,
+				$command,
+				$bams[$i];
 
 			# output log
 			my $log = $out;
@@ -1165,7 +1193,7 @@ sub generate_lambda_control_commands {
 			$self->meanbdg_app || 'generate_mean_bedGraph.pl',
 			$chipfile,
 			$self->lambda_bdg,
-			$self->genome || 0;   # value of zero will default to empirical
+			$self->genome || 0;    # value of zero will default to empirical
 		$name2done->{ $self->lambda_bdg } = 1;
 		return [ $command, $self->lambda_bdg, $log ];
 	}
@@ -1197,15 +1225,13 @@ sub generate_lambda_control_commands {
 	# go ahead and do this immediately because it's so simple
 	my $background_bdg;
 	unless ( $self->dryrun ) {
-		my $background =
-			sprintf "%.4f", ( 1_000_000 * $self->fragsize ) / $self->genome;
+		my $background = sprintf "%.4f", ( 1_000_000 * $self->fragsize ) / $self->genome;
 		printf " Calculating background for %s as $background\n", $self->job_name;
 		$background_bdg = $self->lambda_bdg;
 		$background_bdg =~ s/lambda_control/background/;
 		my $chromofile = $self->chromofile;
 		my $infh       = IO::File->new( $chromofile, 'r' )
-			or    # use the chromosome file as source
-			die "unable to open chromosome file '$chromofile'!\n";
+			or die "unable to open chromosome file '$chromofile'!\n";
 		my $outfh = IO::File->new( $background_bdg, "w" );
 
 		while ( my $line = $infh->getline ) {
@@ -1229,18 +1255,26 @@ sub generate_lambda_control_commands {
 		$command = sprintf
 "%s unionbedg -header -names dlocal slocal llocal background -i %s %s %s %s > %s 2> $log ",
 			$self->bedtools_app || 'bedtools',
-			$dfile, $sfile, $lfile, $background_bdg, $self->sld_control_file;
+			$dfile,
+			$sfile,
+			$lfile,
+			$background_bdg,
+			$self->sld_control_file;
 
 		# second step
 		$command .= sprintf
 "&& %s --in %s --zero --fast --bdg --notrack --score 3-6 --method max --out %s ",
 			$self->data2wig_app || 'data2wig.pl',
-			$self->sld_control_file, $self->lambda_bdg;
+			$self->sld_control_file,
+			$self->lambda_bdg;
 		$command .= " 2>&1 >> $log ";
 
 		# clean up
 		$command .= sprintf "&& rm %s %s %s %s ",
-			$sfile, $lfile, $background_bdg, $self->sld_control_file;
+			$sfile,
+			$lfile,
+			$background_bdg,
+			$self->sld_control_file;
 	}
 	elsif ( $sfile and not $lfile ) {
 
@@ -1248,18 +1282,24 @@ sub generate_lambda_control_commands {
 		$command = sprintf
 "%s unionbedg -header -names dlocal slocal background -i %s %s %s > %s 2> $log ",
 			$self->bedtools_app || 'bedtools',
-			$dfile, $sfile, $background_bdg, $self->sld_control_file;
+			$dfile,
+			$sfile,
+			$background_bdg,
+			$self->sld_control_file;
 
 		# second step
 		$command .= sprintf
 "&& %s --in %s --zero --fast --bdg --notrack --score 3-5 --method max --out %s ",
 			$self->data2wig_app || 'data2wig.pl',
-			$self->sld_control_file, $self->lambda_bdg;
+			$self->sld_control_file,
+			$self->lambda_bdg;
 		$command .= " 2>&1 >> $log ";
 
 		# clean up
-		$command .= sprintf "&& rm %s %s %s ", $sfile,
-			$background_bdg, $self->sld_control_file;
+		$command .= sprintf "&& rm %s %s %s ",
+			$sfile,
+			$background_bdg,
+			$self->sld_control_file;
 	}
 	elsif ( not $sfile and $lfile ) {
 
@@ -1267,18 +1307,24 @@ sub generate_lambda_control_commands {
 		$command = sprintf
 "%s unionbedg -header -names dlocal llocal background -i %s %s %s > %s 2> $log ",
 			$self->bedtools_app || 'bedtools',
-			$dfile, $lfile, $background_bdg, $self->sld_control_file;
+			$dfile,
+			$lfile,
+			$background_bdg,
+			$self->sld_control_file;
 
 		# second step
 		$command .= sprintf
 "&& %s --in %s --zero --fast --bdg --notrack --score 3-5 --method max --out %s ",
 			$self->data2wig_app || 'data2wig.pl',
-			$self->sld_control_file, $self->lambda_bdg;
+			$self->sld_control_file,
+			$self->lambda_bdg;
 		$command .= " 2>&1 >> $log ";
 
 		# clean up
-		$command .= sprintf "&& rm %s %s %s ", $lfile,
-			$background_bdg, $self->sld_control_file;
+		$command .= sprintf "&& rm %s %s %s ",
+			$lfile,
+			$background_bdg,
+			$self->sld_control_file;
 	}
 	else {
 		$self->crash(
@@ -1303,10 +1349,10 @@ sub convert_bw_to_bdg {
 		# or somebody hasn't cleaned up somehow....
 		my $log = $self->qvalue_bdg;
 		$log =~ s/bdg$/bw2bdg.out.txt/;
-		my $command = sprintf
-			"%s %s %s 2>> $log",
+		my $command = sprintf "%s %s %s 2>> $log",
 			$self->bw2bdg_app || 'bigWigToBedGraph',
-			$self->qvalue_bw, $self->qvalue_bdg;
+			$self->qvalue_bw,
+			$self->qvalue_bdg;
 		push @commands, [ $command, $self->qvalue_bdg, $log ];
 
 		# there should not be any reason to continue in this situation
@@ -1342,10 +1388,10 @@ sub convert_bw_to_bdg {
 		# or if we're in dry run mode
 		my $log = $self->lambda_bdg;
 		$log =~ s/bdg$/bw2bdg.out.txt/;
-		my $command = sprintf
-			"%s %s %s 2>> $log",
+		my $command = sprintf "%s %s %s 2>> $log",
 			$self->bw2bdg_app || 'bigWigToBedGraph',
-			$self->lambda_bw, $self->lambda_bdg;
+			$self->lambda_bw,
+			$self->lambda_bdg;
 		push @commands, [ $command, $self->lambda_bdg, $log ];
 		$name2done->{ $self->lambda_bdg } = 1;    # finished
 	}
@@ -1360,15 +1406,19 @@ sub generate_enrichment_commands {
 	my $chip   = $self->chip_bdg   || undef;
 	my $lambda = $self->lambda_bdg || undef;
 	unless ( $self->dryrun ) {
-		$self->crash("no ChIP fragment file $chip!\n") if ( not $chip or not -e $chip );
-		$self->crash("no control lambda fragment file $lambda!\n")
-			if ( not $lambda or not -e $lambda );
+		if ( not $chip or not -e $chip ) {
+			$self->crash("no ChIP fragment file $chip!\n");
+		}
+		if ( not $lambda or not -e $lambda ) {
+			$self->crash("no control lambda fragment file $lambda!\n");
+		}
 	}
 
 	my $command = sprintf
 		"%s bdgcmp -t %s -c %s -m qpois FE ",
 		$self->macs_app || 'macs2',
-		$chip, $lambda;
+		$chip,
+		$lambda;
 	if ( defined $self->targetdep ) {
 		$command .= sprintf "-S %d ", $self->targetdep;
 	}
@@ -1817,7 +1867,10 @@ sub generate_bdg2bw_commands {
 			my $command = sprintf
 				"%s %s %s %s 2>&1 > $log && rm %s",
 				$self->wig2bw_app || 'wigToBigWig',
-				$self->chip_bdg, $self->chromofile, $self->chip_bw, $self->chip_bdg;
+				$self->chip_bdg,
+				$self->chromofile,
+				$self->chip_bw,
+				$self->chip_bdg;
 			push @commands, [ $command, $self->chip_bw, $log ];
 		}
 	}
@@ -1838,7 +1891,9 @@ sub generate_bdg2bw_commands {
 			my $command = sprintf
 				"%s %s %s %s 2>&1 > $log && rm %s",
 				$self->wig2bw_app || 'wigToBigWig',
-				$self->lambda_bdg, $self->chromofile, $self->lambda_bw,
+				$self->lambda_bdg,
+				$self->chromofile,
+				$self->lambda_bw,
 				$self->lambda_bdg;
 			push @commands, [ $command, $self->lambda_bw, $log ];
 
@@ -1849,7 +1904,9 @@ sub generate_bdg2bw_commands {
 				$command = sprintf
 					"%s %s %s %s 2>&1 > $log && rm %s",
 					$self->wig2bw_app || 'wigToBigWig',
-					$self->d_control_bdg, $self->chromofile, $self->d_control_bw,
+					$self->d_control_bdg,
+					$self->chromofile,
+					$self->d_control_bw,
 					$self->d_control_bdg;
 				push @commands, [ $command, $self->d_control_bw, $log ];
 			}
@@ -1873,7 +1930,10 @@ sub generate_bdg2bw_commands {
 			my $command = sprintf
 				"%s %s %s %s 2>&1 > $log ",
 				$self->wig2bw_app || 'wigToBigWig',
-				$self->qvalue_bdg, $self->chromofile, $self->qvalue_bw;
+				$self->qvalue_bdg,
+				$self->chromofile,
+				$self->qvalue_bw;
+
 			unless ( $self->savebdg ) {
 				$command .= sprintf " && rm %s", $self->qvalue_bdg;
 			}
@@ -1888,8 +1948,10 @@ sub generate_bdg2bw_commands {
 		my $command = sprintf
 			"%s --in %s --log 2 --place 4 --w2bw %s --chromo %s --out %s 2>&1 > $log ",
 			$self->manwig_app || 'manipulate_wig.pl',
-			$self->fe_bdg,     $self->wig2bw_app || 'wigToBigWig',
-			$self->chromofile, $self->logfe_bw;
+			$self->fe_bdg,
+			$self->wig2bw_app || 'wigToBigWig',
+			$self->chromofile,
+			$self->logfe_bw;
 		$command .= sprintf " && rm %s", $self->fe_bdg;
 		push @commands, [ $command, $self->logfe_bw, $log ];
 	}
