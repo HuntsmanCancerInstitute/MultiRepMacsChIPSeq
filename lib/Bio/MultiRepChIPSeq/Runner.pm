@@ -1148,7 +1148,7 @@ sub run_bdgcmp {
 
 sub run_call_peaks {
 	my $self = shift;
-	print "\n\n======= Call peaks\n";
+	print "\n\n======= Calling peaks\n";
 	if ( $self->{progress}{callpeak} ) {
 		print "\nStep is completed\n";
 		return;
@@ -1165,11 +1165,9 @@ sub run_call_peaks {
 	# generate commands based on whether we're doing joint or independent calls
 	my @commands;
 	foreach my $Job (@jobs) {
+		push @commands, $Job->generate_peakcall_commands;
 		if ( $self->independent ) {
 			push @commands, $Job->generate_independent_peakcall_commands;
-		}
-		else {
-			push @commands, $Job->generate_peakcall_commands;
 		}
 	}
 	$self->execute_commands( \@commands ) if @commands;
