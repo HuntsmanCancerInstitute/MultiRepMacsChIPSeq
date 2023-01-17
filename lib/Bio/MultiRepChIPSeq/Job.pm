@@ -1723,55 +1723,82 @@ sub generate_peak_update_commands {
 
 sub generate_independent_merge_peak_commands {
 	my $self = shift;
-	unless ( $self->peak2bed_app =~ /\w+/ or $self->dryrun ) {
-		croak "no peak2bed.pl application in path!\n";
+	unless ( $self->intersect_app =~ /\w+/ or $self->dryrun ) {
+		croak "no intersect_peaks.pl application in path!\n";
 	}
 	unless ( $self->bedtools_app =~ /\w+/ or $self->dryrun ) {
 		croak "no bedtools application in path!\n";
-	}
-	unless ( $self->intersect_app =~ /\w+/ or $self->dryrun ) {
-		croak "no intersect_peaks.pl application in path!\n";
 	}
 
 	# generate commands
 	my @commands;
 	if ( scalar( $self->rep_peaks ) == 1 ) {
 
-		# only one replicate peak? nothing really to merge or clean
-		# just point clean files to the existing files
-		my $file = ( $self->rep_peaks )[0];
+		# only one replicate peak? nothing really to merge
+		# to make it consistent with others, we will convert it to a simple bed file
+		# prepare command, but don't commit it yet
+		my $file    = ( $self->rep_peaks )[0];
+		my $command = sprintf "%s --in %s --name %s --nosummit --out %s ",
+			$self->peak2bed_app || 'peak2bed.pl',
+			$file,
+			$self->job_name,
+			$self->repmerge_peak;
+		my $log = $file;
+		$log =~ s/narrowPeak/peak2bed.out.txt/;
+		$command .= " 2>&1 > $log";
+
 		if ( $self->dryrun ) {
-			$self->clean_peak($file);
+			push @commands, [ $command, $self->repmerge_peak, $log ];
 		}
 		else {
-			my $count = $self->_count_lines($file);
+			my $count = $self->count_file_lines($file);
 			printf "  %s narrow peaks were called for %s replicate %s\n",
 				format_with_commas($count), $self->job_name,
 				( $self->chip_rep_names )[0];
 			if ($count) {
-				$self->clean_peak($file);
-			}
-		}
-		if ( $self->broad ) {
-			$file = ( $self->rep_gappeaks )[0];
-			if ( $self->dryrun ) {
-				$self->clean_gappeak($file);
+				push @commands, [ $command, $self->repmerge_peak, $log ];
 			}
 			else {
-				my $count = $self->_count_lines($file);
+				# do nothing? there won't be an output file for this sample Job
+			}
+		}
+
+		# broad peak
+		if ( $self->broad ) {
+
+			# prepare command, but don't commit it yet
+			$file    = ( $self->rep_gappeaks )[0];
+			$command = sprintf "%s --in %s --name %s --out %s ",
+				$self->peak2bed_app || 'peak2bed.pl',
+				$file,
+				$self->job_name,
+				$self->repmerge_gappeak;
+			$log = $file;
+			$log =~ s/gappedPeak/peak2bed.out.txt/;
+			$command .= " 2>&1 > $log";
+
+			if ( $self->dryrun ) {
+				push @commands, [ $command, $self->repmerge_gappeak, $log ];
+			}
+			else {
+				my $count = $self->count_file_lines($file);
 				printf "  %s gapped peaks were called for %s replicate %s\n",
 					format_with_commas($count), $self->job_name,
 					( $self->chip_rep_names )[0];
 				if ($count) {
-					$self->clean_gappeak($file);
+					push @commands, [ $command, $self->repmerge_gappeak, $log ];
+				}
+				else {
+					# nothing to do
 				}
 			}
 		}
-		return;
 	}
 	elsif ( scalar( $self->rep_peaks ) > 1 ) {
 
 		# more than one replicate peak, merge them
+		# count the lines in each file, then merge non-empty files
+		# narrow peaks first
 		my @files;
 		my @peaks = $self->rep_peaks;
 		for my $i ( 0 .. $#peaks ) {
@@ -1779,7 +1806,7 @@ sub generate_independent_merge_peak_commands {
 				push @files, $peaks[$i];
 			}
 			else {
-				my $count = $self->_count_lines( $peaks[$i] );
+				my $count = $self->count_file_lines( $peaks[$i] );
 				printf "  %s narrow peaks were called for %s replicate %s\n",
 					format_with_commas($count), $self->job_name,
 					( $self->chip_rep_names )[$i];
@@ -1788,28 +1815,46 @@ sub generate_independent_merge_peak_commands {
 				}
 			}
 		}
-		if ( scalar @files == 0 ) {
+		if ( scalar @files == 1 ) {
 
-			# no replicate called peaks, not much to do then
-		}
-		elsif ( scalar @files == 1 ) {
+			# only one replicate called peaks, use it
+			# but only if there isn't a minimum number of overlap peaks
+			if ( $self->minpeakover and $self->minpeakover > 1 ) {
 
-			# only one replicate called peaks, use it as the de facto sample peak
-			$self->clean_peak( $files[0] );
+				# can't do anything here
+			}
+			else {
+				my $command = sprintf "%s --in %s --name %s --nosummit --out %s ",
+					$self->peak2bed_app || 'peak2bed.pl',
+					$files[0],
+					$self->job_name,
+					$self->repmerge_peak;
+				my $log = $files[0];
+				$log =~ s/narrowPeak/peak2bed.out.txt/;
+				$command .= " 2>&1 > $log";
+				push @commands, [ $command, $self->repmerge_peak, $log ];
+			}
 		}
-		else {
+		elsif ( scalar @files > 1 ) {
+			my $min = $self->minpeakover;
+			unless ($min) {
+				$min = scalar(@files) - 1;
+			}
+			my $out = $self->repmerge_peak;
+			$out = s/\.bed//;
 			my $command = sprintf
-				"%s --name %s --out %s --bed %s --genome %s %s ",
+				"%s --name %s --out %s --min %s --gap %s --bed %s --genome %s %s ",
 				$self->intersect_app || 'intersect_peaks.pl',
 				$self->job_name,
-				$self->clean_peak,
+				$out,
+				$min,
+				$self->fragsize,
 				$self->bedtools_app || 'bedtools',
 				$self->chromofile,
 				join( q( ), @files );
-			my $log = $self->clean_peak;
-			$log =~ s/bed/intersect.out.txt/;
+			my $log = sprintf "%s.intersect.out.txt", $out;
 			$command .= " 2>&1 > $log ";
-			push @commands, [ $command, $self->clean_peak, $log ];
+			push @commands, [ $command, $self->repmerge_peak, $log ];
 		}
 
 		# broad gapped peaks
@@ -1821,44 +1866,60 @@ sub generate_independent_merge_peak_commands {
 					push @files, $peaks[$i];
 				}
 				else {
-					my $count = $self->_count_lines( $peaks[$i] );
+					my $count = $self->count_file_lines( $peaks[$i] );
 					printf "  %s gapped peaks were called for %s replicate %s\n",
-						format_with_commas($count), $self->job_name,
+						format_with_commas($count),
+						$self->job_name,
 						( $self->chip_rep_names )[$i];
 					if ($count) {
 						push @files, $peaks[$i];
 					}
 				}
 			}
-			if ( scalar @files == 0 ) {
+			if ( scalar @files == 1 ) {
 
-				# only one replicate called peaks, not much to do then
-			}
-			elsif ( scalar @files == 1 ) {
+				# only one replicate called peaks, use it
+				# but only if there isn't a minimum number of overlap peaks
+				if ( $self->minpeakover and $self->minpeakover > 1 ) {
 
-				# only one replicate called peaks, use it as the de facto sample peak
-				$self->clean_gappeak( $files[0] );
+					# can't do anything here
+				}
+				else {
+					my $command = sprintf "%s --in %s --name %s --out %s ",
+						$self->peak2bed_app || 'peak2bed.pl',
+						$files[0],
+						$self->job_name,
+						$self->repmerge_gappeak;
+					my $log = $files[0];
+					$log =~ s/gappedPeak/peak2bed.out.txt/;
+					$command .= " 2>&1 > $log";
+					push @commands, [ $command, $self->repmerge_gappeak, $log ];
+				}
 			}
-			else {
+			elsif ( scalar @files > 1 ) {
+				my $min = $self->minpeakover;
+				unless ($min) {
+					$min = scalar(@files) - 1;
+				}
+				my $out = $self->repmerge_gappeak;
+				$out = s/\.bed//;
 				my $command = sprintf
-					"%s --name %s --out %s --bed %s --genome %s %s ",
+					"%s --name %s --out %s --min %s --gap --bed %s --genome %s %s ",
 					$self->intersect_app || 'intersect_peaks.pl',
 					$self->job_name,
-					$self->clean_gappeak,
+					$out,
+					$min,
+					$self->peaksize,
 					$self->bedtools_app || 'bedtools',
 					$self->chromofile,
 					join( q( ), @files );
-				my $log = $self->clean_gappeak;
-				$log =~ s/bed/intersect.out.txt/;
+				my $log = $out . '.intersect.out.txt';
 				$command .= " 2>&1 > $log ";
-				push @commands, [ $command, $self->clean_gappeak, $log ];
+				push @commands, [ $command, $self->repmerge_gappeak, $log ];
 			}
 		}
-		return @commands;
 	}
-	else {
-		$self->crash("no replicate peaks for merging!?");
-	}
+	return @commands;
 }
 
 sub generate_bdg2bw_commands {
@@ -1982,8 +2043,9 @@ sub generate_bdg2bw_commands {
 	return @commands;
 }
 
-sub _count_lines {
+sub count_file_lines {
 	my ( $self, $file ) = @_;
+	return 0 unless $file;
 	return 0 unless ( -e $file );
 	return 0 unless ( -s _ );
 	my $fh = IO::File->new($file) or return 0;
@@ -2147,7 +2209,7 @@ The commands can be executed by the L<Bio::MultiRepChIPSeq::Runner> object.
 
 =item generate_independent_peakcall_commands
 
-=item generate_cleanpeak_commands
+=item generate_peak_update_commands
 
 =item generate_independent_merge_peak_commands
 
