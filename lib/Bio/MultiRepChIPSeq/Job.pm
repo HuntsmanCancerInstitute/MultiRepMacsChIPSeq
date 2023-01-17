@@ -1452,6 +1452,7 @@ sub generate_peakcall_commands {
 	my $log = $self->repmean_peak;
 	$log =~ s/narrowPeak$/peakcall.out.txt/x;
 	$command .= " 2> $log";
+
 	if ( $self->broad ) {
 
 		# sneak this in as an extra command
@@ -1636,12 +1637,17 @@ sub generate_independent_peakcall_commands {
 }
 
 sub generate_cleanpeak_commands {
+	confess
+"generate_cleanpeak_commands() is deprecated. See generate_peak_update_commands()";
+}
+
+sub generate_peak_update_commands {
 	my $self = shift;
-	unless ( $self->peak2bed_app =~ /\w+/ or $self->dryrun ) {
-		croak "no peak2bed.pl application in path!\n";
+	unless ( $self->updatepeak_app =~ /\w+/ or $self->dryrun ) {
+		croak "no update_peak_file.pl application in path!\n";
 	}
 
-	unless ( defined $self->peak ) {
+	unless ( defined $self->repmean_peak ) {
 		$self->crash("no peak file defined!");
 	}
 
@@ -1650,64 +1656,69 @@ sub generate_cleanpeak_commands {
 	my $gap_count    = 0;
 	if ( not $self->dryrun ) {
 		printf "\n %s Peak counts\n", $self->job_name;
-		$narrow_count = $self->_count_lines( $self->peak );
+		$narrow_count = $self->count_file_lines( $self->repmean_peak );
 		printf "  %s narrow peaks were called.\n", format_with_commas($narrow_count);
 		if ( $self->broad ) {
-			$gap_count = $self->_count_lines( $self->gappeak );
+			$gap_count = $self->count_file_lines( $self->repmean_gappeak );
 			printf "  %s gapped peaks were called.\n", format_with_commas($gap_count);
 		}
 	}
 
 	# generate commands
-	my $log = $self->clean_peak;
-	$log =~ s/bed/cleanpeak.out.txt/;
-	if ( $self->dryrun and not $self->broad ) {
-		my $command = sprintf "%s %s 2>&1 > $log && rm %s",
-			$self->peak2bed_app || 'peak2bed.pl', $self->peak, $self->peak;
-		return [ $command, $self->clean_peak, $log ];
+	my @commands;
+	my $update_options = sprintf "--enrich %s --qvalue %s --norm ",
+		$self->logfe_bw, $self->qvalue_bw;
+	if ( $self->dryrun ) {
+		my $log = $self->repmean_peak;
+		$log =~ s/narrowPeak/update_peak.out.txt/;
+		my $command = sprintf "%s --in %s %s --name %s --summit 2>&1 > $log",
+			$self->updatepeak_app || 'update_peak_file.pl',
+			$self->repmean_peak,
+			$update_options,
+			$self->job_name;
+		push @commands, [ $command, q(), $log ];
+
+		if ( $self->broad ) {
+			$log     = $self->repmean_gappeak . '.update_peak.out.txt';
+			$command = sprintf "%s %s %s --name %s_broad 2>&1 > $log",
+				$self->updatepeak_app || 'update_peak_file.pl',
+				$self->repmean_gappeak,
+				$update_options,
+				$self->job_name;
+			push @commands, [ $command, q(), $log ];
+		}
 	}
-	elsif ( $self->dryrun and $self->broad ) {
-		my $command = sprintf "%s %s %s 2>&1 > $log && rm %s %s",
-			$self->peak2bed_app || 'peak2bed.pl', $self->peak, $self->gappeak,
-			$self->peak, $self->gappeak;
-		return [ $command, $self->clean_peak, $log ];
+	if ($narrow_count) {
+		my $log = $self->repmean_peak;
+		$log =~ s/narrowPeak/update_peak.out.txt/;
+		my $command = sprintf "%s --in %s %s --name %s --summit 2>&1 > $log",
+			$self->updatepeak_app || 'update_peak_file.pl',
+			$self->repmean_peak,
+			$update_options,
+			$self->job_name;
+		my $summit = $self->repmean_peak;
+		$summit =~ s/narrowPeak/.summit.bed/;
+		push @commands, [ $command, $summit, $log ];
 	}
-	elsif ( $narrow_count and $gap_count ) {
-		my $command = sprintf "%s %s %s 2>&1 > $log && rm %s %s",
-			$self->peak2bed_app || 'peak2bed.pl', $self->peak, $self->gappeak,
-			$self->peak, $self->gappeak;
-		return [ $command, $self->clean_peak, $log ];
+	elsif ( not $narrow_count and not $self->dryrun ) {
+		my $command = "rm %s ", $self->repmean_peak;
+		push @commands, [ $command, q(), q() ];
 	}
-	elsif ( $narrow_count and not $gap_count and $self->broad ) {
-		my $command = sprintf "%s %s 2>&1 > $log && rm %s %s",
-			$self->peak2bed_app || 'peak2bed.pl', $self->peak, $self->peak,
-			$self->gappeak, $self->clean_gappeak;
-		return [ $command, $self->clean_peak, $log ];
+	if ($gap_count) {
+		my $log     = $self->repmean_gappeak . '.update_peak.out.txt';
+		my $command = sprintf "%s %s %s --name %s_broad 2>&1 > $log",
+			$self->updatepeak_app || 'update_peak_file.pl',
+			$self->repmean_gappeak,
+			$update_options,
+			$self->job_name;
+		push @commands, [ $command, q(), $log ];
 	}
-	elsif ( $narrow_count and not $gap_count and not $self->broad ) {
-		my $command = sprintf "%s %s 2>&1 > $log && rm %s",
-			$self->peak2bed_app || 'peak2bed.pl', $self->peak, $self->peak;
-		return [ $command, $self->clean_peak, $log ];
+	elsif ( $self->broad and not $gap_count and not $self->dryrun ) {
+		my $command = "rm %s ", $self->repmean_gappeak;
+		push @commands, [ $command, q(), q() ];
 	}
-	elsif ( not $narrow_count and $gap_count ) {
-		my $command = sprintf "%s %s 2>&1 > $log && rm %s %s",
-			$self->peak2bed_app || 'peak2bed.pl', $self->gappeak, $self->gappeak,
-			$self->peak, $self->clean_peak;
-		return [ $command, $self->clean_gappeak, $log ];
-	}
-	elsif ( not $narrow_count and not $gap_count and $self->broad ) {
-		my $command = sprintf "rm %s %s",
-			$self->peak, $self->gappeak, $self->clean_peak, $self->clean_gappeak;
-		return [ $command, q(), q() ];
-	}
-	elsif ( not $narrow_count and not $gap_count and not $self->broad ) {
-		my $command = sprintf "rm %s", $self->peak, $self->clean_peak;
-		return [ $command, q(), q() ];
-	}
-	else {
-		$self->crash(
-			"Programming error: $narrow_count narrow peaks and $gap_count gap peaks!!??");
-	}
+
+	return @commands;
 }
 
 sub generate_independent_merge_peak_commands {
