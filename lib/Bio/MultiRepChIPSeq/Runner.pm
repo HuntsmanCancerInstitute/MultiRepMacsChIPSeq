@@ -2180,18 +2180,20 @@ sub run_cleanup {
 			}
 		}
 	}
-	if ( $self->broad and $self->independent ) {
-		foreach my $Job ( $self->list_jobs ) {
-			foreach my $f ( $Job->rep_gappeaks ) {
-				my $b = $f;
-				$b =~ s/gapped/broad/;
-				unlink $b;
-			}
-		}
+
+	# 	if ( $self->broad and $self->independent ) {
+	# 		foreach my $Job ( $self->list_jobs ) {
+	# 			foreach my $f ( $Job->rep_gappeaks ) {
+	# 				my $b = $f;
+	# 				$b =~ s/gapped/broad/;
+	# 				unlink $b;
+	# 			}
+	# 		}
+	# 	}
+	if ( $self->chromofile eq File::Spec->catfile( $self->dir, "chrom_sizes.temp.txt" ) )
+	{
+		unlink $self->chromofile;
 	}
-	unlink $self->chromofile
-		if $self->chromofile eq File::Spec->catfile( $self->dir, "chrom_sizes.temp.txt" )
-		;    # calculated format
 	unlink $self->{progress_file};
 }
 
@@ -2250,20 +2252,18 @@ sub run_organize {
 	}
 
 	# peak files
+	foreach ( glob( File::Spec->catfile( $self->dir, '*.narrowPeak' ) ) ) {
+		move( $_, $peakdir );
+	}
 	foreach ( glob( File::Spec->catfile( $self->dir, '*summit*.bed' ) ) ) {
 		move( $_, $sumitdir );
 	}
 	foreach ( glob( File::Spec->catfile( $self->dir, '*.bed' ) ) ) {
 		move( $_, $peakdir );
 	}
-	if ( $self->independent ) {
-		foreach ( glob( File::Spec->catfile( $self->dir, '*.narrowPeak' ) ) ) {
+	if ( $self->broad ) {
+		foreach ( glob( File::Spec->catfile( $self->dir, '*.gappedPeak' ) ) ) {
 			move( $_, $peakdir );
-		}
-		if ( $self->broad ) {
-			foreach ( glob( File::Spec->catfile( $self->dir, '*.gappedPeak' ) ) ) {
-				move( $_, $peakdir );
-			}
 		}
 	}
 
@@ -2379,7 +2379,7 @@ required therein and passes them directly to respective new() method.
 
 =item run_call_peaks - calls peaks with MACS2
 
-=item run_clean_peaks - convert narrowPeak to bed files
+=item run_update_peaks - update missing score values in peak files
 
 =item run_bdg_conversion - convert bedGraph files to bigWig
 
