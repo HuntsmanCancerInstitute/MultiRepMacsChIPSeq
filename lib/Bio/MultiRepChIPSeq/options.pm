@@ -45,6 +45,7 @@ sub init_options {
 		broadcut    => 0.5,
 		broadgap    => undef,
 		gaplink     => undef,
+		minpeakover => undef,
 		lambda      => 1,
 		independent => 0,
 		cpu         => 4,
@@ -79,6 +80,7 @@ sub init_options {
 		meanbdg     => sprintf( "%s", which 'generate_mean_bedGraph.pl' ),
 		intersect   => sprintf( "%s", which 'intersect_peaks.pl' ),
 		peak2bed    => sprintf( "%s", which 'peak2bed.pl' ),
+		updatepeak  => sprintf( "%s", which 'update_peak_file.pl' ),
 		combrep     => sprintf( "%s", which 'combine_replicate_data.pl' ),
 		plotpeak    => sprintf( "%s", which 'plot_peak_figures.R' ),
 		rscript     => sprintf( "%s", which 'Rscript' ),
@@ -310,6 +312,12 @@ sub gaplink {
 	return $self->{opts}{gaplink};
 }
 
+sub minpeakover {
+	my $self = shift;
+	$self->{opts}{minpeakover} = shift if @_;
+	return $self->{opts}{minpeakover};
+}
+
 sub lambda {
 	my $self = shift;
 	$self->{opts}{lambda} = shift if @_;
@@ -514,6 +522,12 @@ sub intersect_app {
 	return $self->{opts}{intersect};
 }
 
+sub updatepeak_app {
+	my $self = shift;
+	$self->{opts}{updatepeak} = shift if @_;
+	return $self->{opts}{updatepeak};
+}
+
 sub peak2bed_app {
 	my $self = shift;
 	$self->{opts}{peak2bed} = shift if @_;
@@ -657,6 +671,8 @@ Export the hash as a reference.
 
 =item gaplink
 
+=item minpeakover
+
 =item lambda
 
 =item independent
@@ -726,6 +742,8 @@ Export the hash as a reference.
 =item intersect_app
 
 =item peak2bed_app
+
+=item updatepeak_app
 
 =item combrep_app
 
