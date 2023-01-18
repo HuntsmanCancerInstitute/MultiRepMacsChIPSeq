@@ -31,15 +31,7 @@ sub new {
 		repmean_merge_base  => undef,
 		repmerge_merge_base => undef,
 	};
-	if ( $self->independent ) {
-		$self->repmean_merge_base(
-			File::Spec->catfile( $self->dir, $self->out . '.rep_mean' ) );
-		$self->repmerge_merge_base(
-			File::Spec->catfile( $self->dir, $self->out . '.rep_merge' ) );
-	}
-	else {
-		$self->repmean_merge_base( File::Spec->catfile( $self->dir, $self->out ) );
-	}
+
 	return bless $self, $class;
 }
 
@@ -74,6 +66,18 @@ sub add_job {
 	else {
 		confess "failed to create a Job object!";
 	}
+
+	# initialize peak_base values automatically, since they're dependent on user options
+	if ( $self->independent ) {
+		$self->repmean_merge_base(
+			File::Spec->catfile( $self->dir, $self->out . '.rep_mean' ) );
+		$self->repmerge_merge_base(
+			File::Spec->catfile( $self->dir, $self->out . '.rep_merge' ) );
+	}
+	else {
+		$self->repmean_merge_base( File::Spec->catfile( $self->dir, $self->out ) );
+	}
+
 	return $Job;
 }
 
