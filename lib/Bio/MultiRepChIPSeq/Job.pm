@@ -1049,7 +1049,7 @@ sub generate_bam2wig_count_commands {
 				}
 				else {
 					# we scale the count back up to target depth
-					$command .= sprintf "--rpm --scale %d ", $self->targetdep;
+					$command .= sprintf "--rpm --scale %s ", $self->targetdep;
 				}
 				if ( $self->chr_normfactor ) {
 
@@ -1122,7 +1122,7 @@ sub generate_bam2wig_count_commands {
 				}
 				else {
 					# we scale the count back up to target depth
-					$command .= sprintf "--rpm --scale %d ", $self->targetdep;
+					$command .= sprintf "--rpm --scale %s ", $self->targetdep;
 				}
 				if ( $self->chr_normfactor ) {
 
@@ -1418,7 +1418,7 @@ sub generate_enrichment_commands {
 		$chip,
 		$lambda;
 	if ( defined $self->targetdep ) {
-		$command .= sprintf "-S %d ", $self->targetdep;
+		$command .= sprintf "-S %s ", $self->targetdep;
 	}
 	if ( not $self->lambda ) {
 		$command .= "-p 1 ";    # add a pseudo count of 1 when doing explicit comparisons

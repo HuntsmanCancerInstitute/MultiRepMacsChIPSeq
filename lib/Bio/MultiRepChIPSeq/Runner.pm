@@ -1013,7 +1013,7 @@ sub run_bam_fragment_conversion {
 				my $count = $1;
 				unless ( exists $bam2count{ $files[0] } ) {
 					$count =~ s/,//g;    # remove commas
-					$bam2count{ $files[0] } = sprintf "%.1f", $count / 1_000_000;
+					$bam2count{ $files[0] } = sprintf "%.3f", $count / 1_000_000;
 				}
 			}
 			elsif ( $line =~
@@ -1025,7 +1025,7 @@ sub run_bam_fragment_conversion {
 				my $count = $2;
 				unless ( exists $bam2count{$file} ) {
 					$count =~ s/,//g;    # remove commas
-					$bam2count{$file} = sprintf "%.1f", $count / 1_000_000;
+					$bam2count{$file} = sprintf "%.3f", $count / 1_000_000;
 				}
 			}
 		}
@@ -1039,7 +1039,7 @@ sub run_bam_fragment_conversion {
 	}
 
 	# Calculate minimum target depth to use
-	my $targetdep = int( min( values %bam2count ) ) || 1;    # just in case!
+	my $targetdep = sprintf "%.3f", min( values %bam2count );
 	if ( defined $self->targetdep ) {
 		printf
 "\n WARNING!!! Calculated target sequence depth of %d Million is overridden by manually set value %d\n",
@@ -1047,7 +1047,7 @@ sub run_bam_fragment_conversion {
 	}
 	else {
 		$self->targetdep($targetdep);
-		printf "\n Setting target sequence depth to %d Million\n", $self->targetdep;
+		printf "\n Setting target sequence depth to %s Million\n", $self->targetdep;
 	}
 }
 
