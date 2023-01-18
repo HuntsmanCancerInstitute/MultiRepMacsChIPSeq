@@ -121,8 +121,8 @@ sub new {
 			if ( $self->independent ) {
 
 				# add peak and coverage files
-				$self->rep_peaks( $base . '.narrowPeak' );
-				$self->rep_gappeaks( $base . '.gappedPeak' );
+				$self->rep_peaks( $base . '_peaks.narrowPeak' );
+				$self->rep_gappeaks( $base . '_peaks.gappedPeak' );
 				$self->chip_ind_bw("$base.fragment.bw");
 			}
 		}
@@ -1610,7 +1610,7 @@ sub generate_independent_peakcall_commands {
 				( $self->chip_rep_names )[$i];
 			my $out = ( $self->rep_peaks )[$i];
 			my $log = $out;
-			$log =~ s/_peaks \.narrowPeak $/.narrowpeakcall.out.txt/x;
+			$log =~ s/narrowPeak$/.narrowpeakcall.out.txt/x;
 			$command .= "2> $log ";
 			push @commands, [ $command, $out, $log ];
 
@@ -1625,7 +1625,7 @@ sub generate_independent_peakcall_commands {
 					( $self->chip_rep_names )[$i];
 				$out = ( $self->rep_gappeaks )[$i];
 				$log = $out;
-				$log =~ s/_peaks \.gappedPeak $/.broadcall.out.txt/x;
+				$log =~ s/gappedPeak$/.broadcall.out.txt/x;
 				$command .= "2> $log ";
 				push @commands, [ $command, $out, $log ];
 			}
@@ -1680,7 +1680,7 @@ sub generate_peak_update_commands {
 
 		if ( $self->broad ) {
 			$log     = $self->repmean_gappeak . '.update_peak.out.txt';
-			$command = sprintf "%s %s %s --name %s_broad 2>&1 > $log",
+			$command = sprintf "%s --in %s %s --name %s_broad 2>&1 > $log",
 				$self->updatepeak_app || 'update_peak_file.pl',
 				$self->repmean_gappeak,
 				$update_options,
@@ -1697,24 +1697,26 @@ sub generate_peak_update_commands {
 			$update_options,
 			$self->job_name;
 		my $summit = $self->repmean_peak;
-		$summit =~ s/narrowPeak/.summit.bed/;
+		$summit =~ s/narrowPeak/summit.bed/;
 		push @commands, [ $command, $summit, $log ];
 	}
 	elsif ( not $narrow_count and not $self->dryrun ) {
-		my $command = "rm %s ", $self->repmean_peak;
+		my $command = sprintf "rm %s ", $self->repmean_peak;
 		push @commands, [ $command, q(), q() ];
 	}
 	if ($gap_count) {
 		my $log     = $self->repmean_gappeak . '.update_peak.out.txt';
-		my $command = sprintf "%s %s %s --name %s_broad 2>&1 > $log",
+		my $command = sprintf "%s --in %s %s --name %s_broad 2>&1 > $log",
 			$self->updatepeak_app || 'update_peak_file.pl',
 			$self->repmean_gappeak,
 			$update_options,
 			$self->job_name;
-		push @commands, [ $command, q(), $log ];
+		push @commands, [ $command, $log, $log ];
+		# since this command updates a pre-existing file without a new output file
+		# we simply fake an output by indicating the stdout log file as the output
 	}
 	elsif ( $self->broad and not $gap_count and not $self->dryrun ) {
-		my $command = "rm %s ", $self->repmean_gappeak;
+		my $command = sprintf "rm %s ", $self->repmean_gappeak;
 		push @commands, [ $command, q(), q() ];
 	}
 
@@ -1738,7 +1740,7 @@ sub generate_independent_merge_peak_commands {
 		# to make it consistent with others, we will convert it to a simple bed file
 		# prepare command, but don't commit it yet
 		my $file    = ( $self->rep_peaks )[0];
-		my $command = sprintf "%s --in %s --name %s --nosummit --out %s ",
+		my $command = sprintf "%s --in %s --name %s --nosummit --norm --out %s ",
 			$self->peak2bed_app || 'peak2bed.pl',
 			$file,
 			$self->job_name,
@@ -1768,7 +1770,7 @@ sub generate_independent_merge_peak_commands {
 
 			# prepare command, but don't commit it yet
 			$file    = ( $self->rep_gappeaks )[0];
-			$command = sprintf "%s --in %s --name %s --out %s ",
+			$command = sprintf "%s --in %s --name %s --norm --out %s ",
 				$self->peak2bed_app || 'peak2bed.pl',
 				$file,
 				$self->job_name,
@@ -1824,7 +1826,7 @@ sub generate_independent_merge_peak_commands {
 				# can't do anything here
 			}
 			else {
-				my $command = sprintf "%s --in %s --name %s --nosummit --out %s ",
+				my $command = sprintf "%s --in %s --name %s --nosummit --norm --out %s ",
 					$self->peak2bed_app || 'peak2bed.pl',
 					$files[0],
 					$self->job_name,
@@ -1841,7 +1843,7 @@ sub generate_independent_merge_peak_commands {
 				$min = scalar(@files) - 1;
 			}
 			my $out = $self->repmerge_peak;
-			$out = s/\.bed//;
+			$out =~ s/\.bed//;
 			my $command = sprintf
 				"%s --name %s --out %s --min %s --gap %s --bed %s --genome %s %s ",
 				$self->intersect_app || 'intersect_peaks.pl',
@@ -1885,7 +1887,7 @@ sub generate_independent_merge_peak_commands {
 					# can't do anything here
 				}
 				else {
-					my $command = sprintf "%s --in %s --name %s --out %s ",
+					my $command = sprintf "%s --in %s --name %s --norm --out %s ",
 						$self->peak2bed_app || 'peak2bed.pl',
 						$files[0],
 						$self->job_name,
@@ -1902,9 +1904,9 @@ sub generate_independent_merge_peak_commands {
 					$min = scalar(@files) - 1;
 				}
 				my $out = $self->repmerge_gappeak;
-				$out = s/\.bed//;
+				$out =~ s/\.bed//;
 				my $command = sprintf
-					"%s --name %s --out %s --min %s --gap --bed %s --genome %s %s ",
+					"%s --name %s --out %s --min %s --gap %s --bed %s --genome %s %s ",
 					$self->intersect_app || 'intersect_peaks.pl',
 					$self->job_name,
 					$out,

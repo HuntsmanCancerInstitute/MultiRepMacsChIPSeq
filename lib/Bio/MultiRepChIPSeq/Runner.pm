@@ -200,8 +200,8 @@ sub write_samples_file {
 	my $samplefile = File::Spec->catfile( $self->dir, $self->out . '_samples.txt' );
 	unless ( $self->dryrun ) {
 		my $fh = IO::File->new( $samplefile, "w" );
-		foreach (@conditions) {
-			$fh->print;
+		foreach my $c (@conditions) {
+			$fh->print($c);
 		}
 		$fh->close;
 
@@ -211,8 +211,8 @@ sub write_samples_file {
 			my $broad_sample_file =
 				File::Spec->catfile( $self->dir, $self->out . '_broad_samples.txt' );
 			$fh = IO::File->new( $broad_sample_file, "w" );
-			foreach (@conditions) {
-				$fh->print;
+			foreach my $c (@conditions) {
+				$fh->print($c);
 			}
 			$fh->close;
 		}
@@ -265,7 +265,7 @@ sub run_generate_chr_file {
 	}
 	$command .= join( q( ), @sources );
 	my $log = $chromofile;
-	$log =~ s/ \.temp\ .txt /.log.txt/x;
+	$log =~ s/ \.temp \.txt /.log.txt/x;
 	$command .= sprintf " 2>&1 > $log";
 	return $self->execute_commands( [ [ $command, $chromofile, $log ] ] );
 }
@@ -576,13 +576,12 @@ sub run_input_peak_detection {
 		$self->blacklist( $blacklist . '.bed' );    # set the actual output file
 
 		# convert to simple bed
-		$command = sprintf "%s %s.narrowPeak 2>&1 >> $logfile",
+		$command = sprintf "%s --norm --nosummit --in %s.narrowPeak 2>&1 >> $logfile",
 			$self->peak2bed_app || 'peak2bed.pl', $blacklist;
 
 		# and clean up
 		$command .= sprintf
-			"&& rm %s.bdg %s.global_mean.bdg %s.qvalue.bdg %s.narrowPeak %s.summit.bed",
-			$blacklist,
+			"&& rm %s.bdg %s.global_mean.bdg %s.qvalue.bdg %s.narrowPeak",
 			$blacklist,
 			$blacklist,
 			$blacklist,
@@ -898,7 +897,7 @@ sub run_mappable_space_report {
 
 	# the output logfile
 	my $logfile =
-		File::Spec->catfile( $self->dir, sprintf "%s.mappable.out.txt", $self->out );
+		File::Spec->catfile( $self->dir, sprintf( "%s.mappable.out.txt", $self->out ) );
 
 	# check if command is finished, otherwise run it
 	if ( $self->{progress}{mappable_size} ) {
@@ -918,8 +917,7 @@ sub run_mappable_space_report {
 		if ( $self->chrskip ) {
 			$command .= sprintf "--chrskip \'%s\' ", $self->chrskip;
 		}
-		$command .= join( q( ), @bamlist );
-		$command .= " 2>&1 > $logfile";
+		$command .= sprintf " %s 2>&1 > %s", join( q( ), @bamlist ), $logfile;
 
 		# execute
 		# the log file is the output
@@ -935,7 +933,7 @@ sub run_mappable_space_report {
 		while ( my $line = $fh->getline ) {
 
 			# we're going to use the all mappable space number
-			if ( $line =~ /All \ mappable \ space: \ ( [\d\.]+ ) Mb/x ) {
+			if ( $line =~ /All \ mappable \ space: \ ( [\d\.]+ ) \ Mb/x ) {
 				$self->genome( $1 * 1000000 );
 				last;
 			}
@@ -1702,31 +1700,31 @@ sub _rescore_narrow_input {
 
 	if ( length $command1 > shift @command_lengths ) {
 		my $log = $output1;
-		$log =~ s/txt$/out.txt/;
+		$log =~ s/txt\.gz$/out.txt/;
 		$command1 .= " 2>&1 > $log";
 		push @commands, [ $command1, $output1, $log ];
 	}
 	if ( length $command2 > shift @command_lengths ) {
 		my $log = $output2;
-		$log =~ s/txt$/out.txt/;
+		$log =~ s/txt\.gz$/out.txt/;
 		$command2 .= " 2>&1 > $log";
 		push @commands, [ $command2, $output2, $log ];
 	}
 	if ( length $command3 > shift @command_lengths ) {
 		my $log = $output3;
-		$log =~ s/txt$/out.txt/;
+		$log =~ s/txt\.gz$/out.txt/;
 		$command3 .= " 2>&1 > $log";
 		push @commands, [ $command3, $output3, $log ];
 	}
 	if ( length $command4 > shift @command_lengths ) {
 		my $log = $output4;
-		$log =~ s/txt$/out.txt/;
+		$log =~ s/txt\.gz$/out.txt/;
 		$command4 .= " 2>&1 > $log";
 		push @commands, [ $command4, $output4, $log ];
 	}
 	if ( length $command5 > shift @command_lengths ) {
 		my $log = $output5;
-		$log =~ s/txt$/out.txt/;
+		$log =~ s/txt\.gz$/out.txt/;
 		$command5 .= " 2>&1 > $log";
 		push @commands, [ $command5, $output5, $log ];
 	}
@@ -1848,8 +1846,10 @@ sub run_efficiency {
 			my $output = $Job->repmean_peak;
 			$output =~ s/narrowPeak/efficiency.txt/;
 			push @mean_commands, $self->_setup_efficiency_job(
-				$Job,    $Job->repmean_peak,
-				$output, \@universal_counts
+				$Job,
+				$Job->repmean_peak,
+				$output,
+				\@universal_counts
 			);
 		}
 		else {
@@ -1857,16 +1857,21 @@ sub run_efficiency {
 		}
 
 		# merged independent
-		if ( $Job->count_file_lines( $Job->repmerge_peak ) ) {
-			my $output = $Job->repmerge_peak;
-			$output =~ s/(?:narrowPeak | bed)/efficiency.txt/x;
-			push @merge_commands, $self->_setup_efficiency_job(
-				$Job, $Job->repmerge_peak,
-				\@universal_counts
-			);
-		}
-		else {
-			printf "No valid replicate-merged narrow peak file for %s\n", $Job->job_name;
+		if ($self->independent) {
+			if ( $Job->count_file_lines( $Job->repmerge_peak ) ) {
+				my $output = $Job->repmerge_peak;
+				$output =~ s/(?:narrowPeak | bed)/efficiency.txt/x;
+				push @merge_commands, $self->_setup_efficiency_job(
+					$Job,
+					$Job->repmerge_peak,
+					$output,
+					\@universal_counts
+				);
+			}
+			else {
+				printf "No valid replicate-merged narrow peak file for %s\n",
+					$Job->job_name;
+			}
 		}
 	}
 
@@ -1897,9 +1902,8 @@ sub run_efficiency {
 }
 
 sub _setup_efficiency_job {
-	my ( $self, $Job, $input, $universal ) = @_;
+	my ( $self, $Job, $input, $output, $universal ) = @_;
 
-	my $output  = File::Spec->catfile( $self->dir, $Job->job_name . '.efficiency.txt' );
 	my $command = sprintf
 		"%s --in %s --group %s --out %s --cpu %d ",
 		$self->geteff_app || 'get_chip_efficiency.pl',
@@ -1940,12 +1944,12 @@ sub _merge_efficiency {
 
 			# add to existing object
 			foreach my $c ( $Data->comments ) {
-				$Data->add_comment($c);
+				$eff_Data->add_comment($c);
 			}
 		}
 		else {
-			# duplicate headers
-			$eff_Data = $Data->duplicate_data;
+			# duplicate the object structure and comments
+			$eff_Data = $Data->duplicate;
 		}
 
 		# copy rows
@@ -2036,7 +2040,7 @@ sub run_plot_peaks {
 		shift @Jobs if $self->has_universal_control;
 		foreach my $Job (@Jobs) {
 			next unless ( scalar( $Job->rep_peaks ) > 1 );    # nothing to compare
-			my $jobbase = $self->repmerge_peak;
+			my $jobbase = $Job->repmerge_peak;
 			$jobbase =~ s/\.bed$//;
 			$command = sprintf "%s --verbose %s --input %s ",
 				$self->rscript_app,
@@ -2133,7 +2137,7 @@ sub run_cleanup {
 
 				# file is not empty
 				my $fh = IO::File->new( $command->[2], 'r' ) or next;
-				push @output, <$fh>;
+				push @output, $fh->getlines;
 				$fh->close;
 			}
 			unlink $command->[2];
@@ -2152,7 +2156,7 @@ sub run_cleanup {
 		else {
 			# push log contents to combined output
 			my $fh = IO::File->new( $log, 'r' ) or next;
-			push @output, <$fh>;
+			push @output, $fh->getlines;
 			push @output, "\n";
 			$fh->close;
 		}
@@ -2161,9 +2165,10 @@ sub run_cleanup {
 
 	# print everything out
 	my $file = File::Spec->catfile( $self->dir, $self->out . "_job_output_logs.txt" );
-	my $fh   = IO::File->new( $file, "w" );
-	foreach (@output) {
-		$fh->print;
+	my $fh   = IO::File->new( $file, "w" )
+		or confess "cannot write job output logs to '$file'!!!!";
+	foreach my $line (@output) {
+		$fh->print($line);
 	}
 	$fh->close;
 	print "\nCombined all job output log files into '$file'\n";
