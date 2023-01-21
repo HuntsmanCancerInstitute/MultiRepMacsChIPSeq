@@ -1651,73 +1651,38 @@ sub generate_peak_update_commands {
 		$self->crash("no peak file defined!");
 	}
 
-	# first count peaks
-	my $narrow_count = 0;
-	my $gap_count    = 0;
-	if ( not $self->dryrun ) {
-		printf "\n %s Peak counts\n", $self->job_name;
-		$narrow_count = $self->count_file_lines( $self->repmean_peak );
-		printf "  %s narrow peaks were called.\n", format_with_commas($narrow_count);
-		if ( $self->broad ) {
-			$gap_count = $self->count_file_lines( $self->repmean_gappeak );
-			printf "  %s gapped peaks were called.\n", format_with_commas($gap_count);
-		}
-	}
-
 	# generate commands
 	my @commands;
 	my $update_options = sprintf "--enrich %s --qvalue %s --norm ",
 		$self->logfe_bw, $self->qvalue_bw;
-	if ( $self->dryrun ) {
-		my $log = $self->repmean_peak;
-		$log =~ s/narrowPeak/update_peak.out.txt/;
-		my $command = sprintf "%s --in %s %s --name %s --summit 2>&1 > $log",
-			$self->updatepeak_app || 'update_peak_file.pl',
-			$self->repmean_peak,
-			$update_options,
-			$self->job_name;
-		push @commands, [ $command, q(), $log ];
 
-		if ( $self->broad ) {
-			$log     = $self->repmean_gappeak . '.update_peak.out.txt';
-			$command = sprintf "%s --in %s %s --name %s_broad 2>&1 > $log",
-				$self->updatepeak_app || 'update_peak_file.pl',
-				$self->repmean_gappeak,
-				$update_options,
-				$self->job_name;
-			push @commands, [ $command, q(), $log ];
-		}
-	}
-	if ($narrow_count) {
-		my $log = $self->repmean_peak;
-		$log =~ s/narrowPeak/update_peak.out.txt/;
-		my $command = sprintf "%s --in %s %s --name %s --summit 2>&1 > $log",
-			$self->updatepeak_app || 'update_peak_file.pl',
-			$self->repmean_peak,
-			$update_options,
-			$self->job_name;
-		my $summit = $self->repmean_peak;
-		$summit =~ s/narrowPeak/summit.bed/;
+	# narrow peak
+	my $log = $self->repmean_peak;
+	$log =~ s/narrowPeak/update_peak.out.txt/;
+	my $command = sprintf "%s --in %s %s --name %s --summit 2>&1 > $log",
+		$self->updatepeak_app || 'update_peak_file.pl',
+		$self->repmean_peak,
+		$update_options,
+		$self->job_name;
+	my $summit = $self->repmean_peak;
+	$summit =~ s/narrowPeak/summit.bed/;
+	if ( $self->count_file_lines( $self->repmean_peak ) ) {
 		push @commands, [ $command, $summit, $log ];
 	}
-	elsif ( not $narrow_count and not $self->dryrun ) {
-		my $command = sprintf "rm %s ", $self->repmean_peak;
-		push @commands, [ $command, q(), q() ];
-	}
-	if ($gap_count) {
-		my $log     = $self->repmean_gappeak . '.update_peak.out.txt';
-		my $command = sprintf "%s --in %s %s --name %s_broad 2>&1 > $log",
+
+	# broad peak
+	if ($self->broad) {
+		$log     = $self->repmean_gappeak . '.update_peak.out.txt';
+		$command = sprintf "%s --in %s %s --name %s_broad 2>&1 > $log",
 			$self->updatepeak_app || 'update_peak_file.pl',
 			$self->repmean_gappeak,
 			$update_options,
 			$self->job_name;
-		push @commands, [ $command, $log, $log ];
 		# since this command updates a pre-existing file without a new output file
 		# we simply fake an output by indicating the stdout log file as the output
-	}
-	elsif ( $self->broad and not $gap_count and not $self->dryrun ) {
-		my $command = sprintf "rm %s ", $self->repmean_gappeak;
-		push @commands, [ $command, q(), q() ];
+		if ( $self->count_file_lines( $self->repmean_gappeak ) ) {
+			push @commands, [ $command, $summit, $log ];
+		}
 	}
 
 	return @commands;
