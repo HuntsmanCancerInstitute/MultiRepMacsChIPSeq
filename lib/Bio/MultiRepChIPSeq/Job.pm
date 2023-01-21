@@ -1703,61 +1703,42 @@ sub generate_independent_merge_peak_commands {
 
 		# only one replicate peak? nothing really to merge
 		# to make it consistent with others, we will convert it to a simple bed file
-		# prepare command, but don't commit it yet
-		my $file    = ( $self->rep_peaks )[0];
-		my $command = sprintf "%s --in %s --name %s --nosummit --norm --out %s ",
-			$self->peak2bed_app || 'peak2bed.pl',
-			$file,
-			$self->job_name,
-			$self->repmerge_peak;
-		my $log = $file;
-		$log =~ s/narrowPeak/peak2bed.out.txt/;
-		$command .= " 2>&1 > $log";
 
-		if ( $self->dryrun ) {
+		# narrow peak
+		my $file  = ( $self->rep_peaks )[0];
+		my $count = $self->count_file_lines($file);
+		printf "  %s narrow peaks were called for %s replicate %s\n",
+			format_with_commas($count), $self->job_name,
+			( $self->chip_rep_names )[0];
+		if ($count) {
+			my $command = sprintf "%s --in %s --name %s --nosummit --norm --out %s ",
+				$self->peak2bed_app || 'peak2bed.pl',
+				$file,
+				$self->job_name,
+				$self->repmerge_peak;
+			my $log = $file;
+			$log =~ s/narrowPeak/peak2bed.out.txt/;
+			$command .= " 2>&1 > $log";
 			push @commands, [ $command, $self->repmerge_peak, $log ];
-		}
-		else {
-			my $count = $self->count_file_lines($file);
-			printf "  %s narrow peaks were called for %s replicate %s\n",
-				format_with_commas($count), $self->job_name,
-				( $self->chip_rep_names )[0];
-			if ($count) {
-				push @commands, [ $command, $self->repmerge_peak, $log ];
-			}
-			else {
-				# do nothing? there won't be an output file for this sample Job
-			}
 		}
 
 		# broad peak
 		if ( $self->broad ) {
-
-			# prepare command, but don't commit it yet
 			$file    = ( $self->rep_gappeaks )[0];
-			$command = sprintf "%s --in %s --name %s --norm --out %s ",
-				$self->peak2bed_app || 'peak2bed.pl',
-				$file,
-				$self->job_name,
-				$self->repmerge_gappeak;
-			$log = $file;
-			$log =~ s/gappedPeak/peak2bed.out.txt/;
-			$command .= " 2>&1 > $log";
-
-			if ( $self->dryrun ) {
+			$count = $self->count_file_lines($file);
+			printf "  %s gapped peaks were called for %s replicate %s\n",
+				format_with_commas($count), $self->job_name,
+				( $self->chip_rep_names )[0];
+			if ($count) {
+				my $command = sprintf "%s --in %s --name %s --norm --out %s ",
+					$self->peak2bed_app || 'peak2bed.pl',
+					$file,
+					$self->job_name,
+					$self->repmerge_gappeak;
+				my $log = $file;
+				$log =~ s/gappedPeak/peak2bed.out.txt/;
+				$command .= " 2>&1 > $log";
 				push @commands, [ $command, $self->repmerge_gappeak, $log ];
-			}
-			else {
-				my $count = $self->count_file_lines($file);
-				printf "  %s gapped peaks were called for %s replicate %s\n",
-					format_with_commas($count), $self->job_name,
-					( $self->chip_rep_names )[0];
-				if ($count) {
-					push @commands, [ $command, $self->repmerge_gappeak, $log ];
-				}
-				else {
-					# nothing to do
-				}
 			}
 		}
 	}
@@ -1769,17 +1750,12 @@ sub generate_independent_merge_peak_commands {
 		my @files;
 		my @peaks = $self->rep_peaks;
 		for my $i ( 0 .. $#peaks ) {
-			if ( $self->dryrun ) {
+			my $count = $self->count_file_lines( $peaks[$i] );
+			printf "  %s narrow peaks were called for %s replicate %s\n",
+				format_with_commas($count), $self->job_name,
+				( $self->chip_rep_names )[$i];
+			if ($count) {
 				push @files, $peaks[$i];
-			}
-			else {
-				my $count = $self->count_file_lines( $peaks[$i] );
-				printf "  %s narrow peaks were called for %s replicate %s\n",
-					format_with_commas($count), $self->job_name,
-					( $self->chip_rep_names )[$i];
-				if ($count) {
-					push @files, $peaks[$i];
-				}
 			}
 		}
 		if ( scalar @files == 1 ) {
@@ -1829,18 +1805,13 @@ sub generate_independent_merge_peak_commands {
 			@files = ();
 			@peaks = $self->rep_gappeaks;
 			foreach my $i ( 0 .. $#peaks ) {
-				if ( $self->dryrun ) {
+				my $count = $self->count_file_lines( $peaks[$i] );
+				printf "  %s gapped peaks were called for %s replicate %s\n",
+					format_with_commas($count),
+					$self->job_name,
+					( $self->chip_rep_names )[$i];
+				if ($count) {
 					push @files, $peaks[$i];
-				}
-				else {
-					my $count = $self->count_file_lines( $peaks[$i] );
-					printf "  %s gapped peaks were called for %s replicate %s\n",
-						format_with_commas($count),
-						$self->job_name,
-						( $self->chip_rep_names )[$i];
-					if ($count) {
-						push @files, $peaks[$i];
-					}
 				}
 			}
 			if ( scalar @files == 1 ) {
