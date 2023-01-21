@@ -2,6 +2,7 @@ package Bio::MultiRepChIPSeq::options;
 
 use strict;
 use Carp;
+use IO::File;
 use File::Which;
 
 our $VERSION = 18.0;
@@ -87,6 +88,7 @@ sub init_options {
 		reportmap   => sprintf( "%s", which 'report_mappable_space.pl' ),
 		samtools    => sprintf( "%s", which 'samtools' ),
 		help        => 0,
+		line_counts => {},  # hash of known file line counts
 	);
 	return \%opts;
 }
@@ -562,6 +564,28 @@ sub samtools_app {
 	my $self = shift;
 	$self->{opts}{samtools} = shift if @_;
 	return $self->{opts}{samtools};
+}
+
+sub count_file_lines {
+	my ( $self, $file ) = @_;
+	return 0 unless $file;
+	if ( $self->dryrun ) {
+		return 1;
+	}
+	if ( exists $self->{opts}{line_counts}{$file} ) {
+		return $self->{opts}{line_counts}{$file};
+	}
+	return 0 unless ( -e $file );
+	return 0 unless ( -s _ );
+	my $fh = IO::File->new($file) or return 0;
+	my $n  = 0;
+	while ( my $line = $fh->getline ) {
+		next if $line =~ /^(?: \# | track )/xi;
+		$n++;
+	}
+	$fh->close;
+	$self->{line_counts}{opts}{$file} = $n;
+	return $n;
 }
 
 1;

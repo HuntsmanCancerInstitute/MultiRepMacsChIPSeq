@@ -2045,21 +2045,6 @@ sub generate_bdg2bw_commands {
 	return @commands;
 }
 
-sub count_file_lines {
-	my ( $self, $file ) = @_;
-	return 0 unless $file;
-	return 0 unless ( -e $file );
-	return 0 unless ( -s _ );
-	my $fh = IO::File->new($file) or return 0;
-	my $n  = 0;
-	while ( my $line = $fh->getline ) {
-		next if $line =~ /^(?: \# | track )/xi;
-		$n++;
-	}
-	$fh->close;
-	return $n;
-}
-
 1;
 
 =head1 NAME
