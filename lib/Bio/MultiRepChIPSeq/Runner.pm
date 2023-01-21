@@ -1409,42 +1409,33 @@ sub run_rescore {
 	# prepare jobs
 	# first replicate-mean peaks
 	my @commands;
+	my @accepted_bases;
 	if ( $self->number_of_jobs == 1 ) {
 
 		# only one job, so take its peak file
+		# need to validate the input file before we can score it
 		my $Job = ( $self->list_jobs )[0];
-		if ( $self->dryrun ) {
+		my $c = $Job->count_file_lines( $Job->repmean_peak );
+		if ($c) {
 			push @commands,
 				$self->_rescore_narrow_input( $self->repmean_merge_base,
 					$Job->repmean_peak );
-			if ( $self->broad ) {
+			push @accepted_bases, $self->repmean_merge_base;
+		}
+		else {
+			printf "No valid replicate-mean narrow peak file for %s!\n", $Job->job_name;
+		}
+		if ( $self->broad ) {
+			$c = $Job->count_file_lines( $Job->repmean_gappeak );
+			if ($c) {
 				push @commands,
 					$self->_rescore_broad_input( $self->repmean_merge_base . '_broad',
 						$Job->repmean_gappeak );
-			}
-		}
-		else {
-
-			# need to validate the input file before we can score it
-			my $c = $Job->count_file_lines( $Job->repmean_peak );
-			if ($c) {
-				push @commands,
-					$self->_rescore_narrow_input( $self->repmean_merge_base,
-						$Job->repmean_peak );
+				push @accepted_bases, $self->repmean_merge_base . '_broad';
 			}
 			else {
-				printf "No replicate-mean narrow peak file for %s!\n", $Job->job_name;
-			}
-			if ( $self->broad ) {
-				$c = $Job->count_file_lines( $Job->repmean_gappeak );
-				if ($c) {
-					push @commands,
-						$self->_rescore_broad_input( $self->repmean_merge_base . '_broad',
-							$Job->repmean_gappeak );
-				}
-				else {
-					printf "No replicate-mean broad peak file for %s!\n", $Job->job_name;
-				}
+				printf "No valid replicate-mean broad peak file for %s!\n",
+					$Job->job_name;
 			}
 		}
 	}
@@ -1452,39 +1443,29 @@ sub run_rescore {
 
 		# more than one file, use the merged file
 		my $peak_file = $self->repmean_merge_base . '.bed';
-		if ( $self->dryrun ) {
+		my $c = $self->count_file_lines($peak_file);
+		if ($c) {
 			push @commands,
 				$self->_rescore_narrow_input( $self->repmean_merge_base, $peak_file );
-			if ( $self->broad ) {
-				$peak_file = $self->repmean_merge_base . '_broad.bed';
+			push @accepted_bases, $self->repmean_merge_base;
+		}
+		else {
+			printf "No valid replicate-mean, merged-sample, narrow peak file for %s!\n",
+				$self->out;
+		}
+		if ( $self->broad ) {
+			$peak_file = $self->repmean_merge_base . '_broad.bed';
+			$c = $self->count_file_lines($peak_file);
+			if ($c) {
 				push @commands,
 					$self->_rescore_broad_input( $self->repmean_merge_base . '_broad',
 						$peak_file );
-			}
-		}
-		else {
-			my $Job = ( $self->list_jobs )[0];              # example Job
-			my $c   = $Job->count_file_lines($peak_file);
-			if ($c) {
-				push @commands,
-					$self->_rescore_narrow_input( $self->repmean_merge_base, $peak_file );
+				push @accepted_bases, $self->repmean_merge_base . '_broad';
 			}
 			else {
-				printf "No replicate-mean, merged-sample, narrow peak file for %s!\n",
+				printf 
+					"No valid replicate-mean, merged-sample, broad peak file for %s!\n",
 					$self->out;
-			}
-			if ( $self->broad ) {
-				$peak_file = $self->repmean_merge_base . '_broad.bed';
-				$c         = $Job->count_file_lines($peak_file);
-				if ($c) {
-					push @commands,
-						$self->_rescore_broad_input( $self->repmean_merge_base . '_broad',
-							$peak_file );
-				}
-				else {
-					printf "No replicate-mean, merged-sample, broad peak file for %s!\n",
-						$self->out;
-				}
 			}
 		}
 	}
@@ -1495,42 +1476,29 @@ sub run_rescore {
 
 			# only one job, so take its peak file
 			my $Job = ( $self->list_jobs )[0];
-			if ( $self->dryrun ) {
+			my $c = $Job->count_file_lines( $Job->repmerge_peak );
+			if ($c) {
 				push @commands,
 					$self->_rescore_narrow_input( $self->repmerge_merge_base,
 						$Job->repmerge_peak );
-				if ( $self->broad ) {
-					push @commands,
-						$self->_rescore_broad_input(
-							$self->repmerge_merge_base . '_broad',
-							$Job->repmerge_gappeak );
-				}
+				push @accepted_bases, $self->repmerge_merge_base;
 			}
 			else {
-
-				# need to validate the input file before we can score it
-				my $c = $Job->count_file_lines( $Job->repmerge_peak );
+				printf "No valid replicate-merged narrow peak file for %s!\n",
+					$Job->job_name;
+			}
+			if ( $self->broad ) {
+				$c = $Job->count_file_lines( $Job->repmerge_gappeak );
 				if ($c) {
-					push @commands,
-						$self->_rescore_narrow_input( $self->repmerge_merge_base,
-							$Job->repmerge_peak );
+					push @commands, $self->_rescore_broad_input(
+						$self->repmerge_merge_base . '_broad',
+						$Job->repmerge_gappeak
+					);
+					push @accepted_bases, $self->repmerge_merge_base . '_broad';
 				}
 				else {
-					printf "No replicate-merged narrow peak file for %s!\n",
+					printf "No valid replicate-merged broad peak file for %s!\n",
 						$Job->job_name;
-				}
-				if ( $self->broad ) {
-					$c = $Job->count_file_lines( $Job->repmerge_gappeak );
-					if ($c) {
-						push @commands, $self->_rescore_broad_input(
-							$self->repmerge_merge_base . '_broad',
-							$Job->repmerge_gappeak
-						);
-					}
-					else {
-						printf "No replicate-merged broad peak file for %s!\n",
-							$Job->job_name;
-					}
 				}
 			}
 		}
@@ -1538,43 +1506,31 @@ sub run_rescore {
 
 			# more than one file, use the merged file
 			my $peak_file = $self->repmerge_merge_base . '.bed';
-			if ( $self->dryrun ) {
+			my $c         = $self->count_file_lines($peak_file);
+			if ($c) {
 				push @commands,
 					$self->_rescore_narrow_input( $self->repmerge_merge_base,
 						$peak_file );
-				if ( $self->broad ) {
-					$peak_file = $self->repmerge_merge_base . '_broad.bed';
+				push @accepted_bases, $self->repmerge_merge_base;
+			}
+			else {
+				printf
+"No valid replicate-merged, sample-merged, narrow peak file for %s!\n",
+					$self->out;
+			}
+			if ( $self->broad ) {
+				$peak_file = $self->repmerge_merge_base . '_broad.bed';
+				$c         = $self->count_file_lines($peak_file);
+				if ($c) {
 					push @commands,
 						$self->_rescore_broad_input(
 							$self->repmerge_merge_base . '_broad', $peak_file );
-				}
-			}
-			else {
-				my $Job = ( $self->list_jobs )[0];              # example Job
-				my $c   = $Job->count_file_lines($peak_file);
-				if ($c) {
-					push @commands,
-						$self->_rescore_narrow_input( $self->repmerge_merge_base,
-							$peak_file );
+					push @accepted_bases, $self->repmerge_merge_base . '_broad';
 				}
 				else {
 					printf
-						"No replicate-merged, sample-merged, narrow peak file for %s!\n",
+"No valid replicate-merged, sample-merged, broad peak file for %s!\n",
 						$self->out;
-				}
-				if ( $self->broad ) {
-					$peak_file = $self->repmerge_merge_base . '_broad.bed';
-					$c         = $Job->count_file_lines($peak_file);
-					if ($c) {
-						push @commands,
-							$self->_rescore_broad_input(
-								$self->repmerge_merge_base . '_broad', $peak_file );
-					}
-					else {
-						printf
-"No replicate-merged, sample-merged, broad peak file for %s!\n",
-							$self->out;
-					}
 				}
 			}
 		}
@@ -1583,6 +1539,13 @@ sub run_rescore {
 	if (@commands) {
 		$self->execute_commands( \@commands );
 		$self->update_progress_file('rescore');
+	}
+	
+	# merge into summary file
+	return if $self->dryrun;
+	print "\n\n======= Merging summary scores\n";
+	foreach my $base (@accepted_bases) {
+		$self->_merge_into_summary($base);
 	}
 }
 
@@ -1775,24 +1738,98 @@ sub _rescore_broad_input {
 	my @commands;
 	if ( length($command1) > shift @command_lengths ) {
 		my $log = $output1;
-		$log =~ s/txt$/out.txt/;
+		$log =~ s/txt\.gz$/out.txt/;
 		$command1 .= " 2>&1 > $log";
 		push @commands, [ $command1, $output1, $log ];
 	}
 	if ( length($command2) > shift @command_lengths ) {
 		my $log = $output2;
-		$log =~ s/txt$/out.txt/;
+		$log =~ s/txt\.gz$/out.txt/;
 		$command2 .= " 2>&1 > $log";
 		push @commands, [ $command2, $output2, $log ];
 	}
 	if ( length($command3) > shift @command_lengths ) {
 		my $log = $output3;
-		$log =~ s/txt$/out.txt/;
+		$log =~ s/txt\.gz$/out.txt/;
 		$command3 .= " 2>&1 > $log";
 		push @commands, [ $command3, $output3, $log ];
 	}
 
 	return @commands;
+}
+
+sub _merge_into_summary {
+	my ($self, $base) = @_;
+	my $SumData = Bio::ToolBox->new_data();
+
+	# file possibilities
+	my $matrix_file = $base . '.matrix.txt';
+	my $logfe_file  = $base . '_meanLog2FE.txt.gz';
+	my $meanq_file  = $base . '_meanQvalue.txt.gz';
+	my $maxq_file   = $base . '_maxQvalue.txt.gz';
+
+	# merge peak coordinate, name, source peak, and mean log2 Fold Enrichment
+	if ( -e $matrix_file ) {
+		my $Data = Bio::ToolBox->load_file( $matrix_file );
+		for my $i (0 .. $Data->last_column) {
+			my $col = $Data->column_values($i);
+			$SumData->add_column($col);
+		}
+		undef $Data;
+		if ( -e $logfe_file ) {
+			$Data   = Bio::ToolBox->load_file( $logfe_file );
+			my $ids = $Data->column_values(0);
+			my $d   = $SumData->add_column($ids);
+			$SumData->name($d, 'Coordinate');
+			$SumData->reorder_column( $d, 0 .. ($d - 1) );
+			for my $i (2 .. $Data->last_column) {
+				my $col = $Data->column_values($i);
+				my $n   = $SumData->add_column($col);
+				$SumData->name($n, sprintf( "%s_Log2FE", $SumData->name($n) ) );
+			}
+		}
+	}
+	elsif ( -e $logfe_file ) {
+		my $Data = Bio::ToolBox->load_file( $logfe_file );
+		my $ids  = $Data->column_values(0);
+		$SumData->add_column($ids);
+		$SumData->name(0, 'Coordinate');
+		my $names = $Data->column_values(1);
+		$SumData->add_column($names);
+		for my $i (2 .. $Data->last_column) {
+			my $col = $Data->column_values($i);
+			my $n = $SumData->add_column($col);
+			$SumData->name($n, sprintf( "%s_Log2FE", $SumData->name($n) ) );
+		}
+	}
+	else {
+		print " unable to merge score values into summary file for '$base'!\n";
+		return;
+	}
+
+	# add Q-value
+	if ( -e $maxq_file ) {
+		my $Data = Bio::ToolBox->load_file( $maxq_file );
+		for my $i (2 .. $Data->last_column) {
+			my $col = $Data->column_values($i);
+			my $n = $SumData->add_column($col);
+			$SumData->name($n, sprintf( "%s_MaxQValue", $SumData->name($n) ) );
+		}
+	}
+	elsif ( -e $meanq_file ) {
+		my $Data = Bio::ToolBox->load_file( $meanq_file );
+		for my $i (2 .. $Data->last_column) {
+			my $col = $Data->column_values($i);
+			my $n = $SumData->add_column($col);
+			$SumData->name($n, sprintf( "%s_MeanQValue", $SumData->name($n) ) );
+		}
+	}
+
+	# save the summary file
+	my $sum_file = $base . '_summary.tsv';
+	$SumData->add_file_metadata($sum_file);
+	my $s = $SumData->save;
+	print " Wrote combined summary file $s\n";
 }
 
 sub run_efficiency {
