@@ -15,6 +15,7 @@ use strict;
 use English qw(-no_match_vars);
 use File::Spec;
 use Getopt::Long;
+use List::Util qw(max);
 use Bio::ToolBox 1.65;
 
 our $VERSION = 2;
@@ -27,7 +28,8 @@ Specifically, discard unused p-value and q-value columns after running Macs2
 bdgpeakcall or bdgbroadcall. 
 
 This script will also resort the peaks properly (numerically, as opposed to 
-alphabetically) and rename the peaks.
+alphabetically) and rename the peaks. Score values may be normalized to a 
+standard range of 0-1000. 
 
 For narrowPeak files, one or two files may be written:
 	a 5-column BED file of peak intervals, including original score value
@@ -41,11 +43,12 @@ with extension '.gapped.bed'.
 USAGE: peak2bed.pl peak1.narrowPeak [peak1.gappedPeak] ....
 
 OPTIONS
-   -i --input <file>    Specify the input file
+   -i --input  <file>   Specify the input file
    -o --output <file>   Specify the output file (default input basename)
-   -n --name <text>     Specify the name text (default input basename)
+   -n --name   <text>   Specify the name text (default input basename)
    -s --summit          write a summit bed file (narrowPeak input only)
                            default true, use --nosummit to turn off
+   -r --norm            Normalize the Score column to range 0-1000
    -h --help            print this help
    
    Multiple input and ouput files and names may be specified via options,
@@ -63,6 +66,7 @@ my @in_files;
 my @out_files;
 my @names;
 my $write_summit = 1;
+my $normalize;
 my $help;
 
 GetOptions(
@@ -70,6 +74,7 @@ GetOptions(
 	'o|output=s' => \@out_files,
 	'n|name=s'   => \@names,
 	's|summit!'  => \$write_summit,
+	'r|norm!'    => \$normalize,
 	'h|help!'    => \$help,
 ) or die "unrecognized option!\n";
 
@@ -107,28 +112,36 @@ while ( my $file = shift @in_files ) {
 	}
 
 	# Open input narrowPeak
-	my $Input = Bio::ToolBox->load_file(
+	my $Data = Bio::ToolBox->load_file(
 		file  => $file,
 		parse => 0,
 	);
-	unless ($Input) {
+	unless ($Data) {
 		warn "Problem loading file '$file'! skipping\n";
 		next;
 	}
 
 	# set default values
 	unless ($outfile) {
-		$outfile = File::Spec->catfile( $Input->path, $Input->basename );
+		$outfile = File::Spec->catfile( $Data->path, $Data->basename );
 	}
 	unless ($basename) {
-		$basename = $Input->basename;
+		$basename = $Data->basename;
 	}
 
 	# Sort properly
-	$Input->gsort_data if $Input->last_row > 1;
+	$Data->gsort_data if $Data->last_row > 1;
+	
+	# Normalize score
+	my $max_score;
+	if ($normalize) {
+		my @scores = $Data->column_values(4);
+		shift @scores;    # discard name
+		$max_score = max(@scores);
+	}
 
 	### NarrowPeak files
-	if ( $Input->format eq 'narrowPeak' ) {
+	if ( $Data->format eq 'narrowPeak' ) {
 
 		# Open outputs
 		if ( $outfile !~ /\.bed(?:\.gz)?$/x ) {
@@ -145,15 +158,19 @@ while ( my $file = shift @in_files ) {
 		}
 
 		# write out
-		$Input->iterate(
+		$Data->iterate(
 			sub {
 				my $row = shift;
 
 				# write peak
-				my $name       = sprintf( "%s.%d", $basename, $row->row_index );
+				my $name  = sprintf( "%s.%d", $basename, $row->row_index );
+				my $score = $normalize ? 
+					sprintf("%.0f", ($row->value(4) / $max_score) *  1000) :
+					$row->value(4);
 				my $bed_string = $row->bed_string(
-					bed  => 5,
-					name => $name,
+					bed   => 5,
+					name  => $name,
+					score => $score,
 				);
 				$peak_fh->printf( "%s\n", $bed_string );
 
@@ -173,7 +190,7 @@ while ( my $file = shift @in_files ) {
 
 		# Finish
 		$peak_fh->close;
-		printf " Wrote %d peaks to $outfile\n", $Input->last_row;
+		printf " Wrote %d peaks to $outfile\n", $Data->last_row;
 		if ($write_summit) {
 			$summit_fh->close;
 			print " Wrote summits to $summit_file\n";
@@ -181,7 +198,7 @@ while ( my $file = shift @in_files ) {
 	}
 
 	### GappedPeak files
-	elsif ( $Input->format eq 'gappedPeak' ) {
+	elsif ( $Data->format eq 'gappedPeak' ) {
 
 		# Open outputs
 		if ( $outfile !~ /\.bed(?:\.gz)?$/x ) {
@@ -191,15 +208,18 @@ while ( my $file = shift @in_files ) {
 			or die "unable to open $outfile for writing! $OS_ERROR\n";
 
 		# Write out
-		$Input->iterate(
+		$Data->iterate(
 			sub {
 				my $row  = shift;
 				my $name = sprintf( "%s.%d", $basename, $row->row_index );
+				my $score = $normalize ? 
+					sprintf("%.0f", ($row->value(4) / $max_score) *  1000) :
+					$row->value(4);
 				my @v    = $row->row_values;
 				$peak_fh->printf(
 					"%s\n",
 					join(
-						"\t",  $v[0], $v[1], $v[2], $name, $v[4],
+						"\t",  $v[0], $v[1], $v[2], $name, $score,
 						$v[5], $v[6], $v[7], $v[8], $v[9], $v[10], $v[11]
 					)
 				);
@@ -208,11 +228,11 @@ while ( my $file = shift @in_files ) {
 
 		# Finish
 		$peak_fh->close;
-		printf " Wrote %d gapped peaks to $outfile\n", $Input->last_row;
+		printf " Wrote %d gapped peaks to $outfile\n", $Data->last_row;
 	}
 
 	### BroadPeak files - just in case
-	elsif ( $Input->format eq 'broadPeak' ) {
+	elsif ( $Data->format eq 'broadPeak' ) {
 
 		# Open outputs
 		if ( $outfile !~ /\.bed(?:\.gz)?$/x ) {
@@ -222,23 +242,26 @@ while ( my $file = shift @in_files ) {
 			or die "unable to open $outfile for writing! $OS_ERROR\n";
 
 		# Write out
-		$Input->iterate(
+		$Data->iterate(
 			sub {
 				my $row  = shift;
 				my $name = sprintf( "%s.%d", $basename, $row->row_index );
+				my $score = $normalize ? 
+					sprintf("%.0f", ($row->value(4) / $max_score) *  1000) :
+					$row->value(4);
 				my @v    = $row->row_values;
 				$peak_fh->printf( "%s\n",
-					join( "\t", $v[0], $v[1], $v[2], $name, $v[4] ) );
+					join( "\t", $v[0], $v[1], $v[2], $name, $score ) );
 			}
 		);
 
 		# Finish
 		$peak_fh->close;
-		printf " Wrote %d broad peaks to $outfile\n", $Input->last_row;
+		printf " Wrote %d broad peaks to $outfile\n", $Data->last_row;
 	}
 
 	### Empty file
-	elsif ( $Input->last_row <= 1 ) {
+	elsif ( $Data->last_row <= 1 ) {
 		warn "File '$file' is empty!\n";
 		next;
 	}
