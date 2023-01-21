@@ -106,6 +106,10 @@ unless ($Data) {
 	print " Unable to load '$infile'!\n";
 	exit 1;
 }
+unless ($Data->last_row > 0) {
+	print " Input file '$infile' is empty\n";
+	exit;
+}
 unless ( $Data->bed and $Data->format =~ /peak/i ) {
 	print " Input file is not a Peak format!\n";
 	exit 1;
