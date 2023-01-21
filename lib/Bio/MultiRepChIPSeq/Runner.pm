@@ -197,29 +197,37 @@ sub write_samples_file {
 	}
 
 	# write samples file
-	my $samplefile = File::Spec->catfile( $self->dir, $self->out . '_samples.txt' );
+	# unfortunately, we have to write the same file multiple times for each base output
+	# but use the replicate-mean as an example 
+	my $samplefile = $self->repmean_merge_base . '_samples.txt';
 	unless ( $self->dryrun ) {
-		my $fh = IO::File->new( $samplefile, "w" );
-		foreach my $c (@conditions) {
-			$fh->print($c);
+		$self->_write_specific_sample_file( \@conditions, $samplefile );
+		
+		if ($self->independent) {
+			$self->_write_specific_sample_file( \@conditions,
+				$self->repmerge_merge_base . '_samples.txt' );
 		}
-		$fh->close;
-
-		# write broad specific samples file
-		# not that it's any different but the plot peaks expects it
 		if ( $self->broad ) {
-			my $broad_sample_file =
-				File::Spec->catfile( $self->dir, $self->out . '_broad_samples.txt' );
-			$fh = IO::File->new( $broad_sample_file, "w" );
-			foreach my $c (@conditions) {
-				$fh->print($c);
+			$self->_write_specific_sample_file( \@conditions,
+				$self->repmean_merge_base . '_broad_samples.txt' );
+			if ($self->independent) {
+				$self->_write_specific_sample_file( \@conditions,
+					$self->repmerge_merge_base . '_broad_samples.txt' );
 			}
-			$fh->close;
 		}
 	}
 
 	$self->{sample_file} = $samplefile;
 	return $samplefile;
+}
+
+sub _write_specific_sample_file {
+	my ($self, $conditions, $file) = @_;
+	my $fh = IO::File->new( $file, "w" );
+	foreach my $c ( @{$conditions} ) {
+		$fh->print($c);
+	}
+	$fh->close;
 }
 
 sub run_generate_chr_file {
