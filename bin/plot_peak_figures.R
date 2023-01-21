@@ -259,7 +259,7 @@ plotMid <- function(gdata, ylabel, figmain, outbase) {
 ######## Script #############
 
 # count data
-countfile <- paste0(opt$input,"_counts.txt")
+countfile <- paste0(opt$input,"_counts.txt.gz")
 samplefile <- paste0(opt$input,"_samples.txt")
 if(file.exists(countfile)) {
   # read input data
@@ -292,6 +292,7 @@ if(file.exists(countfile)) {
     geom_boxplot() +
     geom_boxplot(outlier.alpha = 0.1) +
     scale_y_log10() +
+    coord_flip() +
     ylab("Normalized Signal Count") +
     ggtitle("Peak Signal Count distribution")
   ggsave(plot = p, filename = paste0(opt$input, '_signalDistribution.', opt$format),
@@ -308,7 +309,7 @@ if(file.exists(countfile)) {
                 measure.vars = names(d)[2:ncol(d)], 
                 variable.name = "Samples")
   p <- ggplot(data = dlong, aes(Rank, value)) +
-    geom_line(aes(color=Samples), size = 0.25) + 
+    geom_line(aes(color=Samples), linewidth = 0.25) + 
     scale_fill_brewer(palette=opt$palette) +
     scale_x_continuous(name = "Individual Peak Rank") + 
     scale_y_log10() +
@@ -484,7 +485,7 @@ if(file.exists(efffile)) {
   p <- ggplot(effdata, aes(x = Replicate, y = Efficiency)) +
     geom_col(aes(fill = Dataset)) +
     scale_fill_brewer(palette=opt$palette) +
-    theme(axis.text.x = element_text(angle = 90)) +
+    coord_flip() +
     ggtitle("Fraction of total fragments in respective called peaks")
   ggsave(plot = p, filename = paste0(opt$input, '.chip_efficiency.', opt$format), 
          width = 6, height = 4)
@@ -502,7 +503,7 @@ if(file.exists(lengthfile)) {
   p <- ggplot(lengthdata, aes(x = File, y = Count)) + 
     geom_col() +
     scale_fill_brewer(palette=opt$palette) +
-    theme(axis.text.x = element_text(angle = 90)) +
+    coord_flip() +
     ggtitle("Number of peaks")
   ggsave(plot = p, filename = paste0(opt$input, '.peak_number.', opt$format), 
          width = 6, height = 4)
@@ -511,7 +512,7 @@ if(file.exists(lengthfile)) {
   p <- ggplot(lengthdata, aes(x = File, y = Sum)) + 
     geom_col() +
     scale_fill_brewer(palette=opt$palette) +
-    theme(axis.text.x = element_text(angle = 90)) +
+    coord_flip() +
     ggtitle("Total genomic space of peaks (peak length sum)")
   ggsave(plot = p, filename = paste0(opt$input, '.peak_space.', opt$format), 
          width = 6, height = 4)
@@ -522,7 +523,7 @@ if(file.exists(lengthfile)) {
                      upper = ThirdQuartile, ymax = Percentile95),
                  stat = "identity") + 
     scale_colour_brewer(palette=opt$palette) +
-    theme(axis.text.x = element_text(angle = 90)) +
+    coord_flip() +
     ggtitle("Peak length distribution (5-95% range)")
   ggsave(plot = p, filename = paste0(opt$input, '.peak_lengths.', opt$format), 
          width = 6, height = 4)
@@ -561,7 +562,7 @@ if(file.exists(ddupfile)) {
   p <- ggplot(ddupdata_long, aes(File, y = Count)) +
     geom_col(aes(fill=Duplication), position = "stack") +
     ggtitle("Fragment Duplication Counts") + 
-    theme(axis.text.x = element_text(angle = 90))
+    coord_flip()
   ggsave(plot = p, filename = paste0(opt$input, '.duplicate-counts.', opt$format),
          width = 6, height = 4)
 }
@@ -569,7 +570,7 @@ if(file.exists(ddupfile)) {
 
 
 # qvalue heat map table table
-qfile <- paste0(opt$input, "_meanQvalue.txt")
+qfile <- paste0(opt$input, "_maxQvalue.txt.gz")
 if(file.exists(qfile)) {
     qdata = read.table(qfile, header=TRUE, sep="\t", 
                        row.names = 1, check.names = F, na.strings = '.')
@@ -589,7 +590,7 @@ if(file.exists(qfile)) {
 
 
 # log2 Fold Enrichment table
-lfefile <- paste0(opt$input,"_meanLog2FE.txt")
+lfefile <- paste0(opt$input,"_meanLog2FE.txt.gz")
 if(file.exists(lfefile)) {
     lfedata = read.table(lfefile,header=TRUE,sep="\t", 
                          row.names = 1, check.names = F, na.strings = '.')
@@ -621,7 +622,7 @@ if(file.exists(lfefile)) {
 
 
 # fragment profile heat map
-fproffile <- paste0(opt$input, "_profile_fragment.txt")
+fproffile <- paste0(opt$input, "_profile_fragment.txt.gz")
 if(file.exists(fproffile)) {
   fprofdata = read.table(fproffile,header=TRUE,sep="\t", 
                          row.names = 1, check.names = F, na.strings = '.')
@@ -646,7 +647,7 @@ if(file.exists(fproffile)) {
 
 
 # log2FE profile heat map
-lfeproffile <- paste0(opt$input, "_profile_log2FE.txt")
+lfeproffile <- paste0(opt$input, "_profile_log2FE.txt.gz")
 if(file.exists(lfeproffile)) {
   lfeprofdata = read.table(lfeproffile,header=TRUE,sep="\t", 
                          row.names = 1, check.names = F, na.strings = '.')
