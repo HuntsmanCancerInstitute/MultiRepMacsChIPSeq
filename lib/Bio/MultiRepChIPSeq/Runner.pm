@@ -2106,6 +2106,9 @@ sub print_config {
 			push @output, sprintf "%12s  %s\n", $k,
 				join( ",\n              ", @{ $self->{opts}->{$k} } );
 		}
+		elsif ($k eq 'line_counts') {
+			next;
+		}
 		else {
 			push @output, sprintf "%12s  %s\n", $k, $self->{opts}->{$k};
 		}
@@ -2205,15 +2208,16 @@ sub run_cleanup {
 		}
 	}
 
-	# 	if ( $self->broad and $self->independent ) {
-	# 		foreach my $Job ( $self->list_jobs ) {
-	# 			foreach my $f ( $Job->rep_gappeaks ) {
-	# 				my $b = $f;
-	# 				$b =~ s/gapped/broad/;
-	# 				unlink $b;
-	# 			}
-	# 		}
-	# 	}
+	# independent broad peak files - these are essentially identical to gappedPeak
+	if ( $self->broad and $self->independent ) {
+		foreach my $Job ( $self->list_jobs ) {
+			foreach my $f ( $Job->rep_gappeaks ) {
+				my $b = $f;
+				$b =~ s/gapped/broad/;
+				unlink $b;
+			}
+		}
+	}
 	if ( $self->chromofile eq File::Spec->catfile( $self->dir, "chrom_sizes.temp.txt" ) )
 	{
 		unlink $self->chromofile;
@@ -2306,10 +2310,40 @@ sub run_organize {
 
 	# image files
 	if ( $self->plot ) {
-		my $imagedir = File::Spec->catfile( $self->dir, 'Plots' . $suffix );
-		make_path($imagedir);
-		foreach ( glob( File::Spec->catfile( $self->dir, '*.png' ) ) ) {
-			move( $_, $imagedir );
+		if ($self->independent) {
+
+			# replicate-merge plots
+			my $merge_imagedir = File::Spec->catfile( $self->dir, 
+				'Replicate-Merge_Plots' . $suffix );
+			make_path($merge_imagedir);
+			foreach ( glob( sprintf( "%s*.png", $self->repmerge_merge_base ) ) ) {
+				move( $_, $merge_imagedir);
+			}
+
+			# replicate-mean plots
+			my $mean_imagedir = File::Spec->catfile( $self->dir, 
+				'Replicate-Mean_Plots' . $suffix );
+			make_path($mean_imagedir);
+			foreach ( glob( sprintf( "%s*.png", $self->repmean_merge_base ) ) ) {
+				move( $_, $mean_imagedir);
+			}
+
+			# anything remaining should be replicate plots
+			my $rep_imagedir = File::Spec->catfile( $self->dir, 
+				'Replicate_Plots' . $suffix );
+			make_path($rep_imagedir);
+			foreach ( glob( File::Spec->catfile( $self->dir, '*.png' ) ) ) {
+				move( $_, $rep_imagedir);
+			}
+		}
+		else {
+
+			# these should all be replicate-mean plots
+			my $imagedir = File::Spec->catfile( $self->dir, 'Plots' . $suffix );
+			make_path($imagedir);
+			foreach ( glob( File::Spec->catfile( $self->dir, '*.png' ) ) ) {
+				move( $_, $imagedir );
+			}
 		}
 	}
 
