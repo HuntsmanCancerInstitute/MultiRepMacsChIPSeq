@@ -29,7 +29,7 @@ sub init_options {
 		chrskip     => "chrM|MT|alt|Adapter|Lambda|PhiX",
 		blacklist   => undef,
 		dedup       => 1,
-		maxdup      => undef,                               # old option
+		maxdup      => undef,   # old option
 		maxdepth    => undef,
 		dupfrac     => 0.05,
 		optdist     => 0,

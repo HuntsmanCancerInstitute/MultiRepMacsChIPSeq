@@ -10,7 +10,7 @@ use File::Path qw(make_path);
 use List::Util qw(min);
 use Parallel::ForkManager;
 use Bio::ToolBox;
-use Bio::ToolBox::utility qw(simplify_dataset_name);
+use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
 
@@ -584,7 +584,7 @@ sub run_input_peak_detection {
 		$self->blacklist( $blacklist . '.bed' );    # set the actual output file
 
 		# convert to simple bed
-		$command = sprintf "%s --norm --nosummit --in %s.narrowPeak 2>&1 >> $logfile",
+		$command = sprintf "%s --norm --nosummit --in %s.narrowPeak 2>&1 >> $logfile ",
 			$self->peak2bed_app || 'peak2bed.pl', $blacklist;
 
 		# and clean up
