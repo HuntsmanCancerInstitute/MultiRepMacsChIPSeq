@@ -204,7 +204,7 @@ sub process_input_peak_files {
 
 		# open file
 		my $Data = Bio::ToolBox->load_file( file => $file );
-		unless ($Data) {
+		unless ($Data->number_rows > 0) {
 			print " Unable to process file '$file', skipping\n";
 			next;
 		}
@@ -212,7 +212,11 @@ sub process_input_peak_files {
 			print "file '$file' does not appear to be BED-family format! skipping\n";
 			next;
 		}
+
+		# process name
 		my $name = $Data->basename;
+		$name =~ s/\.rep [_\-\.] me (?: an | rge)$//x;   # remove rep_mean rep_merge
+		$name =~ s/_peaks$//;
 		if ( exists $name2count{$name} ) {
 			print " basename '$name' provided more than once! skipping duplicates\n";
 			next;
@@ -295,8 +299,7 @@ sub intersect_peaks {
 	print " Parsing intersections....\n";
 	my $MultiData = Bio::ToolBox->load_file($multi_file)
 		or die "can't load $multi_file!\n";
-	$MultiData->name( 1, 'Start0' )
-		;    # because it's actually 0-based, and this will trigger it
+	$MultiData->name( 1, 'Start0' );    # because it's actually 0-based
 	$MultiData->add_comment(
 		sprintf(
 			"Output from bedtools multi-intersect tool between %s",
