@@ -306,6 +306,7 @@ sub intersect_peaks {
 			join( ', ', @names )
 		)
 	);
+	$MultiData->gsort_data;   # may not actually be sorted correctly!!!!!!!!!! 
 
 	# initialize current merged peak
 	%current = (
