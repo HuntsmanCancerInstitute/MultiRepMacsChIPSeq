@@ -1236,7 +1236,7 @@ sub run_bdg_conversion {
 sub run_peak_merge {
 	my $self = shift;
 	return if $self->number_of_jobs == 1;    # no sense merging one job!
-	print "\n\n======= Merging called Peak files\n";
+	print "\n\n======= Merging peak files\n";
 	if ( $self->{progress}{peakmerge} ) {
 		print "\nStep is completed\n";
 		return;
@@ -1259,25 +1259,17 @@ sub run_peak_merge {
 	my @commands;
 
 	# process replicate-mean narrow Peaks first
+	print "\n Replicate-mean narrow peaks\n";
 	my @sample_files;
 	foreach my $Job (@jobs) {
-		if ( $self->dryrun ) {
+		my $count = $Job->count_file_lines( $Job->repmean_peak );
+		printf "  %s peaks for %s\n", format_with_commas($count), $Job->job_name;
+		if ($count) {
 			push @sample_files, $Job->repmean_peak;
-		}
-		else {
-			my $count = $Job->count_file_lines( $Job->repmean_peak );
-			if ($count) {
-				push @sample_files, $Job->repmean_peak;
-			}
-			else {
-				$Job->repmean_peak(q());
-			}
 		}
 	}
 	if ( @sample_files <= 1 ) {
-
-		# nothing to merge
-		print "One or fewer replicate-mean narrow peak files found, nothing to merge!\n";
+		print " One or fewer peak files found, nothing to merge!\n";
 	}
 	else {
 		my $command = sprintf
@@ -1296,25 +1288,16 @@ sub run_peak_merge {
 	# process replicate-mean broad peaks
 	if ( $self->broad ) {
 		@sample_files = ();
+		print "\n Replicate-mean broad peaks\n";
 		foreach my $Job (@jobs) {
-			if ( $self->dryrun ) {
+			my $count = $Job->count_file_lines( $Job->repmean_gappeak );
+			printf "  %s peaks for %s\n", format_with_commas($count), $Job->job_name;
+			if ($count) {
 				push @sample_files, $Job->repmean_gappeak;
-			}
-			else {
-				my $count = $Job->count_file_lines( $Job->repmean_gappeak );
-				if ($count) {
-					push @sample_files, $Job->repmean_gappeak;
-				}
-				else {
-					$Job->repmean_gappeak(q());
-				}
 			}
 		}
 		if ( @sample_files <= 1 ) {
-
-			# nothing to merge
-			print
-"One or fewer replicate-mean broad gapped peak files found, nothing to merge!\n";
+			print " One or fewer peak files found, nothing to merge!\n";
 		}
 		else {
 			my $merge_base = $self->repmean_merge_base . '_broad';
@@ -1335,25 +1318,18 @@ sub run_peak_merge {
 	# then process the independent replicate-merged peaks if present
 	if ( $self->independent ) {
 
+		# replicate-merged narrow peaks
 		@sample_files = ();
+		print "\n Independently called, replicate-merged narrow peaks\n";
 		foreach my $Job (@jobs) {
-			if ( $self->dryrun ) {
+			my $count = $Job->count_file_lines( $Job->repmerge_peak );
+			printf "  %s peaks for %s\n", format_with_commas($count), $Job->job_name;
+			if ($count) {
 				push @sample_files, $Job->repmerge_peak;
-			}
-			else {
-				my $count = $Job->count_file_lines( $Job->repmerge_peak );
-				if ($count) {
-					push @sample_files, $Job->repmerge_peak;
-				}
-				else {
-					$Job->repmerge_peak(q());
-				}
 			}
 		}
 		if ( @sample_files <= 1 ) {
-
-			# nothing to merge
-			print "One or fewer narrow peak files found, nothing to merge!\n";
+			print " One or fewer peak files found, nothing to merge!\n";
 		}
 		else {
 			my $command = sprintf
@@ -1369,27 +1345,20 @@ sub run_peak_merge {
 			push @commands, [ $command, $self->repmerge_merge_base . '.bed', $log ];
 		}
 
-		# process replicate-mean broad peaks
+		# process replicate-merged broad peaks
 		if ( $self->broad ) {
 			@sample_files = ();
+			print "\n Independently called, replicate-merged broad peaks\n";
 			foreach my $Job (@jobs) {
-				if ( $self->dryrun ) {
+				my $count = $Job->count_file_lines( $Job->repmerge_gappeak );
+				printf "  %s peaks for %s\n", format_with_commas($count),
+					$Job->job_name;
+				if ($count) {
 					push @sample_files, $Job->repmerge_gappeak;
-				}
-				else {
-					my $count = $Job->count_file_lines( $Job->repmerge_gappeak );
-					if ($count) {
-						push @sample_files, $Job->repmerge_gappeak;
-					}
-					else {
-						$Job->repmerge_gappeak(q());
-					}
 				}
 			}
 			if ( @sample_files <= 1 ) {
-
-				# nothing to merge
-				print "One or fewer broad gapped peak files found, nothing to merge!\n";
+				print " One or fewer peak files found, nothing to merge!\n";
 			}
 			else {
 				my $merge_base = $self->repmerge_merge_base . '_broad';
@@ -1409,6 +1378,7 @@ sub run_peak_merge {
 	}
 
 	if (@commands) {
+		print "\n";  # spacer
 		$self->execute_commands( \@commands );
 		$self->update_progress_file('peakmerge');
 	}
