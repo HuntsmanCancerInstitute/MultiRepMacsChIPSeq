@@ -121,6 +121,7 @@ Options:
   --chrapply    "text"          Apply factor to specified chromosomes via regex
  
  Peak calling
+  --independent                 Call peaks independently for each replicate and merge
   --cutoff      number          Threshold q-value for calling peaks ($opts->{cutoff}) 
                                   Higher numbers are more significant, -1*log10(q)
   --peaksize    integer         Minimum peak size to call (2 x fragment size)
@@ -130,7 +131,6 @@ Options:
   --broadcut    number          Q-value cutoff for linking broad regions ($opts->{broadcut})
   --broadgap    integer         Maximum link size between peaks in broad calls (4 x size bp)
   --nolambda                    Skip lambda control, compare ChIP directly with control
-  --independent                 Call peaks independently for each replicate and merge
   --minpeakover integer         Minimum number of overlapping replicate peaks to 
                                   accept when merging (default n-1)
   
@@ -152,7 +152,6 @@ Options:
   --bamdedup    path            ($opts->{bamdedup})
   --bedtools    path            ($opts->{bedtools})
   --bw2bdg      path            ($opts->{bw2bdg})
-  --combrep     path            ($opts->{combrep})
   --data2wig    path            ($opts->{data2wig})
   --getdata     path            ($opts->{getdata})
   --getrel      path            ($opts->{getrel})
