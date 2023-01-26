@@ -1584,7 +1584,7 @@ sub _rescore_narrow_input {
 		$self->cpu;
 	push @command_lengths, length($command3);
 	my $command4 = sprintf
-"%s --method mean --in %s --out %s --win %s --num 25 --pos m --long --format 3 --groups --sum --cpu %s ",
+"%s --method mean --in %s --out %s --win %s --num 25 --pos p --long --format 3 --groups --sum --cpu %s ",
 		$self->getrel_app || 'get_relative_data.pl',
 		$input,
 		$output4,
@@ -1592,7 +1592,7 @@ sub _rescore_narrow_input {
 		$self->cpu;
 	push @command_lengths, length($command4);
 	my $command5 = sprintf
-"%s --method mean --in %s --out %s --win %s --num 25 --pos m --long --format 3 --groups --sum --cpu %s ",
+"%s --method mean --in %s --out %s --win %s --num 25 --pos p --long --format 3 --groups --sum --cpu %s ",
 		$self->getrel_app || 'get_relative_data.pl',
 		$input,
 		$output5,
