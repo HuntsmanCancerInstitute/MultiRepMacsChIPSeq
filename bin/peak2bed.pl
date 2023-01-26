@@ -40,6 +40,8 @@ Files will use the same path and base name, but change the extension to
 For gappedPeak files, only one file will be written, a 12-column bed file, 
 with extension '.gapped.bed'.
 
+Version: $VERSION
+
 USAGE: peak2bed.pl peak1.narrowPeak [peak1.gappedPeak] ....
 
 OPTIONS

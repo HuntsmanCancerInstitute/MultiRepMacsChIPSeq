@@ -4,15 +4,15 @@
 # Huntsman Cancer Institute
 # University of Utah
 # Salt Lake City, UT 84112
-#  
+#
 # This package is free software; you can redistribute it and/or modify
-# it under the terms of the Artistic License 2.0.  
-# 
+# it under the terms of the Artistic License 2.0.
+#
 # Updated versions of this file may be found in the repository
 # https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq
 
-
 use strict;
+use English qw(-no_match_vars);
 use Getopt::Long;
 use File::Which;
 use File::Spec;
@@ -24,9 +24,7 @@ use Bio::ToolBox::big_helper qw(
 	wig_to_bigwig_conversion
 );
 
-
-my $VERSION = 2;
-
+our $VERSION = 2.1;
 
 # variables
 my $input1;
@@ -38,14 +36,13 @@ my $delta;
 my $length;
 my $gap;
 my $outdir;
-my $manwig = sprintf("%s", which 'manipulate_wig.pl');
-my $wig2bw = sprintf("%s", which 'wigToBigWig');
-my $bw2bdg = sprintf("%s", which 'bigWigToBedGraph');
-my $macs   = sprintf("%s", which 'macs2');
+my $manwig = sprintf( "%s", which 'manipulate_wig.pl' );
+my $wig2bw = sprintf( "%s", which 'wigToBigWig' );
+my $bw2bdg = sprintf( "%s", which 'bigWigToBedGraph' );
+my $macs   = sprintf( "%s", which 'macs2' );
 my $bwconvert;
 my $database;
 my $help;
-
 
 ### Documentation
 my $docs = <<DOC;
@@ -107,31 +104,29 @@ OPTIONS:
     --help                  Print documentation
 DOC
 
-
 unless (@ARGV) {
 	print $docs;
 	exit;
 }
 
-
 ### Options
 GetOptions(
-	'1|in1=s'           => \$input1,
-	'2|in2=s'           => \$input2,
-	'min=f'             => \$minimum,
-	'scale=f'           => \$scale,
-	'keepdiff!'         => \$keepdiff,
-	'delta=f'           => \$delta,
-	'len=i'             => \$length,
-	'gap=i'             => \$gap,
-	'outdir=s'          => \$outdir,
-	'macs=s'            => \$macs,
-	'manwig=s'          => \$manwig,
-	'w2bw=s'            => \$wig2bw,
-	'bw2w=s'            => \$bw2bdg,
-	'bw!'               => \$bwconvert,
-	'db=s'              => \$database,
-	'help!'             => \$help,
+	'1|in1=s'   => \$input1,
+	'2|in2=s'   => \$input2,
+	'min=f'     => \$minimum,
+	'scale=f'   => \$scale,
+	'keepdiff!' => \$keepdiff,
+	'delta=f'   => \$delta,
+	'len=i'     => \$length,
+	'gap=i'     => \$gap,
+	'outdir=s'  => \$outdir,
+	'macs=s'    => \$macs,
+	'manwig=s'  => \$manwig,
+	'w2bw=s'    => \$wig2bw,
+	'bw2w=s'    => \$bw2bdg,
+	'bw!'       => \$bwconvert,
+	'db=s'      => \$database,
+	'help!'     => \$help,
 ) or die "unrecognized option!\n";
 
 # check options
@@ -140,56 +135,57 @@ if ($help) {
 	exit;
 }
 die "manipulate_wig.pl not in your PATH!\n" unless $manwig;
-die "wigToBigWig not in your PATH!\n" unless $wig2bw;
-die "bigWigToBedGraph not in your PATH!\n" unless $bw2bdg;
-die "Macs2 not in your PATH!\n" unless $macs;
-if (not $input1 and not $input2 and scalar(@ARGV)) {
+die "wigToBigWig not in your PATH!\n"       unless $wig2bw;
+die "bigWigToBedGraph not in your PATH!\n"  unless $bw2bdg;
+die "Macs2 not in your PATH!\n"             unless $macs;
+if ( not $input1 and not $input2 and scalar(@ARGV) ) {
+
 	# user provided as list
 	$input1 = shift @ARGV;
-	$input2 = shift @ARGV or die "must provide two input "
+	$input2 = shift @ARGV or die "must provide two input ";
 }
-if ($input1 and not $input2) {
+if ( $input1 and not $input2 ) {
 	die "Two input files are required!\n";
 }
-if ($input1 eq $input2) {
+if ( $input1 eq $input2 ) {
 	die "Silly! Both inputs are the same!\n";
 }
 my $callpeak = 0;
-if ($delta and $length and $gap) {
+if ( $delta and $length and $gap ) {
 	$callpeak = 1;
 }
-elsif ($delta or $length or $gap) {
+elsif ( $delta or $length or $gap ) {
+
 	# at least one but not all three
 	die "must specify all three peak parameters: --len, --delta, and --gap!\n";
 }
 
-
 # Initialize ForkManager
 my $pm = Parallel::ForkManager->new(2);
 
-
 ### Inputs
-my ($base1, $path1, $ext1) = get_path_name($input1);
-$base1 =~ s/\.?(?:log2?fe|fragment|rpm)$//;
-my ($base2, $path2, $ext2) = get_path_name($input2);
-$base2 =~ s/\.?(?:log2?fe|fragment|rpm)$//;
+my ( $base1, $path1, $ext1 ) = get_path_name($input1);
+$base1 =~ s/ \.? (?: log2?fe | fragment | rpm )$//x;
+my ( $base2, $path2, $ext2 ) = get_path_name($input2);
+$base2 =~ s/ \.? (?: log2?fe | fragment | rpm )$//x;
 
 # check bigWig output
-if (not defined $bwconvert) {
-	if ($ext1 eq '.bw' and $ext2 eq '.bw') {
+if ( not defined $bwconvert ) {
+	if ( $ext1 eq '.bw' and $ext2 eq '.bw' ) {
 		$bwconvert = 1;
 		print " will convert output files to bigWig\n";
 		unless ($database) {
+
 			# recycle bigWig file as a database
 			$database = $input1;
 		}
 	}
 }
-if ($bwconvert and not $database) {
-	if ($ext1 eq '.bw') {
+if ( $bwconvert and not $database ) {
+	if ( $ext1 eq '.bw' ) {
 		$database = $input1;
 	}
-	elsif ($ext2 eq '.bw') {
+	elsif ( $ext2 eq '.bw' ) {
 		$database = $input2;
 	}
 	else {
@@ -198,139 +194,134 @@ if ($bwconvert and not $database) {
 	}
 }
 
-
-
-
 ### Calculate names
 # output path
 if ($outdir) {
-	unless (-e $outdir) {
-		make_path($outdir) or die "unable to make directory $outdir! $!\n";
+	unless ( -e $outdir ) {
+		make_path($outdir) or die "unable to make directory $outdir! $OS_ERROR\n";
 	}
 }
 else {
-	$outdir = './'; # unix style
+	$outdir = './';    # unix style
 }
-	
+
 # bedgraph
-my $bdg1 = File::Spec->catfile($outdir, $base1 . '.converted.bdg');
-my $bdg2 = File::Spec->catfile($outdir, $base2 . '.converted.bdg');
+my $bdg1 = File::Spec->catfile( $outdir, $base1 . '.converted.bdg' );
+my $bdg2 = File::Spec->catfile( $outdir, $base2 . '.converted.bdg' );
+
 # differential
-my $dif1 = File::Spec->catfile($outdir, sprintf("%s_%s.differential.bdg",$base1,$base2));
+my $dif1 =
+	File::Spec->catfile( $outdir, sprintf( "%s_%s.differential.bdg", $base1, $base2 ) );
+
 # enrichment - extension added later
-my $enr1 = File::Spec->catfile($outdir, $base1 . '.enrichment');
-my $enr2 = File::Spec->catfile($outdir, $base2 . '.enrichment');
+my $enr1 = File::Spec->catfile( $outdir, $base1 . '.enrichment' );
+my $enr2 = File::Spec->catfile( $outdir, $base2 . '.enrichment' );
+
 # peak
-my $peak1 = File::Spec->catfile($outdir, $base1 . '.enriched.narrowPeak');
-my $peak2 = File::Spec->catfile($outdir, $base2 . '.enriched.narrowPeak');
-
-
-
- 
-
+my $peak1 = File::Spec->catfile( $outdir, $base1 . '.enriched.narrowPeak' );
+my $peak2 = File::Spec->catfile( $outdir, $base2 . '.enriched.narrowPeak' );
 
 ### Convert
 print " Setting minimum values to $minimum in input files\n";
-foreach my $i (1..2) {
+foreach my $i ( 1 .. 2 ) {
 	$pm->start and next;
-	if ($i == 1) {
+	if ( $i == 1 ) {
+
 		# first
 		print "   processing $input1 to $bdg1...\n";
-		convert_to_minzero_bedgraph($input1, $bdg1, $minimum, 0, undef) or 
-			die "something went wrong with conversion!\n";
+		convert_to_minzero_bedgraph( $input1, $bdg1, $minimum, 0, undef )
+			or die "something went wrong with conversion!\n";
 	}
 	else {
 		# second
 		print "   processing $input2 to $bdg2...\n";
-		convert_to_minzero_bedgraph($input2, $bdg2, $minimum, 0, undef) or 
-			die "something went wrong with conversion!\n";
+		convert_to_minzero_bedgraph( $input2, $bdg2, $minimum, 0, undef )
+			or die "something went wrong with conversion!\n";
 	}
 	$pm->finish;
 }
 $pm->wait_all_children;
 
-
-
-
 ### Generate differential files
 print " Generating differential\n   between $bdg1 and $bdg2...\n";
-generate_differential_bedgraph($bdg1, $bdg2, $dif1) or 
-	die "something went wrong with conversion!\n";
-
-
+generate_differential_bedgraph( $bdg1, $bdg2, $dif1 )
+	or die "something went wrong with conversion!\n";
 
 ### Convert
 print " Generating respective complimentary enrichment files\n";
 
-foreach my $i (1..2) {
+foreach my $i ( 1 .. 2 ) {
+
 	# if we're not recalling peaks, then we can convert to bigWig here
-	
+
 	$pm->start and next;
-	if ($i == 1) {
-		# first 
-		if (not $callpeak and $bwconvert) {
+	if ( $i == 1 ) {
+
+		# first
+		if ( not $callpeak and $bwconvert ) {
+
 			# convert straight to bigWig here
 			print "   converting $enr1 to bigWig...\n";
-			convert_to_minzero_bedgraph($dif1, $enr1 . '.bw', 0, 0, $database) or 
-				die "something went wrong with conversion!\n";
+			convert_to_minzero_bedgraph( $dif1, $enr1 . '.bw', 0, 0, $database )
+				or die "something went wrong with conversion!\n";
 		}
 		else {
 			print "   converting $enr1...\n";
-			convert_to_minzero_bedgraph($dif1, $enr1 . '.bdg', 0, 0, undef) or 
-				die "something went wrong with conversion!\n";
+			convert_to_minzero_bedgraph( $dif1, $enr1 . '.bdg', 0, 0, undef )
+				or die "something went wrong with conversion!\n";
 		}
 	}
 	else {
 		# second file
 		# we flip the sign in this conversion, negative to positive, positive to zero
-		if (not $callpeak and $bwconvert) {
+		if ( not $callpeak and $bwconvert ) {
+
 			# convert straight to bigWig here
 			print "   converting $enr2 to bigWig...\n";
-			convert_to_minzero_bedgraph($dif1, $enr2 . '.bw', 0, 1, $database) or 
-				die "something went wrong with conversion!\n";
+			convert_to_minzero_bedgraph( $dif1, $enr2 . '.bw', 0, 1, $database )
+				or die "something went wrong with conversion!\n";
 		}
 		else {
 			print "   converting $enr2...\n";
-			convert_to_minzero_bedgraph($dif1, $enr2 . '.bdg', 0, 1, undef) or 
-				die "something went wrong with conversion!\n";
+			convert_to_minzero_bedgraph( $dif1, $enr2 . '.bdg', 0, 1, undef )
+				or die "something went wrong with conversion!\n";
 		}
 	}
 	$pm->finish;
 }
 $pm->wait_all_children;
 
-
-
 ### Call peaks
 if ($callpeak) {
 	print " Calling peaks on enrichment files\n";
-	
-	foreach my $i (1..2) {
+
+	foreach my $i ( 1 .. 2 ) {
 		$pm->start and next;
-		if ($i == 1) {
+		if ( $i == 1 ) {
 			print "   bdgpeakcall on $enr1...\n";
-			call_peaks($enr1 . '.bdg', $peak1) or 
-				die "something went wrong with first peak calling!\n";
+			call_peaks( $enr1 . '.bdg', $peak1 )
+				or die "something went wrong with first peak calling!\n";
 		}
 		else {
 			print "   bdgpeakcall on $enr2...\n";
-			call_peaks($enr2 . '.bdg', $peak2) or 
-				die "something went wrong with second peak calling!\n";
+			call_peaks( $enr2 . '.bdg', $peak2 )
+				or die "something went wrong with second peak calling!\n";
 		}
 		$pm->finish;
 	}
 	$pm->wait_all_children;
 
 	# Convert to bigWig
-	if ($bwconvert and $database) {
+	if ( $bwconvert and $database ) {
 		print " Converting enrichment bedGraph files to bigWig\n";
-		foreach my $i (1..2) {
+		foreach my $i ( 1 .. 2 ) {
 			$pm->start and next;
-			if ($i == 1) {
+			if ( $i == 1 ) {
+
 				# first
 				my $enr1bw = wig_to_bigwig_conversion(
-					wig     => $enr1 . '.bdg',
-					db      => $database,
+					wig       => $enr1 . '.bdg',
+					db        => $database,
 					bwapppath => $wig2bw
 				);
 				print "   wrote bigWig file $enr1bw\n";
@@ -338,8 +329,8 @@ if ($callpeak) {
 			else {
 				# first
 				my $enr2bw = wig_to_bigwig_conversion(
-					wig     => $enr2 . '.bdg',
-					db      => $database,
+					wig       => $enr2 . '.bdg',
+					db        => $database,
 					bwapppath => $wig2bw
 				);
 				print "   wrote bigWig file $enr2bw\n";
@@ -350,12 +341,11 @@ if ($callpeak) {
 	}
 }
 
-
 ### Keep differential file
-if ($keepdiff and $bwconvert and $database) {
+if ( $keepdiff and $bwconvert and $database ) {
 	my $diff1bw = wig_to_bigwig_conversion(
-		wig     => $dif1,
-		db      => $database,
+		wig       => $dif1,
+		db        => $database,
 		bwapppath => $wig2bw
 	);
 	if ($diff1bw) {
@@ -363,51 +353,53 @@ if ($keepdiff and $bwconvert and $database) {
 		unlink $dif1;
 	}
 }
-elsif ($keepdiff and not $bwconvert) {
+elsif ( $keepdiff and not $bwconvert ) {
 	print " keeping differential file $dif1\n";
 }
 else {
 	unlink $dif1;
 }
 
-
-
 ### Cleanup
-unlink($bdg1, $bdg2);
+unlink( $bdg1, $bdg2 );
 if ($bwconvert) {
-	unlink($enr1 . '.bdg', $enr2 . '.bdg');
+	unlink( $enr1 . '.bdg', $enr2 . '.bdg' );
 }
-
-
-
 
 ################ Subroutines
 
-
 sub get_path_name {
 	my $file = shift;
-	my ($basename, $path, $extension) = fileparse($file, qr/\.(?:bw|bigwig|bdg|bg|bedgraph)$/);
+	my ( $basename, $path, $extension ) = fileparse(
+		$file,
+		qr/\. (?: bw | bigwig | bdg | bg | bedgraph )$/x
+	);
 	unless ($extension) {
-		die "$file doesn't have a bedGraph or bigWig extension: bw|bigwig|bdg|bg|bedgraph\n";
+		die
+"$file doesn't have a bedGraph or bigWig extension: bw|bigwig|bdg|bg|bedgraph\n";
 	}
-	return ($basename, $path, $extension);
+	return ( $basename, $path, $extension );
 }
 
 sub convert_to_minzero_bedgraph {
-	my ($infile, $outfile, $min, $flip, $db) = @_;
-	
+	my ( $infile, $outfile, $min, $flip, $db ) = @_;
+
 	# generate command
-	my $command = sprintf("%s --in %s --min %s --out %s --bw2w %s --w2bw %s", $manwig, 
-		$infile, $min, $outfile, $bw2bdg, $wig2bw);
+	my $command = sprintf(
+		"%s --in %s --min %s --out %s --bw2w %s --w2bw %s", $manwig,
+		$infile, $min, $outfile, $bw2bdg, $wig2bw
+	);
 	if ($flip) {
 		$command .= " --mult -1";
 	}
 	if ($db) {
+
 		# add database in case this was added
 		$command .= " --db $db";
 	}
 	my $raw = qx($command);
-	if ($raw =~ m/wrote file $outfile/) {
+	if ( $raw =~ m/wrote \s file \s $outfile/x ) {
+
 		# completed successfully
 		return 1;
 	}
@@ -417,16 +409,17 @@ sub convert_to_minzero_bedgraph {
 }
 
 sub generate_differential_bedgraph {
-	my ($tfile, $cfile, $outfile) = @_;
-	
+	my ( $tfile, $cfile, $outfile ) = @_;
+
 	# generate command
-	my $command = sprintf("%s bdgcmp -t %s -c %s -m subtract ", $macs, $tfile, $cfile);
+	my $command = sprintf( "%s bdgcmp -t %s -c %s -m subtract ", $macs, $tfile, $cfile );
 	if ($scale) {
 		$command .= "-S $scale ";
 	}
-	$command .= sprintf("-o %s 2>&1", $outfile);
+	$command .= sprintf( "-o %s 2>&1", $outfile );
 	my $raw = qx($command);
-	if ($raw =~ m/Please check '$outfile'!/) {
+	if ( $raw =~ m/Please \s check \s '$outfile' !/x ) {
+
 		# completed successfully
 		return 1;
 	}
@@ -436,13 +429,16 @@ sub generate_differential_bedgraph {
 }
 
 sub call_peaks {
-	my ($infile, $outfile) = @_;
-	
+	my ( $infile, $outfile ) = @_;
+
 	# generate command
-	my $command = sprintf("%s bdgpeakcall -i %s -c %s -l %s -g %s -o %s 2>&1", $macs, $infile, 
-		$delta, $length, $gap, $outfile);
+	my $command = sprintf(
+		"%s bdgpeakcall -i %s -c %s -l %s -g %s -o %s 2>&1", $macs, $infile,
+		$delta, $length, $gap, $outfile
+	);
 	my $raw = qx($command);
-	if ($raw =~ m/Done/) {
+	if ( $raw =~ m/Done/ ) {
+
 		# completed successfully
 		return 1;
 	}
@@ -450,5 +446,4 @@ sub call_peaks {
 		return 0;
 	}
 }
-
 

@@ -4,15 +4,15 @@
 # Huntsman Cancer Institute
 # University of Utah
 # Salt Lake City, UT 84112
-#  
+#
 # This package is free software; you can redistribute it and/or modify
-# it under the terms of the Artistic License 2.0.  
-# 
+# it under the terms of the Artistic License 2.0.
+#
 # Updated versions of this file may be found in the repository
 # https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq
 
-
 use strict;
+use English qw(-no_match_vars);
 use File::Spec;
 use File::Which;
 use Getopt::Long;
@@ -20,14 +20,15 @@ use Parallel::ForkManager;
 use File::Path qw(make_path);
 use Bio::ToolBox::big_helper qw(generate_chromosome_file);
 
-# variables
-my $chrom       = 'chr1';
-my $outdir      = './';
-my $job         = 2;
-my $wig2bw      = sprintf("%s", which 'wigToBigWig');
-my $bw2wig      = sprintf("%s", which 'bigWigToWig');
-my $help;
+our $VERSION = 1.1;
 
+# global variables
+my $chrom  = 'chr1';
+my $outdir = './';
+my $job    = 2;
+my $wig2bw = sprintf( "%s", which 'wigToBigWig' );
+my $bw2wig = sprintf( "%s", which 'bigWigToWig' );
+my $help;
 
 ### Documentation
 my $docs = <<DOC;
@@ -49,19 +50,18 @@ OPTIONS:
 
 DOC
 
-
 ### Options
 unless (@ARGV) {
 	print $docs;
 	exit;
 }
 GetOptions(
-	'c|chr=s'           => \$chrom,
-	'o|out=s'           => \$outdir,
-	'wig2bw=s'          => \$wig2bw,
-	'bw2wig=s'          => \$bw2wig,
-	'j|job=i'           => \$job,
-	'help!'             => \$help,
+	'c|chr=s'  => \$chrom,
+	'o|out=s'  => \$outdir,
+	'wig2bw=s' => \$wig2bw,
+	'bw2wig=s' => \$bw2wig,
+	'j|job=i'  => \$job,
+	'help!'    => \$help,
 ) or die "unrecognized option! See help\n";
 
 # check options
@@ -70,37 +70,37 @@ if ($help) {
 	exit;
 }
 
-
 #### bigWig files
 my @files = @ARGV;
-unless (scalar @files) {
+unless ( scalar @files ) {
 	die "must provide one or more bigWig file!\n";
 }
 
-
 #### Output directory
-unless (-e $outdir) {
-	make_path($outdir) or die " Cannot make output directory $outdir! $!\n";
+unless ( -e $outdir ) {
+	make_path($outdir) or die " Cannot make output directory $outdir! $OS_ERROR\n";
 	print " Made output directory $outdir\n";
 }
 
-
 #### Chromosome file
-my $chromofile = generate_chromosome_file($files[0]) or 
-	die "unable to generate a chromsome file from '$files[0]'!\n";
-
-
+my $chromofile = generate_chromosome_file( $files[0] )
+	or die "unable to generate a chromsome file from '$files[0]'!\n";
 
 #### Process
-my $pm = Parallel::ForkManager->new($job);
+my $pm  = Parallel::ForkManager->new($job);
+my $ext = qr/\. (?: bw | bigwig ) $/xi;
 foreach my $file (@files) {
+	unless ( $file =~ $ext ) {
+		print " file '$file' does not have a bigWig extension! skipping\n";
+		next;
+	}
 	$pm->start and next;
-	my (undef, undef, $base) = File::Spec->splitpath($file);
-	$base =~ s/\.(?:bw|bigwig)$//i;
-	my $outfile = File::Spec->catfile($outdir, $base . ".$chrom.bw");
-	my $command = sprintf"%s -chrom=%s %s stdout | %s stdin %s %s", 
+	my ( undef, undef, $base ) = File::Spec->splitpath($file);
+	$base =~ s/$ext//;
+	my $outfile = File::Spec->catfile( $outdir, $base . ".$chrom.bw" );
+	my $command = sprintf "%s -chrom=%s %s stdout | %s stdin %s %s",
 		$bw2wig, $chrom, $file, $wig2bw, $chromofile, $outfile;
-	if (system($command)) {
+	if ( system($command) ) {
 		die "something went wrong with command '$command'!!!\n";
 	}
 	else {
@@ -111,7 +111,4 @@ foreach my $file (@files) {
 $pm->wait_all_children;
 
 unlink $chromofile;
-
-
-
 
