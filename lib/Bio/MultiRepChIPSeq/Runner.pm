@@ -1557,7 +1557,6 @@ sub _rescore_narrow_input {
 	my $output3 = $base . '_counts.txt.gz';
 	my $output4 = $base . '_profile_fragment.txt.gz';
 	my $output5 = $base . '_profile_log2FE.txt.gz';
-	my $output6 = $base . '_genome_counts.txt.gz';
 
 	# generate four get_dataset and two get_relative commands
 	# go ahead and make the fourth genome-wide command, even though we may not use it
@@ -1599,14 +1598,6 @@ sub _rescore_narrow_input {
 		$self->binsize,
 		$self->cpu;
 	push @command_lengths, length($command5);
-	my $command6 = sprintf
-"%s --method sum --feature genome --win %d --discard %s --out %s --format 0 --cpu %s ",
-		$self->getdata_app || 'get_datasets.pl',
-		$self->genomewin,
-		$self->discard,
-		$output6,
-		$self->cpu;
-	push @command_lengths, length($command6);
 
 	# add dataset files
 	my %name2done;
@@ -1624,13 +1615,11 @@ sub _rescore_narrow_input {
 		foreach my $b ( $Job->chip_count_bw ) {
 			next if exists $name2done{$b};
 			$command3 .= "--data $b ";
-			$command6 .= "--data $b ";
 			$name2done{$b} = 1;
 		}
 		foreach my $b ( $Job->control_count_bw ) {
 			next if exists $name2done{$b};
 			$command3 .= "--data $b ";
-			$command6 .= "--data $b ";
 			$name2done{$b} = 1;
 		}
 	}
@@ -1668,16 +1657,6 @@ sub _rescore_narrow_input {
 		$log =~ s/txt\.gz$/out.txt/;
 		$command5 .= " 2>&1 > $log";
 		push @commands, [ $command5, $output5, $log ];
-	}
-	if ( length $command6 > shift @command_lengths ) {
-		if ( $self->genomewin ) {
-
-			# user has given an actual genome window size, so we'll run this command
-			my $log = $output6;
-			$log =~ s/txt\.gz$/out.txt/;
-			$command6 .= " 2>&1 > $log";
-			push @commands, [ $command6, $output6, $log ];
-		}
 	}
 
 	return @commands;
