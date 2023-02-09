@@ -15,9 +15,9 @@ use strict;
 use English qw(-no_match_vars);
 use Getopt::Long;
 use File::Which;
-use IO::File;
 use List::Util qw(sum min max);
-use Bio::ToolBox::db_helper 1.50 qw(
+use Bio::ToolBox 1.50;
+use Bio::ToolBox::db_helper qw(
 	open_db_connection
 	low_level_bam_fetch
 	$BAM_ADAPTER
@@ -32,7 +32,7 @@ eval {
 	$parallel = 1;
 };
 
-our $VERSION = 5.3;
+our $VERSION = 5.4;
 
 my $DOC = <<END;
 
@@ -356,7 +356,6 @@ exit 0;    # bam files should automatically be closed
 sub process_black_list {
 	return unless $black_list;
 	if ( -e $black_list ) {
-		eval { require Bio::ToolBox::Data };    # this should be available
 		my $i = 0;
 		eval { require Set::IntervalTree; $i = 1; };
 		unless ($i) {
@@ -364,7 +363,7 @@ sub process_black_list {
 			undef $black_list;
 			return;
 		}
-		my $Data = Bio::ToolBox::Data->new( file => $black_list )
+		my $Data = Bio::ToolBox->load_file( $black_list )
 			or die "unable to read black list file '$black_list'\n";
 		my %black_list_hash;
 		$Data->iterate(
@@ -479,9 +478,9 @@ sub count_alignments {
 		my $matrixfile = $outfile || $infile;
 		$matrixfile =~ s/\.bam$//;
 		$matrixfile .= '.dup-distance.matrix.txt';
-		my $fh = IO::File->new( $matrixfile, '>' )
-			or die "unable to write to file $matrixfile! $OS_ERROR";
 		$fh->print("# duplicate delta pixel distances for $infile\n");
+		my $fh = Bio::ToolBox->write_file( $matrixfile )
+			or die "unable to write to file $matrixfile!";
 		$fh->print(
 "# number is duplicate count observed at X and Y delta distance from previous\n"
 		);
@@ -500,8 +499,8 @@ sub count_alignments {
 		my $histogramfile = $outfile || $infile;
 		$histogramfile =~ s/\.bam$//;
 		$histogramfile .= '.dup-threshold.txt';
-		$fh = IO::File->new( $histogramfile, '>' )
-			or die "unable to write to file $histogramfile! $OS_ERROR";
+		$fh = Bio::ToolBox->write_file( $histogramfile )
+			or die "unable to write to file $histogramfile!";
 		$fh->print(
 			"# Fraction of observed duplicates at the given pixel distance threshold\n");
 		my $dup_sum = $opticalCount + $dupCount;
@@ -1409,7 +1408,7 @@ sub deduplicate_multithread {
 		# write temporary new header file
 		my $samfile = $outfile;
 		$samfile =~ s/\.bam$/temp.sam/;
-		my $fh = IO::File->new( $samfile, '>' )
+		my $fh = Bio::ToolBox->write_file($samfile)
 			or die "unable to write temporary sam file\n";
 		$fh->print($htext);
 		$fh->close;
