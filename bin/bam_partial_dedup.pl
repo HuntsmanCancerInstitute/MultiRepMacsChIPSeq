@@ -432,21 +432,25 @@ sub count_alignments {
 		sum( values %{$depth2count} );    # assumes one unique at every single position
 	my $dupCount =
 		$workingCount - $nondupCount;  # essentially count of positions with 2+ alignments
-	my $dupRate     = $dupCount / $workingCount;
+	my $working_dupRate = $dupCount / $workingCount;
 	my $maxObserved = max( keys %{$depth2count} );
 
 	# right justify the numbers in the printf to make it look pretty
 	printf "  Total mapped: %24d
   Optical duplicate count: %13d
-  Optical duplicate rate: %14.4f
-  Non-optical working count: %11d
+  Optical duplication rate: %12.4f
+  Working count: %23d
   Non-optical duplicate count: %9d
-  Non-optical duplication rate: %8.4f
   Non-duplicate count: %17d
+  Working duplication rate: %12.4f
+  Non-optical duplication rate: %8.4f
+  Total duplication rate: %14.4f
   Maximum position depth: %14d
   Mean position depth: %17.4f\n",
-		$totalCount, $opticalCount, $opticalRate, $workingCount,
-		$dupCount, $dupRate, $nondupCount, $maxObserved, $workingCount / $nondupCount;
+		$totalCount, $opticalCount, $opticalRate, $workingCount, $dupCount, $nondupCount,
+		$working_dupRate, ($dupCount / $totalCount),
+		( ($dupCount + $opticalCount) / $totalCount), $maxObserved, 
+		( $workingCount / $nondupCount );
 
 	# warning about optical duplicate errors
 	if ($coordErrorCount) {
@@ -477,20 +481,23 @@ sub count_alignments {
 		# write matrix to file
 		my $matrixfile = $outfile || $infile;
 		$matrixfile =~ s/\.bam$//;
-		$matrixfile .= '.dup-distance.matrix.txt';
-		$fh->print("# duplicate delta pixel distances for $infile\n");
+		$matrixfile .= '.dup-distance.matrix.txt.gz';
 		my $fh = Bio::ToolBox->write_file( $matrixfile )
 			or die "unable to write to file $matrixfile!";
+		$fh->print("# optical duplicate delta pixel distances for $infile\n");
 		$fh->print(
-"# number is duplicate count observed at X and Y delta distance from previous\n"
+"# number is count of optical duplicates observed at X and Y delta distance from previous\n"
 		);
+		$fh->print("# Coordinates are reported in 50 pixel bins\n");
 		$fh->printf( "Y\t%s\n", join( "\t", map { $_ * 50 } ( 0 .. $xlimit ) ) );
 
+		my $optical_sum = 0;
 		foreach my $i ( 0 .. $ylimit ) {
 			$fh->printf(
 				"%d\t%s\n", $i * 50,
 				join( "\t", map { $dupmatrix->{$_}{$i} || 0 } ( 0 .. $xlimit ) )
 			);
+			$optical_sum += sum( map { $dupmatrix->{$_}{$i} || 0 } ( 0 .. $xlimit ) );
 		}
 		$fh->close;
 		print "  wrote duplicate delta distance matrix to file $matrixfile\n";
@@ -502,14 +509,20 @@ sub count_alignments {
 		$fh = Bio::ToolBox->write_file( $histogramfile )
 			or die "unable to write to file $histogramfile!";
 		$fh->print(
-			"# Fraction of observed duplicates at the given pixel distance threshold\n");
-		my $dup_sum = $opticalCount + $dupCount;
-		$fh->print("# Total observed duplicates for $infile: $dup_sum\n");
-		my $current_dup_sum = $dup_sum;
+"# Fraction of potential optical duplicates at the given pixel distance threshold\n"
+		);
+		$fh->printf("# Total observed duplicates for $infile: %d\n",
+			 $opticalCount + $dupCount);
+		$fh->print("# Potential optical duplicates for evaluation: $optical_sum\n");
+		$fh->print(
+"# Duplicates in different tiles or read groups are not considered candidates\n"
+		);
+		$fh->print("# Distance capped at 20000 pixels\n");
 		$fh->print("Distance\t$infile\n");
 
+		my $current_dup_sum = $optical_sum;
 		for my $i ( 0 .. 400 ) {
-			$fh->printf( "%d\t%0.04f\n", $i * 50, ( $current_dup_sum / $dup_sum ) );
+			$fh->printf( "%d\t%0.04f\n", $i * 50, ( $current_dup_sum / $optical_sum ) );
 			$current_dup_sum -= $distance2count->{$i} || 0;
 		}
 		$fh->close;
@@ -518,7 +531,7 @@ sub count_alignments {
 	}
 
 	# check if we need to continue
-	if ( $fraction and $dupRate <= $fraction ) {
+	if ( $fraction and $working_dupRate <= $fraction ) {
 
 		# the duplication rate is acceptable, no de-duplication necessary
 		print
