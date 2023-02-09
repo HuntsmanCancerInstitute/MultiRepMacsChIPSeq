@@ -170,7 +170,7 @@ my (
 );
 my @program_options = @ARGV;
 GetOptions(
-	'in=s'         => \$infile,          # the input bam file path
+	'i|in=s'       => \$infile,          # the input bam file path
 	'o|out=s'      => \$outfile,         # name of output file
 	'optical!'     => \$do_optical,      # check for optical duplicates
 	'distance=i'   => \$optical_thresh,  # optical threshold distance
@@ -190,7 +190,7 @@ GetOptions(
 	'verbose!'     => \$verbose,             # tell me more
 	'bam=s'        => \$BAM_ADAPTER,         # specifically set the bam adapter, advanced!
 	'nosam!'       => \$no_sam,              # avoid using external sam adapter, advanced!
-	'help!'        => \$help,                # print documentation
+	'h|help!'      => \$help,                # print documentation
 ) or die " unrecognized option(s)!! please refer to the help documentation\n\n";
 
 my $max_optical_rate = 0.01;
