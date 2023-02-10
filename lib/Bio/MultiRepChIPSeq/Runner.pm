@@ -658,32 +658,32 @@ sub run_dedup {
 		next if ( not -e $c->[2] );
 		my $fh = IO::File->new( $c->[2], 'r' );
 		while ( my $line = $fh->getline ) {
-			if ( $line =~ /^\ \ Total \ mapped: \s+ (\d+) $/x ) {
+			if ( $line =~ /^\s+ Total \s mapped: \s+ (\d+) $/x ) {
 
 				# bam_partial_dedup
 				$total = $1;
 			}
-			elsif ( $line =~ /^\ \ Non\-duplicate \ count: \s+ (\d+) $/x ) {
+			elsif ( $line =~ /^\s+ Non\-duplicate \s count: \s+ (\d+) $/x ) {
 				$nondup = $1;
 			}
-			elsif ( $line =~ /^\ \ Optical \ duplicate \ count: \s+ (\d+) $/x ) {
+			elsif ( $line =~ /^\s+ Optical \s duplicate \s count: \s+ (\d+) $/x ) {
 
 				# optical bam_partial_dedup
 				$optdup = $1;
 			}
-			elsif ( $line =~ /^\ \ Non\-optical \ duplicate \ count: \s+ (\d+) $/x ) {
+			elsif ( $line =~ /^\s+ Non\-optical \s duplicate \s count: \s+ (\d+) $/x ) {
 
 				# non-optical bam_partial_dedup
 				$dup = $1;
 			}
 			elsif ( $line =~
-				/^\ \ Non\-optical \ duplication \ rate: \s+ (\d \. \d+) $/x )
+				/^\s+ Non\-optical \ duplication \s rate: \s+ (\d \. \d+) $/x )
 			{
 				# non-optical bam_partial_dedup
 				$duprate = $1;
 			}
 			elsif ( $line =~
-				/^\ \ Retained \ non\-optical \ duplicate \ count: \s+ (\d+) \s* $/x )
+				/^\s+ Retained \s non\-optical \s duplicate \s count: \s+ (\d+) \s* $/x )
 			{
 				# bam_partial_dedup
 				# oops, there may be a space at the end
@@ -941,7 +941,7 @@ sub run_mappable_space_report {
 		while ( my $line = $fh->getline ) {
 
 			# we're going to use the all mappable space number
-			if ( $line =~ /All \ mappable \ space: \ ( [\d\.]+ ) \ Mb/x ) {
+			if ( $line =~ /All \s mappable \s space: \s ( [\d\.]+ ) \s Mb/x ) {
 				$self->genome( $1 * 1000000 );
 				last;
 			}
@@ -1009,13 +1009,13 @@ sub run_bam_fragment_conversion {
 		my @files;    # there may be one or more files processed here
 		while ( my $line = $fh->getline ) {
 			chomp $line;
-			if ( $line =~ /^\  Processing \ files \ (.+) \. \. \. $/x ) {
+			if ( $line =~ /^\s+ Processing \s files \s (.+) \. \. \. $/x ) {
 
 				# the names of files
 				@files = split( /, /, $1 );
 			}
 			elsif ( $line =~
-/^\  Normalizing \ depth \ based \ on \ ( [\d,]+ ) \ total \ counted \ (?: alignments | fragments) $/x
+/^\s+ Normalizing \s depth \s based \s on \s ( [\d,]+ ) \s total \s counted \s (?: alignments | fragments) $/x
 				)
 			{
 				# only one file was processed
@@ -1027,7 +1027,7 @@ sub run_bam_fragment_conversion {
 				}
 			}
 			elsif ( $line =~
-/^\ \ (.+) \ had \ ( [\d,]+ ) \ total \ counted \ (?: alignments | fragments) $/x
+/^\s+ (.+) \s had \s ( [\d,]+ ) \s total \s counted \s (?: alignments | fragments) $/x
 				)
 			{
 				# multiple files were processed
