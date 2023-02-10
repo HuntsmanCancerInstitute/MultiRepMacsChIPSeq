@@ -1,6 +1,61 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v18.0
+	multirep_macs2_pipeline.pl
+	- Running independent replicate peak calls with --independent flag now always
+	  runs replicate-mean peak calls. Output peak files are named as 'rep_merge' 
+	  for merged peaks from independent calls, and 'rep_mean' for standard 
+	  replicate-mean peak calls. Plot files from each analysis are put into 
+	  separate Plot subfolders for convenience and organization.
+	- Peak call files are now left in narrowPeak format rather than simplifying
+	  into Bed format. Fold-enrichment and Q-value scores are updated in the 
+	  narrowPeak file, and the standard score is normalized to 0-1000.
+	- A summary file for the combined output peaks is now written as a simple 
+	  TSV file with peak name, coordinate, sample source, and log2 
+	  fold-enrichment and maximum Q-value for each sample. 
+	- Collected data files for log2 fold enrichment, Q-value, and counts are 
+	  now gzip compressed.
+	- Added new option to specify the minimum number of replicate peak overlaps 
+	  to require before accepting in the merged peak. Default is one less than 
+	  the number of replicates. This should reduce inclusion of spurious peak 
+	  calls from only replicate, particularly if replicates have low concordance.
+	- Removed outdated options.
+	
+	intersect_peaks.pl
+	- New option for specifying the minimum number of contributing source peaks
+	  that must overlap before accepting the merged peak in the output. Useful 
+	  for filtering out peaks identified from only one input. 
+	- Writes a boolean matrix (1 or 0) for merged peaks indicating which of 
+	  the input source files contributed to the merged peak. Useful for 
+	  quickly identifying and filtering peaks from specific sources.
+	- No longer writes a simple text file of peak information.
+	
+	update_peak_file.pl
+	- New script to update various peak file formats, including narrowPeak, 
+	  gappedPeak, and broadPeak, and update the extra score columns using 
+	  one or more provided, relevant, bigWig files. 
+	- Additional options include normalizing the Score column, updating the 
+	  peak name, and writing a summit bed file (for narrowPeak only).
+	
+	peak2bed.pl
+	- Add options to explicitly define input and output files, and specify 
+	  functions for renaming peak names, normalizing the Score column, and 
+	  writing a summit bed file. Default options should allow similar 
+	  functionality as before without options.
+	
+	plot_peak_figures.R
+	- Update to handle compressed input files. This will break any backwards
+	  compatibility. Solution would be to simply gzip compress relevant input
+	  files.
+	- Rotate histogram plots horizontally to allow long sample names.
+	
+	bam_partial_dedup.pl
+	- Change reporting statistics
+	- Change duplicate-distance threshold report file as a fraction of duplicates 
+	  considered, not total observed.
+	
+
 v17.9
 	multirep_macs2_pipeline.pl
 	- Filter unwanted alignments, including duplicates, secondary, supplemental, 
