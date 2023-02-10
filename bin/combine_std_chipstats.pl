@@ -196,10 +196,11 @@ while (@ARGV) {
 			}
 			elsif ( $line =~ /^ \s+ Duplication \s rate: \s+ ( \d \. \d+ )$/x ) {
 
-				# regular bam_partial_dedup
+				# very old bam_partial_dedup
 				$duprate = $1;
 			}
-			elsif ( $line =~ /^ \s+ Optical \s duplicate \s rate: \s+ ( \d \. \d+ )$/x ) {
+			elsif ( $line =~
+				/^ \s+ Optical \s duplicat(?:e|ion) \s rate: \s+ ( \d \. \d+ )$/x ) {
 
 				# optical bam_partial_dedup
 				$optduprate = $1;
