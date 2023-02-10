@@ -91,9 +91,10 @@ or simply
 
 	$ python --version
 
-A modern Python is at least `3.5`, with the latest being `3.8`. Python `2.7` or earlier 
+A modern Python is at least `3.6`, with the latest being `3.10`. Python `2.7` or earlier 
 is deprecated and you should seriously upgrade. You can install current versions of 
-Python from [Python.org](https://www.python.org). 
+Python from [Python.org](https://www.python.org). See [below](#Python_Applications)
+regarding Python versions.
 
 ### R
 
@@ -189,6 +190,9 @@ best to install this into a separate environment. You can use a virtual environm
 python3, placing it in its own directory, and then link the main executable to a 
 convenient location if desired. The MultiRepMacsChIPSeq pipeline will need to call this 
 executable directly without having to explicitly activate a virtual environment.
+
+**Note**: As of this writing, Macs2 does not install under Python version 3.10, but 
+works with versions 3.6-3.9. No evaluation of Macs3 has been made.
 
 	$ python3 -m venv $HOME/macs2
 	$ source $HOME/macs2/activate

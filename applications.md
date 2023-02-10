@@ -16,6 +16,8 @@ Documentation for the applications included in this package:
 
 - [multirep_macs2_pipeline.pl](#multirep_macs2_pipelinepl)
 
+- [peak2bed.pl](#peak2bedpl)
+
 - [plot_peak_figures.R](#plot_peak_figuresr)
 
 - [plot_shift_models.R](#plot_shift_modelsr)
@@ -34,6 +36,8 @@ Documentation for the applications included in this package:
 
 - [subset_bigwig.pl](#subset_bigwigpl)
 
+- [update_peak_file.pl]($update_peak_filepl)
+
 
 ## bam_partial_dedup.pl
 
@@ -51,7 +55,7 @@ most important when comparing between replicates or samples.
 This script can randomly subsample or remove duplicate reads to reach a 
 target duplication rate. This results in a more uniform duplicate reduction 
 across the genome, which can be more typical of true PCR duplication. 
-Set the target duplication fraction rate with the --frac option below. 
+Set the target duplication fraction rate with the `--frac` option below. 
 
 This script can also simply remove excessive duplicate reads at positions 
 that exceed a specified target threshold. This can be set either alone or
@@ -83,8 +87,9 @@ recommended for patterned flow cells from Illumina NovaSeq or NextSeq. Set a
 distance of 100 pixels for unpatterned (Illumina HiSeq) or at least 10000 for  
 patterned (NovaSeq). By default, optical duplicate alignments are not written 
 to output. To ONLY filter for optical duplicates, set `--max` to a very high number.
+Note that tile-edge duplicates are not counted as such.
 
-Existing alignment duplicate marks (bit flag 0x400) are ignored. 
+Existing alignment duplicate marks (bit flag `0x400`) are ignored. 
 
 Since repetitive and high copy genomic regions are a big source of duplicate 
 alignments, these regions can and should be entirely skipped by providing a 
@@ -263,43 +268,48 @@ OPTIONS:
 
 ## intersect_peaks.pl
 
-A script to intersect two or more peak files. This is a wrapper around the 
-[BedTools](https://bedtools.readthedocs.io) program.
+A script to intersect two or more peak interval files and generate a single 
+union interval file, as well as numerous statistics describing the peaks and 
+intersections. It uses the [BedTools](https://bedtools.readthedocs.io) 
+application for intersection calculations.
 
-It will first calculate a number of descriptive statistics for the interval lengths 
-for each input file, including count, sum, standard deviation, and quartiles.
+It will calculate a number of descriptive statistics for the input files, 
+including count, sum, standard deviation, and quartiles of peak lengths.
 
-It will merge all of the peak files into a single representative bed file.
-Peak intervals will be renamed to the given name. 
+It will run a multi-way intersection with the bedtools application and parse
+the output into a merged interval bed file and an overlap summary statistics
+file. A minimum number of overlapping peaks may be explicitly set to restrict
+the merged peaks to those represented by multiple input peak files (default 1).
 
-It will run the _bedtools Jaccard_ statistic pairwise across all of the peak 
-files and write out a merged table of the results. The Jaccard statistic measures 
-the amount of spatial overlap between two peak files (intersection/union) reported 
-as a fraction between 0 and 1.
+It will report the pairwise number of intersections and spatial overlap 
+(Jaccard statistic) between all pairwise combinations of peak intervals. 
 
-Finally, it will run _bedtools multiinter_ tool to perform a multi-way intersection 
-and calculate the intervals for each category of overlap. This is parsed into a 
-summary file suitable for drawing a Venn diagram based on spatial overlap.
+Results may be plotted using [plot_peak_figures.R](#plot_peak_figuresr) 
+using the out basename as input.
 
-Six files will be written:
-    basename.bed                    the merged peaks
-    basename.jaccard.txt            the Jaccard results in a table
-    basename.n_intersection.txt     the number of intersections in a table
-    basename.multi.txt              data file from multi-intersection 
-    basename.spatialVenn.txt        summary of spatial overlap for each category
-    basename.lengthStats.txt        interval length statistics for each file
+Seven files will be written:
+    output.bed                    the merged peaks in bed format
+    output.matrix.txt             boolean intersection matrix for each merged peak
+    output.jaccard.txt            pairwise Jaccard statistic (bp overlap) table
+    output.n_intersection.txt     pairwise intersection count table
+    output.multi.txt.gz           data file from bedtools multi-intersect tool 
+    output.intersection.txt       intersection statistics for each peak combination
+    output.lengthStats.txt        interval length statistics for each peak input
 
-Usage:
+VERSION: 6.0
 
-	intersect_peaks.pl --out <basename> peak1.narrowPeak peak2.narrowPeak ....
+USAGE:
+	intersect_peaks.pl --out <basename> [options] <peak1> <peak2> ...
 
-Options:
+OPTIONS:
+	  -o --out <basename>      Provide the output basename
+	  -n --name <text>         Merged peak name (default output basename)
+	  -m --min <integer>       Minimum number of peak overlaps to merge (default 1)
+	  -a --gap <integer>       Maximum gap before merging neighboring peaks (1 bp)
+	  -g --genome <path>       Provide a genome file for sort consistency
+	  -b --bed <path>          Path to bedtools (bedtools)
+	  -h --help                Print documentation
 
-		--out basename          Provide the output basename
-		--name text             Provide text to rename the merged peaks
-		--genome path           Provide a genome file for sort consistency
-		--bed path              Path to bedtools (bedtools)
-		--help                  Print documentation
 
 ## multirep_macs2_pipeline.pl
 
@@ -342,7 +352,7 @@ as a (poor) substitute.
 
 Advanced users may provide one processed bigWig file per ChIP or control sample. 
 
-Version: 16
+Version: 18
 
 Options:
 
@@ -374,7 +384,7 @@ Options:
 	
 	 Duplication filtering
 	  --nodedup                     Skip deduplication and take everything as is
-	  --dupfrac   floa              Target duplication rate for subsampling (0.05)
+	  --dupfrac   float             Target duplication rate for subsampling (0.05)
 	  --maxdepth  integer           Maximum position alignment depth ()
 	                                  set to 1 to remove all duplicates
 	  --optdist   integer           Maximum distance for optical duplicates (0)
@@ -396,6 +406,7 @@ Options:
 	  --chrapply  "text"            Apply factor to specified chromosomes
 	
 	 Peak calling
+	  --independent                 Call peaks independently for each replicate and merge
 	  --cutoff    number            Threshold q-value for calling peaks (2) 
 									 Higher numbers are more significant, -1*log10(q)
 	  --peaksize  integer           Minimum peak size to call (2 x fragment size)
@@ -405,14 +416,12 @@ Options:
 	  --broadcut  number            Q-value cutoff for linking broad regions (0.5)
 	  --broadgap  integer           Maximum link size between peaks in broad calls (4 x size bp)
 	  --nolambda                    Skip lambda control, compare ChIP directly with control
-	  --independent                 Call peaks independently for each replicate and merge
+	  --minpeakover integer         Minimum number of overlapping replicate peaks to 
+                                      accept when merging (default n-1)
 	
 	 Peak scoring
 	  --binsize   integer           Size of bins in 25 flanking peak bins for profile (40 bp)
-	  --window    integer           Collect counts across genome in given window size
-	  --discard   number            Discard genome windows with replicate sum below number (10)
 	  --rawcounts                   Use unscaled raw counts for re-scoring peaks
-	  --repmean                     Combine replicate counts as mean for each sample set
 	  --noplot                      Do not plot figures of results
 	
 	 Job control
@@ -424,25 +433,65 @@ Options:
 	  --savebdg                     Save q-value bdg files for further custom calling
 
 	 Application  Paths
-	  --bam2wig   path             (bam2wig.pl)
-	  --bamdedup  path             (bam_partial_dedup.pl)
-	  --macs      path             (macs2)
-	  --manwig    path             (manipulate_wig.pl)
-	  --wig2bw    path             (wigToBigWig)
-	  --bw2bdg    path             (bigWigToBedGraph)
-	  --printchr  path             (print_chromosome_lengths.pl)
-	  --data2wig  path             (data2wig.pl)
-	  --getdata   path             (get_datasets.pl)
-	  --getrel    path             (get_relative_data.pl)
-	  --geteff    path             (get_chip_efficiency.pl)
-	  --meanbdg   path             (generate_mean_bedGraph.pl)
-	  --bedtools  path             (bedtools)
-	  --intersect path             (intersect_peaks.pl)
-	  --peak2bed  path             (peak2bed.pl)
-	  --combrep   path             (combine_replicate_data.pl)
-	  --plotpeak  path             (plot_peak_figures.R)
-	  --rscript   path             (Rscript)
-	  --reportmap path             (report_mappable_space.pl)
+	  --bam2wig    path             (bam2wig.pl)
+	  --bamdedup   path             (bam_partial_dedup.pl)
+	  --bedtools   path             (bedtools)
+	  --bw2bdg     path             (bigWigToBedGraph)
+	  --data2wig   path             (data2wig.pl)
+	  --getdata    path             (get_datasets.pl)
+	  --getrel     path             (get_relative_data.pl)
+	  --geteff     path             (get_chip_efficiency.pl)
+	  --intersect  path             (intersect_peaks.pl)
+	  --macs       path             (macs2)
+	  --manwig     path             (manipulate_wig.pl)
+	  --meanbdg    path             (generate_mean_bedGraph.pl)
+	  --peak2bed   path             (peak2bed.pl)
+	  --plotpeak   path             (plot_peak_figures.R)
+	  --printchr   path             (print_chromosome_lengths.pl)
+	  --reportmap  path             (report_mappable_space.pl)
+	  --rscript    path             (Rscript)
+	  --updatepeak path             (update_peak_file.pl)
+	  --wig2bw     path             (wigToBigWig)
+
+
+## peak2bed.pl
+
+A script to convert Macs2 narrowPeak and gappedPeak files into simpler bed files. 
+Specifically, discard unused p-value and q-value columns after running Macs2 
+bdgpeakcall or bdgbroadcall. 
+
+This script will also resort the peaks properly (numerically, as opposed to 
+alphabetically) and rename the peaks. Score values may be normalized to a 
+standard range of 0-1000. 
+
+For narrowPeak files, one or two files may be written:
+
+    a 5-column BED file of peak intervals, including original score value
+    a 4-column BED file of the summit position 
+
+Files will use the same path and base name, but change the extension to 
+`.bed` and `.summit.bed`, respectively.
+
+For gappedPeak files, only one file will be written, a 12-column bed file, 
+with extension `.gapped.bed`.
+
+Version: 2
+
+USAGE:
+    peak2bed.pl peak1.narrowPeak [peak1.gappedPeak] ....
+
+OPTIONS
+    -i --input  <file>   Specify the input file
+    -o --output <file>   Specify the output file (default input basename)
+    -n --name   <text>   Specify the name text (default input basename)
+    -s --summit          write a summit bed file (narrowPeak input only)
+                            default true, use --nosummit to turn off
+    -r --norm            Normalize the Score column to range 0-1000
+    -h --help            print this help
+    
+    Multiple input and ouput files and names may be specified via options,
+    simply repeat as necessary.
+
 
 
 ## plot_peak_figures.R
@@ -566,55 +615,60 @@ pipeline over again. Existing fragment coverage, log2 Fold Enrichment,
 and count bigWig files are used for re-scoring the new peaks. As such, 
 it expects file outputs from the MultiRep ChIPSeq Pipeline. 
 
+**NOTE**: Independently called peaks for replicates are not re-called. 
+Only mean-replicate peaks are recalled. 
+
 New peak and analysis files are placed into new subdirectories with a 
 numeric suffix (allowing for multiple conditions to be run consecutively) 
 without overwriting pre-existing files. Peaks from different runs can 
-subsequently be compared using the intersect_peaks.pl script, if desired.
+subsequently be compared using the [intersect_peaks.pl](#intersect_peakspl) 
+script, if desired.
+
+Version: 18
 
 Options:
 
-	 Input files
-	  --in        file basename     Base filename for previous pipeline output
-	  --dir       directory         Directory for writing all files (./)
-	  --out       file basename     Base filename for new output files (merged)
-  
-	 Peak calling
-	  --cutoff    number            Threshold q-value for calling peaks () 
-	                                  Higher numbers are more significant, -1*log10(q)
-	  --peaksize  integer           Minimum peak size to call ()
-	  --peakgap   integer           Maximum gap between peaks before merging ()
-	  --broad                       Also perform broad (gapped) peak calling
-	  --broadcut  number            Q-value cutoff for linking broad regions ()
-	  --broadgap  integer           Maximum link size between peaks in broad calls ()
-  
-	 Peak scoring
-	  --binsize   integer           Size of bins in 25 flanking peak bins for profile (40)
-	  --repmean                     Combine replicate counts as mean for each sample set
-	  --noplot                      Do not plot figures of results
-  
-	 Job control
-	  --cpu       integer           Number of CPUs to use per job (4)
-	  --job       integer           Number of simultaneous jobs (2)
-	  --dryrun                      Just print the commands without execution
-	  --noorganize                  Do not organize files into subfolders when finished
-
-	 Application  Paths
-	  --macs      path             (macs2)
-	  --manwig    path             (manipulate_wig.pl)
-	  --wig2bw    path             (wigToBigWig)
-	  --bw2bdg    path             (bigWigToBedGraph)
-	  --printchr  path             (print_chromosome_lengths.pl)
-	  --data2wig  path             (data2wig.pl)
-	  --getdata   path             (get_datasets.pl)
-	  --getrel    path             (get_relative_data.pl)
-	  --geteff    path             (get_chip_efficiency.pl)
-	  --meanbdg   path             (generate_mean_bedGraph.pl)
-	  --bedtools  path             (bedtools)
-	  --intersect path             (intersect_peaks.pl)
-	  --peak2bed  path             (peak2bed.pl)
-	  --combrep   path             (combine_replicate_data.pl)
-	  --plotpeak  path             (plot_peak_figures.R)
-	  --rscript   path             (Rscript)
+	Input files
+	 --in        file basename     Base filename for previous pipeline output
+	 --dir       directory         Directory for writing all files (./)
+	 --out       file basename     Base filename for new output files (merged)
+	 
+	Peak calling
+	 --cutoff    number            Threshold q-value for calling peaks () 
+	                                 Higher numbers are more significant, -1*log10(q)
+	 --peaksize  integer           Minimum peak size to call ()
+	 --peakgap   integer           Maximum gap between peaks before merging ()
+	 --broad                       Also perform broad (gapped) peak calling
+	 --broadcut  number            Q-value cutoff for linking broad regions ()
+	 --broadgap  integer           Maximum link size between peaks in broad calls ()
+	 
+	Peak scoring
+	 --binsize   integer           Size of bins in 25 flanking peak bins for profile (40)
+	 --noplot                      Do not plot figures of results
+	 
+	Job control
+	 --cpu       integer           Number of CPUs to use per job (4)
+	 --job       integer           Number of simultaneous jobs (2)
+	 --dryrun                      Just print the commands without execution
+	 --noorganize                  Do not organize files into subfolders when finished
+	
+	Application  Paths
+	 --macs        path            (macs2)
+	 --manwig      path            (manipulate_wig.pl)
+	 --wig2bw      path            (wigToBigWig)
+	 --bw2bdg      path            (bigWigToBedGraph)
+	 --printchr    path            (print_chromosome_lengths.pl)
+	 --data2wig    path            (data2wig.pl)
+	 --getdata     path            (get_datasets.pl)
+	 --getrel      path            (get_relative_data.pl)
+	 --geteff      path            (get_chip_efficiency.pl)
+	 --meanbdg     path            (generate_mean_bedGraph.pl)
+	 --bedtools    path            (bedtools)
+	 --intersect   path            (intersect_peaks.pl)
+	 --peak2bed    path            (peak2bed.pl)
+	 --updatepeak  path            (update_peak_file.pl)
+	 --plotpeak    path            (plot_peak_figures.R)
+	 --rscript     path            (Rscript)
 
 
 ## report_mappable_space.pl
@@ -688,6 +742,12 @@ Options:
 
 	-m MIN, --min=MIN
 		Minimum base count sum, default 50
+
+	--norm
+		Input counts are normalized, set SizeFactors to 1
+
+	--all
+		Report all windows, not just significant
 
 	-h, --help
 		Show this help message and exit
@@ -805,5 +865,44 @@ OPTIONS:
 	--wig2bw <path>         (wigToBigWig)
 	--bw2wig <path>         (bigWigToWig)
 	--help                  Print documentation
+
+
+## update_peak_file.pl
+
+A script to fill in missing score values in a Peak file.
+
+Running MACS2 `bdgpeakcall` or `bdgbroadcall` functions will write an
+appropriate Peak output file, but will have missing score values,
+specifically: 
+
+    signalValue  - Fold Enrichment at summit or across broad region
+    pValue       - P-Value at summit or across broad region
+    qValue       - Q-Value at summit or across broad region 
+
+One or more of these values may be updated by providing the appropriate 
+score track file (currently only bigWig tracks are supported). 
+
+Additionally, the file is automatically re-sorted with a sane chromosome 
+sort, and names may be adjusted if desired, using the provided base text
+that will be appended with an increasing number. Scores can also optionally 
+be scaled to the UCSC-recommended range of 0-1000. 
+
+For narrowPeak files, a summit bed file may be exported, if desired.
+
+USAGE:
+    update_peak_file.pl -i <peakfile> [options]
+
+OPTIONS:
+    -i --in <file>         Input narrowPeak file
+    -o --out <file>        Output file, default input
+    -n --name <text>       Base text to optionally rename the peaks
+    -e --enrich <file>     The enrichment score bigWig file, e.g. log2FE
+    -p --pvalue <file>     The P-Calue bigWig score file
+    -q --qvalue <file>     The Q-Value bigWig score file
+    -r --norm              Normalize the Score column to range 0-1000
+    -u --summit            Export a summit Bed file from narrowPeak
+    -h --help              Print documentation
+
+
 
 
