@@ -76,8 +76,9 @@
 # Avoid archives of this distribution
 \bMultiRepMacsChIPSeq-[\d\.\_]+
 
-# Pysano stuff
-\bpysano/
+# Examples and Data
+\examples
 
-# Docker stuff
-\bDocer/
+# Personal playground
+\bplayground
+
