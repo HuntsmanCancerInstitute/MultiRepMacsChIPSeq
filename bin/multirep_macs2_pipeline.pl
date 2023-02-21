@@ -85,17 +85,17 @@ Options:
                                 (default empirically determined)
   
  Bam options
-  --mapq        integer         Minimum mapping quality, ($opts->{mapq})
   --pe                          Bam files are paired-end, default treat as single-end
-  --min         integer         Minimum paired-end size allowed ($opts->{minsize} bp)
-  --max         integer         Maximum paired-end size allowed ($opts->{maxsize} bp)
   --fraction                    Record multiple-hit alignments as fraction of hits
  
- Bam filtering options
+ Alignment filtering options
+  --mapq        integer         Minimum mapping quality, ($opts->{mapq})
   --chrskip     "text"          Chromosome skip regex ($opts->{chrskip})
   --blacklist   file            Bed file of repeats or hotspots to avoid
                                   Default determined empirically from control samples.
                                   Specify 'none' for no filtering.
+  --min         integer         Minimum paired-end size allowed ($opts->{minsize} bp)
+  --max         integer         Maximum paired-end size allowed ($opts->{maxsize} bp)
   
  Duplication filtering
   --nodedup                     Skip deduplication and use all primary, nondup alignments
