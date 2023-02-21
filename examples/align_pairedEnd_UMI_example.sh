@@ -13,7 +13,6 @@ NAME=MYNAME
 
 # example mouse Novoalign index
 INDEX=/tomato/dev/data/Mouse/Mm10/mm10.nov.illumina.nix
-BLACKLIST=/tomato/dev/data/Mouse/Mm10/mm10.blacklist.bed
 
 # optical distance
 OPTDISTANCE=2500
@@ -27,11 +26,11 @@ ADATPR=AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT
 
 # application paths
 APP=/tomato/dev/app
-NOVO_APP=$APP/novoalign/4.02.02/novoalign
+NOVO_APP=$APP/novoalign/4.03.01/novoalign
 SAM_APP=$APP/samtools/1.16/samtools
 MERGE_APP=$APP/modulesoftware/merge_umi_fastq
 DEDUP_APP=$APP/modulesoftware/bam_umi_dedup
-PICARD_APP=$APP/picard/2.23.3/picard.jar
+PICARD_APP=$APP/picard/2.26.3/picard.jar
 
 # merge UMI fastq
 echo "=== Merging UMI fastq"

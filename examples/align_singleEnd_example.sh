@@ -14,15 +14,14 @@ NAME=MYNAME
 # mouse Novoalign index
 DATA=/tomato/dev/data
 INDEX=$DATA/Mouse/Mm10/mm10.standard.nov.illumina.nix
-BLACKLIST=$DATA/Mouse/Mm10/mm10.blacklist.bed
 SIZE=2500000000
 
 # optical distance
-# use 100 for HiSeq runs or 10000 for NovaSeq runs
+# use 100 for HiSeq runs or 2500 for NovaSeq runs
 OPTDISTANCE=100
 
 # application paths
-NOVO_APP=/tomato/dev/app/novoalign/4.02.02/novoalign
+NOVO_APP=/tomato/dev/app/novoalign/4.03.01/novoalign
 SAM_APP=/tomato/dev/app/samtools/1.16/samtools
 DEDUP_APP=/tomato/dev/app/modulesoftware/bam_partial_dedup
 BAMWIG_APP=/tomato/dev/app/modulesoftware/bam2wig
@@ -54,7 +53,6 @@ $DEDUP_APP \
 --in $NAME.bam \
 --optical \
 --distance $OPTDISTANCE \
---blacklist $BLACKLIST \
 --chrskip "chrM|MT"
 
 # check insert size with macs2
