@@ -141,7 +141,8 @@ condition. Technical replicates could also be included.
 # Usage and installation
 
 See the accompanying [Installation guide](INSTALL.md), [Usage Guide](Usage.md), and 
-[list of application menus](applications.md) for further information.
+[list of application menus](applications.md) for further information. Examples and 
+example scripts are provided in the [examples directory](examples/Readme.md).
 
 # AUTHOR
 
