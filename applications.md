@@ -370,17 +370,16 @@ Options:
 	                                  (default empirically determined)
   
 	 Bam options
-	  --mapq      integer           Minimum mapping quality, (0)
 	  --pe                          Bam files are paired-end
-	  --min       integer           Minimum paired-end size allowed (50 bp)
-	  --max       integer           Maximum paired-end size allowed (500 bp)
-	  --fraction                    Record multiple-hit alignments as fraction of hits
  
-	 Bam filtering options
+	 Alignment filtering options
+	  --mapq      integer           Minimum mapping quality, (0)
 	  --chrskip   "text"            Chromosome skip regex (chrM|MT|lambda|Adapter|PhiX)
 	  --blacklist file              Bed file of repeats or hotspots to avoid
 	                                  Default determined empirically from control samples.
 	                                  Specify 'none' for no filtering.
+	  --min       integer           Minimum paired-end size allowed (50 bp)
+	  --max       integer           Maximum paired-end size allowed (500 bp)
 	
 	 Duplication filtering
 	  --nodedup                     Skip deduplication and take everything as is
@@ -395,6 +394,7 @@ Options:
 	 Fragment coverage
 	  --size      integer           Predicted fragment size (single-end only, 250 bp)
 	  --shift     integer           Shift the fragment, e.g. ATACSeq (0 bp)
+	  --fraction                    Record multiple-hit alignments as fraction of hits
 	  --slocal    integer           Small local lambda size (1000 bp)
 	  --llocal    integer           Large local lambda size (10000 bp)
 	  --cbin      integer           ChIP fragment bin size (10 bp)
