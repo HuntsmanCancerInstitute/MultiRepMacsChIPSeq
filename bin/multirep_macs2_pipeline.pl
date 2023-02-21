@@ -86,7 +86,6 @@ Options:
   
  Bam options
   --pe                          Bam files are paired-end, default treat as single-end
-  --fraction                    Record multiple-hit alignments as fraction of hits
  
  Alignment filtering options
   --mapq        integer         Minimum mapping quality, ($opts->{mapq})
@@ -110,6 +109,7 @@ Options:
  Fragment coverage
   --size        integer         Predicted fragment size. REQUIRED for single-end
   --shift       integer         Shift the fragment, e.g. ATACSeq ($opts->{shiftsize} bp)
+  --fraction                    Record multiple-hit alignments as fraction of hits
   --slocal      integer         Small local lambda size ($opts->{slocal} bp)
   --llocal      integer         Large local lambda size ($opts->{llocal} bp)
   --cbin        integer         ChIP fragment bin size ($opts->{chipbin} bp)
