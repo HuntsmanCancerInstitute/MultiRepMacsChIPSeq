@@ -148,14 +148,14 @@ while (@ARGV) {
 				$optdup = $1;
 			}
 			elsif ( $line =~
-/^ \s+ (\d+) \ \( \d+ \.\d % \) \s UMI\-unique \s .*end \s (?: marked | discarded ) $/x
+/^ \s+ (\d+) \s \( \d+ \.\d % \) \s UMI\-unique \s .*end \s (?: marked | discarded ) $/x
 				)
 			{
 				# optical bam_umi_dedup
 				$optdup += $1;
 			}
 			elsif ( $line =~
-/^ \s+ (\d+) \ \( \d+ \. \d% \) \s optical \s duplicate \s (?: single | paired ) \-end \s alignments \s were \s (?: marked | discarded )$/x
+/^ \s+ (\d+) \s \( \d+ \. \d% \) \s optical \s duplicate \s (?: single | paired ) \-end \s alignments \s were \s (?: marked | discarded )$/x
 				)
 			{
 				# optical bam_umi_dedup
@@ -180,14 +180,14 @@ while (@ARGV) {
 				$dup = $1;
 			}
 			elsif ( $line =~
-/^ \s+ (\d+) \ \( \d+ \. \d% \) \s UMI\-duplicate \s .*end \s (?: marked | discarded )$/x
+/^ \s+ (\d+) \s \( \d+ \. \d% \) \s UMI\-duplicate \s .*end \s (?: marked | discarded )$/x
 				)
 			{
 				# bam_umi_dedup
 				$dup += $1;
 			}
 
-			# rate
+			# duplication rate
 			elsif ( $line =~
 				/^ \s+ Non\-optical \s duplication \s rate: \s+ (\d \. \d+) $/x )
 			{
@@ -226,36 +226,36 @@ while (@ARGV) {
 				$trimMeanShift = $1;
 			}
 			elsif ( $line =~
-				/Alignments \s will \s be \s extended \s by \s (\d+) \ bp$/x )
+				/Alignments \s will \s be \s extended \s by \s (\d+) \s bp$/x )
 			{
 				$extension = $1;
 			}
 
 			# Novoalign standard error output
-			elsif ( $line =~ /^# \s+ Read \s Sequences: \s+ (\d+)/x ) {
+			elsif ( $line =~ /^\# \s+ Read \s Sequences: \s+ (\d+) $/x ) {
 				$novoReads = $1;
 			}
 			elsif ( $line =~
-				/^# \s+ Unique \s Alignment: \s+ (\d+) \s \( \s? (\d+ \. \d ) % \) $/x )
+				m/^\# \s+ Unique \s Alignment: \s+ (\d+) \s \( \s? (\d+ \. \d) % \) $/x )
 			{
 				$novoUnique    = $1;
 				$novoUniquePer = $2;
 			}
 			elsif ( $line =~
-				/^# \s+ Multi \s Mapped: \s+ (\d+) \s \( \s? (\d+ \. \d) % \) $/x )
+				/^\# \s+ Multi \s Mapped: \s+ (\d+) \s \( \s? (\d+ \. \d) % \) $/x )
 			{
 				$novoMulti    = $1;
 				$novoMultiPer = $2;
 			}
 			elsif ( $line =~
-				/^# \s+ No \s Mapping \s Found: \s+ (\d+) \s \( \s? ( \d+ \. \d ) % \) $/x
+				/^\# \s+ No \s Mapping \s Found: \s+ (\d+) \s \( \s? ( \d+ \. \d ) % \) $/x
 				)
 			{
 				$novoNoMap    = $1;
 				$novoNoMapPer = $2;
 			}
 			elsif ( $line =~
-				/^# \s+ Mean \s+ (\d+), \s+ Std \s Dev \s+ ( \d+ \. \d ) $/x )
+				/^\# \s+ Mean \s+ (\d+), \s+ Std \s Dev \s+ ( \d+ \. \d ) $/x )
 			{
 				$novoPEmean  = $1;
 				$novoPEstdev = $2;
@@ -263,7 +263,7 @@ while (@ARGV) {
 
 			# macs2 predicted fragment length
 			elsif ( $line =~
-/^INFO \s+ @ \s .+: \s # \s predicted \s fragment \s length \s is \s (\d+) \s bps \s* $/x
+/^INFO \s+ @ \s .+: \s \# \s predicted \s fragment \s length \s is \s (\d+) \s bps \s* $/x
 				)
 			{
 				$macsFragLength = $1;
