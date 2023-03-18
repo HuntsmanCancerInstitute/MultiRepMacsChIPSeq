@@ -22,7 +22,7 @@ use Bio::ToolBox::utility qw(format_with_commas);
 use List::Util qw(min max uniqstr first);
 use Statistics::Descriptive;
 
-our $VERSION = 6.0;
+our $VERSION = 6.1;
 
 # user variables
 my $tool = which('bedtools');
@@ -566,7 +566,7 @@ sub calculate_jaccard {
 			my $y = $name2i{ $names[$f2] };
 
 			my $result = qx($jaccard_cmdbase -a $sortfiles[$f1] -b $sortfiles[$f2] 2>&1);
-			if ( $result =~ /error/i ) {
+			if ( $result and $result =~ /error/i ) {
 
 				# there was some sort of error - the most likely is lexicographic
 				# the user needs a genome file because the bed files are either not
@@ -579,16 +579,36 @@ sub calculate_jaccard {
 				$IntersectionData->value( $x, $y, '.' );
 				$IntersectionData->value( $y, $x, '.' );
 			}
-			else {
-				# likely worked
-				printf "   jaccard between %s and %s succeeded\n", $names[$f1],
-					$names[$f2];
+			elsif ( $result ) {
+
+				# most likely worked
 				my @lines = split( /\n/, $result );
-				my ( undef, undef, $jaccard, $number ) = split( /\s+/, $lines[1] );
-				$JaccardData->value( $x, $y, sprintf( "%.4f", $jaccard ) );
-				$JaccardData->value( $y, $x, sprintf( "%.4f", $jaccard ) );
-				$IntersectionData->value( $x, $y, $number );
-				$IntersectionData->value( $y, $x, $number );
+				if ( $lines[1] ) {
+					my ( undef, undef, $jaccard, $number ) = split( /\s+/, $lines[1] );
+					printf "   jaccard between %s and %s was %.4f\n", $names[$f1],
+						$names[$f2], $jaccard;
+					$JaccardData->value( $x, $y, sprintf( "%.4f", $jaccard ) );
+					$JaccardData->value( $y, $x, sprintf( "%.4f", $jaccard ) );
+					$IntersectionData->value( $x, $y, $number );
+					$IntersectionData->value( $y, $x, $number );
+				}
+				else {
+					printf "   jaccard between %s and %s was 0.0000\n", $names[$f1],
+						$names[$f2];
+					$JaccardData->value( $x, $y, '0.0000' );
+					$JaccardData->value( $y, $x, '0.0000' );
+					$IntersectionData->value( $x, $y, '0' );
+					$IntersectionData->value( $y, $x, '0' );
+				}
+			}
+			else {
+				printf "   jaccard between %s and %s was 0.0000\n", $names[$f1],
+					$names[$f2];
+				$JaccardData->value( $x, $y, '0.0000' );
+				$JaccardData->value( $y, $x, '0.0000' );
+				$IntersectionData->value( $x, $y, '0' );
+				$IntersectionData->value( $y, $x, '0' );
+				
 			}
 
 			# done
