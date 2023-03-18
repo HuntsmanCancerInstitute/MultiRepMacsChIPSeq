@@ -96,12 +96,12 @@ alignments, these regions can and should be entirely skipped by providing a
 file with recognizable coordinates. Any alignments overlapping these intervals 
 are skipped in both counting and writing. 
 
-Usage:
- 
+USAGE:
+
 	bam_partial_dedup.pl --in input.bam
 	bam_partial_dedup.pl --frac 0.xx --in input.bam --out output.bam
 
-Options:
+OPTIONS:
 
 	--in <file>        The input bam file, should be sorted and indexed
 	--out <file>       The output bam file containing unique and retained 
@@ -174,7 +174,7 @@ programs. It will also parse the `stderr.txt` and `stdout.txt` files from Pysano
 directories. It will write out a single tab-delimited with the numbers. Sample 
 names are the given input file names or directory names.
 
-Usage: 
+USAGE: 
 
 	Pysano directories:
 		combine_std_chipstats.pl <outputfile> 1234X1/ 1234X2/ ...
@@ -208,31 +208,31 @@ confidence. Care should be taken to use a reasonably confident threshold.
 
 USAGE: 
 
-    generate_differential.pl -1 <chip1.log2FE.bw> -2 <chip2.log2FE.bw>
+	generate_differential.pl -1 <chip1.log2FE.bw> -2 <chip2.log2FE.bw>
 
 OPTIONS:
 
 	  Required 
 		-1 --in1 <file>         The bw or bdg file for ChIP-1
 		-2 --in2 <file>         The bw or bdg file for ChIP-2
-  
+	
 	  Differential
 		--min <float>           Set the minimum value to keep in input (0)
 	    --scale <float>         If necessary, optional scaling factor for RPM files
 	                               only used for converting input, not output
 		--keepdiff              Keep the differential file
-  
+	
 	  Re-call peaks (optional)
 		--delta <float>         Threshold delta score to call a peak
 		--len <int>             Minimum length of peak in bp
 		--gap <int>             Minimum length of gap in bp
-  
+	
 	  Paths
 		--macs <path>           ($macs)
 		--manwig <path>         ($manwig)
 		--w2bw <path>           ($wig2bw)
 		--bw2w <path>           ($bw2bdg)
-  
+	
 	  General
 		--outdir <path>         Alternate output directory
 		--bw                    Convert output differential files to bw
@@ -256,6 +256,7 @@ with the respective mean for each chromosome.
 Provide an input file in either bigWig or bedGraph format. 
 
 USAGE:
+
 	generate_mean_bedGraph.pl -i file.bw -o mean.bdg
 
 OPTIONS:
@@ -288,6 +289,7 @@ Results may be plotted using [plot_peak_figures.R](#plot_peak_figuresr)
 using the out basename as input.
 
 Seven files will be written:
+
     output.bed                    the merged peaks in bed format
     output.matrix.txt             boolean intersection matrix for each merged peak
     output.jaccard.txt            pairwise Jaccard statistic (bp overlap) table
@@ -299,9 +301,11 @@ Seven files will be written:
 VERSION: 6.0
 
 USAGE:
+
 	intersect_peaks.pl --out <basename> [options] <peak1> <peak2> ...
 
 OPTIONS:
+
 	  -o --out <basename>      Provide the output basename
 	  -n --name <text>         Merged peak name (default output basename)
 	  -m --min <integer>       Minimum number of peak overlaps to merge (default 1)
@@ -360,18 +364,18 @@ Options:
 	  --chip      file1,file2...    Repeat for each sample set
 	  --name      text              Repeat for each sample
 	  --control   file1,file2...    Repeat if matching multiple samples
- 
+	
 	 Output
 	  --dir       directory         Directory for writing all files (./)
 	  --out       file basename     Base filename for merged output files (merged)
-  
+	
 	 Genome size
 	  --genome    integer           Specify effective mappable genome size 
 	                                  (default empirically determined)
-  
+	
 	 Bam options
 	  --pe                          Bam files are paired-end
- 
+	
 	 Alignment filtering options
 	  --mapq      integer           Minimum mapping quality, (0)
 	  --chrskip   "text"            Chromosome skip regex (chrM|MT|lambda|Adapter|PhiX)
@@ -431,7 +435,7 @@ Options:
 	  --noorganize                  Do not organize files into subfolders when finished
 	  --savebam                     Save de-duplicated bam files
 	  --savebdg                     Save q-value bdg files for further custom calling
-
+	
 	 Application  Paths
 	  --bam2wig    path             (bam2wig.pl)
 	  --bamdedup   path             (bam_partial_dedup.pl)
@@ -478,9 +482,11 @@ with extension `.gapped.bed`.
 Version: 2
 
 USAGE:
-    peak2bed.pl peak1.narrowPeak [peak1.gappedPeak] ....
+
+	peak2bed.pl peak1.narrowPeak [peak1.gappedPeak] ....
 
 OPTIONS
+
     -i --input  <file>   Specify the input file
     -o --output <file>   Specify the output file (default input basename)
     -n --name   <text>   Specify the name text (default input basename)
@@ -523,38 +529,38 @@ Samples are identified by color palette: Try Set1, Set2, Set3, Spectral, Dark2,
 or any other named palette in RColorBrewer. Note that excessive sample numbers 
 may exceed the number the colors in a given palette (8 to 12). 
 
-Usage: 
+USAGE: 
 
 	plot_peak_figures.R [options]
-	
-Options:
 
-		-i INPUT, --input=INPUT
-			Path and basename to the multirep_macs2_pipeline combined output
-		
-		-n MIN, --min=MIN
-			Minimum log2 Fold Enrichment value to plot, default -4
-		
-		-x MAX, --max=MAX
-			Maximum log2 Fold Enrichment value to plot, default 4
-		
-		-q QMAX, --qmax=QMAX
-			Maximum q-value to plot, default 30
-		
-		-r FMAX, --fmax=FMAX
-			Maximum fragment value to plot, default 4
-		
-		--mincluster=MINCLUSTER
-			Minimum number of peaks to generate k-means plots, default 500
-		
-		-p --palette=NAME
-			RColorBrewer palette for samples, default Set1
-		
-		-f FORMAT, --format=FORMAT
-			Format of output file: png, pdf, default png
-		
-		-h, --help
-			Show this help message and exit
+OPTIONS:
+
+	-i INPUT, --input=INPUT
+		Path and basename to the multirep_macs2_pipeline combined output
+	
+	-n MIN, --min=MIN
+		Minimum log2 Fold Enrichment value to plot, default -4
+	
+	-x MAX, --max=MAX
+		Maximum log2 Fold Enrichment value to plot, default 4
+	
+	-q QMAX, --qmax=QMAX
+		Maximum q-value to plot, default 30
+	
+	-r FMAX, --fmax=FMAX
+		Maximum fragment value to plot, default 4
+	
+	--mincluster=MINCLUSTER
+		Minimum number of peaks to generate k-means plots, default 500
+	
+	-p --palette=NAME
+		RColorBrewer palette for samples, default Set1
+	
+	-f FORMAT, --format=FORMAT
+		Format of output file: png, pdf, default png
+	
+	-h, --help
+		Show this help message and exit
 
 
 ## plot_shift_models.R
@@ -563,11 +569,11 @@ This script will plot the predicted shift models from the BioToolBox bam2wig
 application. Two plots are prepared: the mean stranded coverage around peaks, 
 and the mean correlation for different shift values.
 
-Usage: 
+USAGE: 
 
 	plot_shift_models.R [options]
 
-Options:
+OPTIONS:
 
 	-i INPUT, --input=INPUT
 		Path and basename to the bam2wig *_model.txt and *_correlations.txt files
@@ -587,12 +593,12 @@ If more than one source file is given, then all are checked for consistency
 of chromosome names and order. An output file is only written if source 
 files have the same chromosome list.
 
-Usage: 
+USAGE: 
 
 	print_chromosome_lengths.pl <database1> ...
 	print_chromosome_lengths.pl -K 'chrM|alt|contig|un' -o chrom.sizes *.bam
 
-Options:
+OPTIONS:
 
 	-d --db "file"               Indexed database file, may repeat
 	-K --chrskip "text"          Chromosome skip regex
@@ -626,7 +632,7 @@ script, if desired.
 
 Version: 18
 
-Options:
+OPTIONS:
 
 	Input files
 	 --in        file basename     Base filename for previous pipeline output
@@ -682,12 +688,12 @@ regardless of mapping quality and number of hits to the genome, and unique
 mappability, as determined by a minimum mapping quality score (default 10).
 Results are written to standard out.
 
-Usage:
+USAGE:
 
 	report_mappable_space.pl *.bam
 	report_mappable_space.pl --chrskip '^chrRandom.+|chrM' *.bam
 
-Options:
+OPTIONS:
 
 	  --in <file>         An input bam file, must be sorted and indexed
 	                        Repeat for each input file
@@ -716,11 +722,11 @@ differences between ChIP1 and ChIP2 (or Reference) is written
 for converting into a bigWig for visualization. Merged 
 significant intervals of enrichment are written as a bed file.
 
-Usage: 
+USAGE: 
 
 	run_DESeq2.R [options]
 
-Options:
+OPTIONS:
 
 	-c COUNT, --count=COUNT
 		Input file containing count data
@@ -769,11 +775,11 @@ for visualization. Merged significant intervals for
 differential enrichment of ChIP1 (class 2) and ChIP2 
 (class 1) are written as bed files.
 
-Usage: 
+USAGE: 
 
 	run_normR_difference.R [options]
 
-Options:
+OPTIONS:
 
 	-i INPUT, --input=INPUT
 		Input file containing count data
@@ -815,11 +821,11 @@ ChIP and Reference is written for converting into a bigWig
 for visualization. Merged significant intervals for 
 enrichment are written as bed files.
 
-Usage: 
+USAGE: 
 
 	run_normR_enrichment.R [options]
 
-Options:
+OPTIONS:
 
 	-i INPUT, --input=INPUT
 		Input file containing count data
@@ -890,9 +896,11 @@ be scaled to the UCSC-recommended range of 0-1000.
 For narrowPeak files, a summit bed file may be exported, if desired.
 
 USAGE:
+
     update_peak_file.pl -i <peakfile> [options]
 
 OPTIONS:
+
     -i --in <file>         Input narrowPeak file
     -o --out <file>        Output file, default input
     -n --name <text>       Base text to optionally rename the peaks
