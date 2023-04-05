@@ -128,8 +128,11 @@ To build the project and run the first example pipeline script, run the followin
 
     [run_independent_nodup Script](run_independent_nodup.sh). This example is with two
     ChIP samples, each with three replicates, and with de-duplication turned off.
-    Even without de-duplication, Bam files are automatically filtered prior to
-    independent peak calling.
+    De-duplication should be explicitly turned off when the bam files have already 
+    been de-duplicated, particularly when using 
+    [UMI-based deduplication](https://github.com/HuntsmanCancerInstitute/UMIScripts)
+    which leaves behind duplicates of biological origin. Even without de-duplication,
+    Bam files are automatically filtered prior to independent peak calling. 
 
         multirep_macs2_pipeline.pl \
         --chip Rpd3_Ch1.bam,Rpd3_Ch2.bam,Rpd3_Ch3.bam \
