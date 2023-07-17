@@ -591,7 +591,7 @@ sub count_file_lines {
 		$n++;
 	}
 	$fh->close;
-	$self->{line_counts}{opts}{$file} = $n;
+	$self->{opts}{line_counts}{$file} = $n;
 	return $n;
 }
 
