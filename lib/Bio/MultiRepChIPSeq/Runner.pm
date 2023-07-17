@@ -14,7 +14,7 @@ use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
 
-our $VERSION = 18.0;
+our $VERSION = 18.1;
 
 sub new {
 	my $class   = shift;
@@ -1555,8 +1555,9 @@ sub _rescore_narrow_input {
 	my $output1 = $base . '_maxQvalue.txt.gz';
 	my $output2 = $base . '_meanLog2FE.txt.gz';
 	my $output3 = $base . '_counts.txt.gz';
-	my $output4 = $base . '_profile_fragment.txt.gz';
+	my $output4 = $base . '_profile_mean_fragment.txt.gz';
 	my $output5 = $base . '_profile_log2FE.txt.gz';
+	my $output6 = $base . '_profile_replicate_fragment.txt.gz';
 
 	# generate four get_dataset and two get_relative commands
 	# go ahead and make the fourth genome-wide command, even though we may not use it
@@ -1598,6 +1599,14 @@ sub _rescore_narrow_input {
 		$self->binsize,
 		$self->cpu;
 	push @command_lengths, length($command5);
+	my $command6 = sprintf
+"%s --method mean --in %s --out %s --win %s --num 25 --pos p --long --format 3 --groups --sum --cpu %s ",
+		$self->getrel_app || 'get_relative_data.pl',
+		$input,
+		$output6,
+		$self->binsize,
+		$self->cpu;
+	push @command_lengths, length($command6);
 
 	# add dataset files
 	my %name2done;
@@ -1621,6 +1630,13 @@ sub _rescore_narrow_input {
 			next if exists $name2done{$b};
 			$command3 .= "--data $b ";
 			$name2done{$b} = 1;
+		}
+		if ( $self->independent ) {
+			foreach my $b ( $Job->chip_ind_bw ) {
+				next if exists $name2done{$b};
+				$command6 .= "--data $b ";
+				$name2done{$b} = 1;
+			}
 		}
 	}
 
@@ -1657,6 +1673,12 @@ sub _rescore_narrow_input {
 		$log =~ s/txt\.gz$/out.txt/;
 		$command5 .= " 2>&1 > $log";
 		push @commands, [ $command5, $output5, $log ];
+	}
+	if ( length $command6 > shift @command_lengths ) {
+		my $log = $output6;
+		$log =~ s/txt\.gz$/out.txt/;
+		$command5 .= " 2>&1 > $log";
+		push @commands, [ $command6, $output6, $log ];
 	}
 
 	return @commands;
