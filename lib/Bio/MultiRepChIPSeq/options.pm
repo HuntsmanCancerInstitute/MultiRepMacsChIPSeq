@@ -5,12 +5,12 @@ use Carp;
 use IO::File;
 use File::Which;
 
-our $VERSION = 18.0;
+our $VERSION = 18.1;
 
 sub init_options {
 	my $class = shift;
 	my %opts  = (
-		dir         => './',
+		dir         => './MultiRepPeakCall',
 		in          => undef,
 		out         => 'merged',
 		name        => [],
