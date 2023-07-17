@@ -25,4 +25,14 @@ todo.txt
 .pls_cache
 old
 playground
-
+examples/cutsite
+examples/pe
+examples/pe_gapped
+examples/pe_indep
+examples/pe_nocon
+examples/pe_nodup
+examples/se
+examples/tup1_indiv
+examples/rpd3
+examples/tup1
+examples/Rpd3_Tup1_merge
