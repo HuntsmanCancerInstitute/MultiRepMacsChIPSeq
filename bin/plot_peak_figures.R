@@ -29,6 +29,8 @@ opts <-  list(
          help="Maximum fragment value to plot, default 4"),
     make_option(c("--mincluster"), default = 500,
          help="Minimum number of peaks to generate k-means plots, default 500"),
+    make_option(c("--spatial"), type="logical", action="store_true", default = FALSE,
+         help="Generate spatial UpSet plots (compute intensive), default F"),
     make_option(c("-p","--palette"), default = "Set1",
          help="RColorBrewer palette for samples, default Set1"),
     make_option(c("-f","--format"), default="png",
@@ -50,6 +52,8 @@ including the following:
   - Heat map and cluster of jaccard (spatial overlap) statistic between peaks
   - Pie chart of spatial overlap fraction of total merged peak coverage for 
     each sample
+  - UpSet plot of peak interactions
+  - UpSet plot of peak spatial overlaps (optional, compute intensive)
   - Bar chart of the fraction of fragment counts in corresponding peaks 
     for each replicate, a measure of ChIP efficiency
   - Heat map of the mean q-value scores for each ChIP over merged peaks
@@ -385,13 +389,15 @@ if (file.exists(interfile)) {
     grid.text("Counts of Peak Intersections",x = 0.65, y=0.97, gp=gpar(fontsize=10))
     dev.off()
     
-    png(filename = paste0(opt$input, '.spatial_upset.png'), width = 6, height = 5, units = "in", res = 300)
-    print(
-      upset(data = fromExpression(interspace), order.by = "freq", mainbar.y.label = "Spatial Overlap (bp)", 
-            sets.x.label = "Peak Total Size (bp)", number.angles = 30, nsets = length(n))
-    )
-    grid.text("Spatial Overlap of Peak Intersections",x = 0.65, y=0.97, gp=gpar(fontsize=10))
-    dev.off()
+    if (opt$spatial == TRUE) {
+      png(filename = paste0(opt$input, '.spatial_upset.png'), width = 6, height = 5, units = "in", res = 300)
+      print(
+        upset(data = fromExpression(interspace), order.by = "freq", mainbar.y.label = "Spatial Overlap (bp)", 
+              sets.x.label = "Peak Total Size (bp)", number.angles = 30, nsets = length(n))
+      )
+      grid.text("Spatial Overlap of Peak Intersections",x = 0.65, y=0.97, gp=gpar(fontsize=10))
+      dev.off()
+    }
   } else if (opt$format == "pdf") {
     
     pdf(file = paste0(opt$input, '.intersection_upset.pdf'), width = 6, height = 5, onefile = F)
@@ -402,13 +408,15 @@ if (file.exists(interfile)) {
     grid.text("Counts of Peak Intersections",x = 0.65, y=0.97, gp=gpar(fontsize=10))
     dev.off()
     
-    pdf(file = paste0(opt$input, '.spatial_upset.pdf'), width = 6, height = 5, onefile = F)
-    print(
-      upset(data = fromExpression(interspace), order.by = "freq", mainbar.y.label = "Spatial Overlap", 
-            sets.x.label = "Peak Total Size", number.angles = 30, nsets = length(n))
-    )
-    grid.text("Spatial Overlap of Peak Intersections",x = 0.65, y=0.97, gp=gpar(fontsize=10))
-    dev.off()
+    if (opt$spatial == TRUE) {
+      pdf(file = paste0(opt$input, '.spatial_upset.pdf'), width = 6, height = 5, onefile = F)
+      print(
+        upset(data = fromExpression(interspace), order.by = "freq", mainbar.y.label = "Spatial Overlap", 
+              sets.x.label = "Peak Total Size", number.angles = 30, nsets = length(n))
+      )
+      grid.text("Spatial Overlap of Peak Intersections",x = 0.65, y=0.97, gp=gpar(fontsize=10))
+      dev.off()
+    }
   }
   
   # Spatial intersection pie chart
