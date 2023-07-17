@@ -1021,7 +1021,18 @@ sub generate_bam2wig_count_commands {
 			$count_command .= sprintf "--pe --mid --minsize %s --maxsize %s ",
 				$self->minsize, $self->maxsize;
 		}
+		elsif ( $self->atac ) {
+			# Special options for ATAC cutsite point data.
+			# Recommended options are to shift by unequal amounts based on strand
+			# +5/-4 for F and R reads, but bam2wig isn't set up to do handle that
+			# so we simply shift by 5 bp (strand inherently handled).
+			# Also bam2wig has special ends mode to make this a little more efficient
+			# but doesn't currently handle shift, so just simply run as single end.
+			# The bam file should be filtered anyway to remove straggling singletons.
+			$count_command .= sprintf "--start --shiftval 5 ";
+		}
 		else {
+			# default single-end
 			$count_command .= sprintf "--start --shiftval %0.0f ",
 				( $self->fragsize / 2 ) + $self->shiftsize;
 		}

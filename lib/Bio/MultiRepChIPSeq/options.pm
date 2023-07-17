@@ -34,6 +34,7 @@ sub init_options {
 		dupfrac     => 0.05,
 		optdist     => 0,
 		deduppair   => 0,
+		atac        => 0,
 		fragsize    => 250,
 		shiftsize   => 0,
 		slocal      => 1000,
@@ -240,6 +241,12 @@ sub savebam {
 	my $self = shift;
 	$self->{opts}{savebam} = shift if @_;
 	return $self->{opts}{savebam};
+}
+
+sub atac {
+	my $self = shift;
+	$self->{opts}{atac} = shift if @_;
+	return $self->{opts}{atac};
 }
 
 sub fragsize {

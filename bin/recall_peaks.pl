@@ -75,6 +75,7 @@ Options:
   --broad                       Also perform broad (gapped) peak calling
   --broadcut    number          Q-value cutoff for linking broad regions ()
   --broadgap    integer         Maximum link size between peaks in broad calls ()
+  --atac                        Convenience option to set peak size and gap
   
  Peak scoring
   --binsize     integer         Size of bins in 25 flanking peak bins for profile ($opts->{binsize})
@@ -131,6 +132,7 @@ GetOptions(
 	'in=s',
 	'dir=s',
 	'out=s',
+	'atac!',
 	'cutoff=f',
 	'peaksize=i',
 	'peakgap=i',
@@ -203,6 +205,16 @@ sub check_inputs {
 	}
 
 	# sizes
+	if ( $Runner->atac ) {
+		# just to maintain consistency with main pipeline
+		# only useful parameters is to set peak size and gap
+		unless ( $Runner->peaksize ) {
+			$Runner->peaksize(150);
+		}
+		unless ( $Runner->peakgap ) {
+			$Runner->peakgap(50);
+		}
+	}
 	unless ( $Runner->cutoff and $Runner->peaksize and $Runner->peakgap ) {
 		die "Must set --cutoff, --peaksize, and --peakgap paramets!\n";
 	}

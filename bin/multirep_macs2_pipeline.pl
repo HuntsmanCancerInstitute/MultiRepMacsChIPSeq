@@ -104,11 +104,11 @@ Options:
   --optdist     integer         Maximum distance for optical duplicates ($opts->{optdist})
                                   use 100 for HiSeq, 2500 for NovaSeq
   --deduppair                   Run deduplication as paired-end, but coverage as single-end
-                                  e.g. for ATAC-Seq cut site analysis
 
  Fragment coverage
+  --atac                        Set multiple options specific for ATACSeq cutsite analysis
   --size        integer         Predicted fragment size. REQUIRED for single-end
-  --shift       integer         Shift the fragment, e.g. ATACSeq ($opts->{shiftsize} bp)
+  --shift       integer         Shift the fragment in special situations
   --fraction                    Record multiple-hit alignments as fraction of hits
   --slocal      integer         Small local lambda size ($opts->{slocal} bp)
   --llocal      integer         Large local lambda size ($opts->{llocal} bp)
@@ -216,6 +216,7 @@ GetOptions(
 	'deduppair!',
 	'fragsize|size=i',
 	'shiftsize|shift=i',
+	'atac!',
 	'slocal=i',
 	'llocal=i',
 	'chipbin|cbin=i',
@@ -452,6 +453,18 @@ MESSAGE
 	}
 
 	# check sizes
+	if ( $Runner->atac ) {
+		# set special options for ATACSeq cutsite analysis
+		$Runner->deduppair(1);
+		$Runner->paired(0);
+		$Runner->minsize(30);    # minsize and maxsize technically not required
+		$Runner->maxsize(2000);
+		$Runner->fragsize(100);
+		$Runner->shiftsize(-50);
+		$Runner->peaksize(150);
+		$Runner->peakgap(50);
+		$Runner->broad(0);
+	}
 	if ( not $Runner->peaksize ) {
 
 		# no minimum peak size defined? might be ok
