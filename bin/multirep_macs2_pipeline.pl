@@ -279,7 +279,7 @@ if ( $opts->{help} ) {
 print "======== ChIPSeq multi-replicate pipeline ==========\n";
 print "\nversion $VERSION\n";
 my $start = time;
-check_inputs();
+check_options();
 print_start();
 check_input_files();
 add_jobs_to_runner();
@@ -316,7 +316,7 @@ print "======== Finished ChIPSeq multi-replicate pipeline ==========\n";
 
 ############### Subroutines ########################################################
 
-sub check_inputs {
+sub check_options {
 
 	# check chip samples
 	if (@ARGV) {
