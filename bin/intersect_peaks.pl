@@ -22,7 +22,7 @@ use Bio::ToolBox::utility qw(format_with_commas);
 use List::Util qw(min max uniqstr first);
 use Statistics::Descriptive;
 
-our $VERSION = 6.1;
+our $VERSION = 6.2;
 
 # user variables
 my $tool = which('bedtools');
@@ -216,6 +216,7 @@ sub process_input_peak_files {
 		# process name
 		my $name = $Data->basename;
 		$name =~ s/\.rep [_\-\.] me (?: an | rge)$//x;   # remove rep_mean rep_merge
+		$name =~ s/[,;]/-/g;    # remove commas since these are delimiters later
 		$name =~ s/_peaks$//;
 		if ( exists $name2count{$name} ) {
 			print " basename '$name' provided more than once! skipping duplicates\n";
