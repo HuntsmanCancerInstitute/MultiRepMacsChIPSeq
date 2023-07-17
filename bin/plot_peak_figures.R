@@ -584,10 +584,10 @@ if(file.exists(qfile)) {
                        row.names = 1, check.names = F, na.strings = '.')
     if (ncol(qdata) > 2) {
       # only make a heat map file if there is more than one sample
-	  if ( colnames(qdata)[1] == "Name" ) {
-	    # exclude this column name
-	    qdata <- qdata[,2:ncol(qdata)]
-	  }
+      if ( colnames(qdata)[1] == "Name" ) {
+        # exclude this column name
+        qdata <- qdata[,2:ncol(qdata)]
+      }
       qdata[is.na(qdata)] <- 0
       plot_mean_k_hm(qdata, 0, opt$qmax, 4, colorRampPalette(brewer.pal(9, 'Reds'))(255), 
              color4, "Mean Q-Value over merged peaks, 4 Clusters",
@@ -629,29 +629,51 @@ if(file.exists(lfefile)) {
 
 
 
-# fragment profile heat map
-fproffile <- paste0(opt$input, "_profile_fragment.txt.gz")
-if(file.exists(fproffile)) {
-  fprofdata = read.table(fproffile,header=TRUE,sep="\t", 
+# mean fragment profile heat map
+mfproffile <- paste0(opt$input, "_profile_mean_fragment.txt.gz")
+if(file.exists(mfproffile)) {
+  fprofdata = read.table(mfproffile,header=TRUE,sep="\t", 
                          row.names = 1, check.names = F, na.strings = '.')
   if ( colnames(fprofdata)[1] == "Name" ) {
     # exclude this column name
     fprofdata <- fprofdata[,2:ncol(fprofdata)]
   }
   fprofdata[is.na(fprofdata)] <- 0
-  grpdata = read.table(paste0(opt$input, "_profile_fragment.groups.txt"), header=TRUE, sep="\t", 
+  grpdata = read.table(paste0(opt$input, "_profile_mean_fragment.groups.txt"), header=TRUE, sep="\t", 
                        row.names = 1, check.names = F)
   clrs <- colorRampPalette(brewer.pal(9, 'YlOrRd'))(255)
   plot_profile_hm(fprofdata, 0, opt$fmax, clrs, grpdata,
          "ChIP fragment density profile around merged peak midpoints",
-         paste0(opt$input,"_profile_fragment_hm"))
+         paste0(opt$input,"_profile_mean_fragment_hm"))
   if (nrow(fprofdata) >= opt$mincluster) {
      plot_profile_k_hm(fprofdata, 0, opt$fmax, 4, clrs, color4, grpdata, 
                        "ChIP fragment density profile around merged peak midpoints, 4 Clusters",
-                       paste0(opt$input, "_profile_fragment_hm_K4"))
+                       paste0(opt$input, "_profile_mean_fragment_hm_K4"))
   }
 }
 
+# replicate fragment profile heat map
+rfproffile <- paste0(opt$input, "_profile_replicate_fragment.txt.gz")
+if(file.exists(rfproffile)) {
+  fprofdata = read.table(rfproffile,header=TRUE,sep="\t", 
+                         row.names = 1, check.names = F, na.strings = '.')
+  if ( colnames(fprofdata)[1] == "Name" ) {
+    # exclude this column name
+    fprofdata <- fprofdata[,2:ncol(fprofdata)]
+  }
+  fprofdata[is.na(fprofdata)] <- 0
+  grpdata = read.table(paste0(opt$input, "_profile_replicate_fragment.groups.txt"), header=TRUE, sep="\t", 
+                       row.names = 1, check.names = F)
+  clrs <- colorRampPalette(brewer.pal(9, 'YlOrRd'))(255)
+  plot_profile_hm(fprofdata, 0, opt$fmax, clrs, grpdata,
+         "ChIP fragment density profile around merged peak midpoints",
+         paste0(opt$input,"_profile_replicate_fragment_hm"))
+  if (nrow(fprofdata) >= opt$mincluster) {
+     plot_profile_k_hm(fprofdata, 0, opt$fmax, 4, clrs, color4, grpdata, 
+                       "ChIP fragment density profile around merged peak midpoints, 4 Clusters",
+                       paste0(opt$input, "_profile_replicate_fragment_hm_K4"))
+  }
+}
 
 
 # log2FE profile heat map
@@ -680,13 +702,13 @@ if(file.exists(lfeproffile)) {
 
 
 # plot fragment mean profile line plot
-fprofsumfile <- paste0(opt$input, "_profile_fragment_summary.txt")
+fprofsumfile <- paste0(opt$input, "_profile_mean_fragment_summary.txt")
 if(file.exists(fprofsumfile)) {
   fprofsumdata <- read.table(fprofsumfile, header=TRUE, sep="\t", 
                             row.names = 1, check.names = F, na.strings = '.')
   fprofsumdata[is.na(fprofsumdata)] <- 0
   plotMid(fprofsumdata, "Fragment Density", "Mean fragment density profile around merged peak midpoints", 
-          paste0(opt$input, "_profile_fragment_summary"))
+          paste0(opt$input, "_profile_mean_fragment_summary"))
   
 }
 
