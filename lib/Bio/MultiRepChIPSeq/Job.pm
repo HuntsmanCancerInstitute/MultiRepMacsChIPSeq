@@ -572,7 +572,7 @@ sub generate_bam_filter_commands {
 
 	# generate samtool filter options
 	my $filter;
-	if ( $self->paired ) {
+	if ( $self->paired or $self->deduppair ) {
 
 		# exclude filter: UNMAP,MUNMAP,SECONDARY,QCFAIL,DUP,SUPPLEMENTARY
 		# include filter: PROPER_PAIR
