@@ -67,6 +67,9 @@ sub init_options {
 		plot        => 1,
 		dryrun      => 0,
 		organize    => 1,
+		plot_log2   => 4,
+		plot_frag   => 4,
+		plot_qval   => 30,
 		bam2wig     => sprintf( "%s", which 'bam2wig.pl' ),
 		bamdedup    => sprintf( "%s", which 'bam_partial_dedup.pl' ),
 		macs        => sprintf( "%s", which 'macs2' ),
@@ -445,6 +448,24 @@ sub organize {
 	my $self = shift;
 	$self->{opts}{organize} = shift if @_;
 	return $self->{opts}{organize};
+}
+
+sub plot_log2 {
+	my $self = shift;
+	$self->{opts}{plot_log2} = shift if @_;
+	return $self->{opts}{plot_log2};
+}
+
+sub plot_frag {
+	my $self = shift;
+	$self->{opts}{plot_frag} = shift if @_;
+	return $self->{opts}{plot_frag};
+}
+
+sub plot_qval {
+	my $self = shift;
+	$self->{opts}{plot_qval} = shift if @_;
+	return $self->{opts}{plot_qval};
 }
 
 sub bam2wig_app {

@@ -2005,20 +2005,30 @@ sub run_plot_peaks {
 	my @commands;
 
 	# mean-replicate narrow peaks
-	my $command = sprintf "%s --verbose %s --input %s ",
+	my $command = sprintf
+		"%s --verbose %s --input %s --min -%s --max %s --fmax %s --qmax %s",
 		$self->rscript_app,
 		$self->plotpeak_app,
-		$self->repmean_merge_base;
+		$self->repmean_merge_base,
+		$self->plot_log2,
+		$self->plot_log2,
+		$self->plot_frag,
+		$self->plot_qval;
 	my $log = $self->repmean_merge_base . '.plot_figures.out.txt';
 	$command .= " > $log 2>&1";
 	push @commands, [ $command, q(), $log ];
 
 	# merge-replicate narrow peaks
 	if ( $self->independent ) {
-		$command = sprintf "%s --verbose %s --input %s ",
+		$command = sprintf
+			"%s --verbose %s --input %s --min -%s --max %s --fmax %s --qmax %s",
 			$self->rscript_app,
 			$self->plotpeak_app,
-			$self->repmerge_merge_base;
+			$self->repmerge_merge_base,
+			$self->plot_log2,
+			$self->plot_log2,
+			$self->plot_frag,
+			$self->plot_qval;
 		$log = $self->repmerge_merge_base . '.plot_figures.out.txt';
 		$command .= " > $log 2>&1";
 		push @commands, [ $command, q(), $log ];
@@ -2029,24 +2039,34 @@ sub run_plot_peaks {
 
 		# replicate-mean broad peaks
 		my $outbase  = $self->repmean_merge_base . '_broad';
-		my $command2 = sprintf "%s --verbose %s --input %s ",
+		my $command2 = sprintf
+			"%s --verbose %s --input %s --min -%s --max %s --fmax %s --qmax %s",
 			$self->rscript_app,
 			$self->plotpeak_app,
-			$outbase;
+			$outbase,
+			$self->plot_log2,
+			$self->plot_log2,
+			$self->plot_frag,
+			$self->plot_qval;
 		$log = $outbase . '.plot_figures.out.txt';
-		$command .= " > $log 2>&1";
-		push @commands, [ $command, q(), $log ];
+		$command2 .= " > $log 2>&1";
+		push @commands, [ $command2, q(), $log ];
 
 		# merge-replicate narrow peaks
 		if ( $self->independent ) {
 			$outbase = $self->repmerge_merge_base . '_broad';
-			$command = sprintf "%s --verbose %s --input %s ",
+			$command2 = sprintf
+				"%s --verbose %s --input %s --min -%s --max %s --fmax %s --qmax %s",
 				$self->rscript_app,
 				$self->plotpeak_app,
-				$outbase;
+				$outbase,
+				$self->plot_log2,
+				$self->plot_log2,
+				$self->plot_frag,
+				$self->plot_qval;
 			$log = $outbase . '.plot_figures.out.txt';
-			$command .= " > $log 2>&1";
-			push @commands, [ $command, q(), $log ];
+			$command2 .= " > $log 2>&1";
+			push @commands, [ $command2, q(), $log ];
 		}
 	}
 
@@ -2058,10 +2078,15 @@ sub run_plot_peaks {
 			next unless ( scalar( $Job->rep_peaks ) > 1 );    # nothing to compare
 			my $jobbase = $Job->repmerge_peak;
 			$jobbase =~ s/\.bed$//;
-			$command = sprintf "%s --verbose %s --input %s ",
+			$command = sprintf
+				"%s --verbose %s --input %s --min -%s --max %s --fmax %s --qmax %s",
 				$self->rscript_app,
 				$self->plotpeak_app,
-				$jobbase;
+				$jobbase,
+				$self->plot_log2,
+				$self->plot_log2,
+				$self->plot_frag,
+				$self->plot_qval;
 			$log = $jobbase . '.plot_figures.out.txt';
 			$command .= " > $log 2>&1";
 			push @commands, [ $command, q(), $log ];
@@ -2070,10 +2095,15 @@ sub run_plot_peaks {
 			if ( $self->broad ) {
 				$jobbase = $Job->repmerge_gappeak;
 				$jobbase =~ s/\.bed$//;
-				$command = sprintf "%s --verbose %s --input %s ",
+				$command = sprintf
+					"%s --verbose %s --input %s --min -%s --max %s --fmax %s --qmax %s",
 					$self->rscript_app,
 					$self->plotpeak_app,
-					$jobbase;
+					$jobbase,
+					$self->plot_log2,
+					$self->plot_log2,
+					$self->plot_frag,
+					$self->plot_qval;
 				$log = $jobbase . '.plot_figures.out.txt';
 				$command .= " > $log 2>&1";
 				push @commands, [ $command, q(), $log ];
