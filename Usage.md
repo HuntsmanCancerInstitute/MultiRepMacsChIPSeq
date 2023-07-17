@@ -278,11 +278,6 @@ complexity. See the Pysano folder for example scripts.
     a size range with `--min` and `--max` options; sequencing depth is adjusted 
     accordingly.
     
-    For special situations where you need to shift the coverage from the actual
-    alignment start position, use the `--shift` parameter. Provide a negative number
-    to shift "upstream" or in the 5' direction. See the
-    [ATAC-Seq](#Variation-with-ATAC-Seq) section below for an example.
-    
     To expedite coverage track generation, fragment coverage tracks are binned (10 bp
     by default for ChIP). This greatly reduces computation time while minimally
     affecting coverage resolution. Lambda track binning is set automatically based on
@@ -446,20 +441,13 @@ There are two possible strategies for ATAC-Seq analysis.
     An analysis of where the cut sites are to get a higher resolution analysis of
     explicitly open DNA (or DNase Hyper Sensitive) sites. This analysis is often
     chosen to examine potential transcription factor binding sites that frequently
-    occur at HS sites. Here, paired-end alignments are analyzed as single-end
-    alignments. To get a pileup of signal directly over the cut site, we provide a
-    negative shift value (to shift the alignment start in the 5' direction or
-    upstream) and then extend twice the absolute shift value. This centers an
-    artificial coverage pileup directly over the cut site itself. I recommend 100 bp
-    extension for a tight peak, but 200 bp is also generally recommended. For example
+    occur at HS sites. 
     
-        --shift -50 \
-        --size 100 \
-        --deduppair \
-
-    When de-duplicating bam files, include the `--deduppair` option to de-duplicate 
-    alignments as proper paired-end, but the analysis will be done as single-end. 
-    _In silico_ size selection is not necessary here.
+    To run this analysis, simply include the `--atac` option, which simultaneously
+    sets a number of default parameters. Specifically, 100 bp fragment coverage is
+    generated centered over the cut site (alignment) ends, and peak calls of minimum
+    150 bp length are made. Cut-site point data are generated with 5 bp shifts in
+    case fine-mapping of transcription factors is pursued.
 
 ## Variation with Cut-and-Run or Cut-and-Tag
 
