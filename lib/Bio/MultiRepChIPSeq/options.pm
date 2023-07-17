@@ -59,7 +59,7 @@ sub init_options {
 		rawcounts   => 0,
 		savebam     => 0,
 		savebdg     => 0,
-		binsize     => 40,
+		binsize     => 100,
 		genomewin   => 0,
 		discard     => 10,
 		repmean     => 0,
