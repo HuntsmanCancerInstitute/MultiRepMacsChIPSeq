@@ -2,13 +2,17 @@
 
 # run two paired-end ChIP samples, with independent peak calls, without duplication
 
+# cpu and job parameters are machine dependent and set low for this example.
+# Due to extreme subsampling of alignments in example bam files, additional 
+# parameters are supplied AND ARE NOT NORMALLY REQUIRED, including genome and plot options
+
 # environment build paths – not needed in production
 BLIB=${PWD}/../blib
 export PATH=${BLIB}/script:$PATH
 export PERL5LIB=${BLIB}/lib:$PERL5LIB
 
 # clean up previous run results
-rm -rf nodup_pe
+rm -rf pe_nodup
 
 echo
 echo "================== Independent Paired-end without duplication =================="
@@ -22,16 +26,17 @@ multirep_macs2_pipeline.pl \
 --control data/Tup1_Input.bam \
 --name Tup1 \
 --pe \
---dir nodup_pe \
+--dir pe_nodup \
 --out all_nodup \
---genome 230000 \
 --nodedup \
 --independent \
 --cutoff 3 \
 --peaksize 200 \
 --peakgap 100 \
---plot \
 --cpu 1 \
---job 4 
-
+--job 4 \
+--genome 230000 \
+--plot \
+--plot_frag 25000 \
+--plot_qval 300
 

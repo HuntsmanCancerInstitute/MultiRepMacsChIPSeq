@@ -2,6 +2,10 @@
 
 # run one paired-end ChIP sample with multiple replicates individually
 
+# cpu and job parameters are machine dependent and set low for this example.
+# Due to extreme subsampling of alignments in example bam files, additional 
+# parameters are supplied AND ARE NOT NORMALLY REQUIRED, including genome and plot options
+
 # environment build paths – not needed in production
 BLIB=${PWD}/../blib
 export PATH=${BLIB}/script:$PATH
@@ -31,8 +35,11 @@ multirep_macs2_pipeline.pl \
 --cutoff 3 \
 --peaksize 200 \
 --peakgap 100 \
---plot \
 --cpu 1 \
---job 4 
+--job 4 \
+--genome 230000 \
+--plot \
+--plot_frag 20000 \
+--plot_qval 300
 
 

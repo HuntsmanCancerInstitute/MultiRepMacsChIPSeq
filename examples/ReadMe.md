@@ -6,7 +6,7 @@ These are example pipelines for a variety of situations. There are also
 The associated shell scripts in this directory point to example [Bam
 files](#bam_files). The Bam files are heavily sub-sampled and used here only as
 working files to test that the pipeline is installed correctly and works as
-expected, i.e. don't expect to interpret the results. Each script should take about
+expected, i.e. DO NOT expect to interpret the results. Each script should take about
 1-2 minutes to complete. Some additional parameters are included in the scripts and
 excluded below for simplicity. However, they can certainly be used as templates for 
 actual analysis situations.
@@ -102,18 +102,18 @@ To build the project and run the first example pipeline script, run the followin
 - Two Sample paired-end with independent replicates
 
     [run_independent Script](run_independent_pe.sh). This example is with two
-    paired-end samples but with unequal numbers of replicates. The `--independent`
-    flag is used to call peaks independently for each replicate, then merged into a
-    sample-level peak file. Note that, by default, a minimum of two overlapping
-    replicate peaks will be required for Rpd3 since three are provided. In addition
-    to replicate-merged peaks, mean-replicate peaks will also be called by default.
+    paired-end samples but with unequal numbers of replicates. The
+    `--independent` flag is used to call peaks independently for each replicate,
+    then merged into a sample-level peak file. Note that, by default, a minimum
+    of two overlapping replicate peaks will be required. In addition to
+    replicate-merged peaks, mean-replicate peaks will also be called by default.
     Plots generated for each analysis are placed into separate folders. 
 
         multirep_macs2_pipeline.pl \
-        --chip Rpd3_Ch1.bam,Rpd3_Ch2.bam,Rpd3_Ch3.bam \
+        --chip Rpd3_Ch1.bam,Rpd3_Ch3.bam \
         --control Rpd3_Input.bam \
         --name Rpd3 \
-        --chip Tup1_Ch1.bam \
+        --chip Tup1_Ch1.bam,Tup1_Ch2.bam,Tup1_Ch3.bam \
         --control Tup1_Input.bam \
         --name Tup1 \
         --pe \
@@ -194,11 +194,14 @@ To build the project and run the first example pipeline script, run the followin
 - ATAC-Seq cut site analysis
 
     [run_cutsite Script](run_cutsite.sh). This example runs a cut site analysis
-    typical of ATAC-Seq paired-end samples. Alignments are de-duplicated as
-    paired-end (indicated by the `--deduppair` option), but analysis is performed as
-    single-end, with 100 bp coverage centered over the 5' end by shifting the
-    coverage -50 bp. Additionally, peak sizes are adjusted to account for narrower
-    peaks than ChIP.
+    typical of ATAC-Seq paired-end samples using the `--atac` option introduced
+    in version 18.1. This assumes paired-end alignments but only analyzes the
+    ends of alignments, focusing on where the cuts are made. Fragment data for
+    peak calling is generated with 100 bp fragments centered over the cut site,
+    while point data is shifted +/- 5 bp from the cut site to compensate for the
+    Tn5 footprint and allow fine mapping of transcription factors. Peak size
+    parameters are adjusted for narrow peaks.
+    
 
         multirep_macs2_pipeline.pl \
         --chip Rpd3_Ch1.bam,Rpd3_Ch2.bam,Rpd3_Ch3.bam \
@@ -206,13 +209,9 @@ To build the project and run the first example pipeline script, run the followin
         --chip Tup1_Ch1.bam,Tup1_Ch2.bam,Tup1_Ch3.bam \
         --name Tup1 \
         --out all_cut \
-        --deduppair \
         --dupfrac 0.1 \
-        --shift -50 \
-        --size 100 \
-        --cutoff 2 \
-        --peaksize 150 \
-        --peakgap 50 
+        --atac \
+        --cutoff 2 
 
 
 - Single-end and Paired-end combination analysis

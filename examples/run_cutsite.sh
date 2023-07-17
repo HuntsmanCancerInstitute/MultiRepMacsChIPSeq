@@ -1,6 +1,11 @@
 #!/bin/bash
 
 # two paired-end samples run with ATAC-Seq cut site analysis
+# use new atac option introduced in v18.1 to generalize parameters
+
+# cpu and job parameters are machine dependent and set low for this example.
+# Due to extreme subsampling of alignments in example bam files, additional 
+# parameters are supplied AND ARE NOT NORMALLY REQUIRED, including genome and plot options
 
 # environment build paths – not needed in production
 BLIB=${PWD}/../blib
@@ -11,7 +16,7 @@ export PERL5LIB=${BLIB}/lib:$PERL5LIB
 rm -rf cutsite
 
 echo
-echo "====================== paired-end cut site ======================"
+echo "====================== ATAC-Seq cut site ======================"
 echo
 
 multirep_macs2_pipeline.pl \
@@ -21,15 +26,14 @@ multirep_macs2_pipeline.pl \
 --name Tup1 \
 --dir cutsite \
 --out all_cut \
---genome 230000 \
---deduppair \
 --dupfrac 0.1 \
 --optdist 2500 \
---shift -50 \
---size 100 \
+--atac \
 --cutoff 3 \
---peaksize 150 \
---peakgap 50 \
---plot \
 --cpu 1 \
---job 4 
+--job 4 \
+--genome 230000 \
+--plot \
+--plot_frag 25000 \
+--plot_qval 300
+

@@ -2,13 +2,17 @@
 
 # run two paired-end ChIP samples with broad calling
 
+# cpu and job parameters are machine dependent and set low for this example.
+# Due to extreme subsampling of alignments in example bam files, additional 
+# parameters are supplied AND ARE NOT NORMALLY REQUIRED, including genome and plot options
+
 # environment build paths – not needed in production
 BLIB=${PWD}/../blib
 export PATH=${BLIB}/script:$PATH
 export PERL5LIB=${BLIB}/lib:$PERL5LIB
 
 # clean up previous run results
-rm -rf paired_gapped
+rm -rf pe_gapped
 
 echo
 echo "====================== paired gapped ======================"
@@ -22,8 +26,7 @@ multirep_macs2_pipeline.pl \
 --control data/Tup1_Input.bam \
 --name Tup1 \
 --pe \
---genome 230000 \
---dir paired_gapped \
+--dir pe_gapped \
 --out pe_all \
 --dupfrac 0.05 \
 --optdist 2500 \
@@ -36,5 +39,10 @@ multirep_macs2_pipeline.pl \
 --broadcut 1 \
 --plot \
 --cpu 1 \
---job 4 
+--job 4 \
+--genome 230000 \
+--plot \
+--plot_frag 20000 \
+--plot_qval 300
+
 
