@@ -75,8 +75,6 @@ Options:
   --broad                       Also perform broad (gapped) peak calling
   --broadcut    number          Q-value cutoff for linking broad regions ()
   --broadgap    integer         Maximum link size between peaks in broad calls ()
-  --minpeakover integer         Minimum number of overlapping replicate peaks to 
-                                  accept when merging (default n-1)
   
  Peak scoring
   --binsize     integer         Size of bins in 25 flanking peak bins for profile ($opts->{binsize})
@@ -139,7 +137,6 @@ GetOptions(
 	'broad!',
 	'broadcut=f',
 	'broadgap=i',
-	'minpeakover=i',
 	'plot!',
 	'cpu=i',
 	'job=i',

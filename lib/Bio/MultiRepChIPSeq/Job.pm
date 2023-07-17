@@ -8,7 +8,7 @@ use Data::Dumper;
 use base 'Bio::MultiRepChIPSeq::options';
 use Bio::ToolBox::utility qw(format_with_commas);
 
-our $VERSION = 18.0;
+our $VERSION = 18.1;
 
 sub new {
 
@@ -1781,7 +1781,7 @@ sub generate_independent_merge_peak_commands {
 		elsif ( scalar @files > 1 ) {
 			my $min = $self->minpeakover;
 			unless ($min) {
-				$min = scalar(@files) - 1;
+				$min = scalar(@files) == 2 ? 2 : scalar(@files) - 1;
 			}
 			my $out = $self->repmerge_peak;
 			$out =~ s/\.bed//;
@@ -1837,7 +1837,7 @@ sub generate_independent_merge_peak_commands {
 			elsif ( scalar @files > 1 ) {
 				my $min = $self->minpeakover;
 				unless ($min) {
-					$min = scalar(@files) - 1;
+					$min = scalar(@files) == 2 ? 2 : scalar(@files) - 1;
 				}
 				my $out = $self->repmerge_gappeak;
 				$out =~ s/\.bed//;

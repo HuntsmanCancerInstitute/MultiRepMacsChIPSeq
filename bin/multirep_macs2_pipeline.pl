@@ -131,8 +131,8 @@ Options:
   --broadcut    number          Q-value cutoff for linking broad regions ($opts->{broadcut})
   --broadgap    integer         Maximum link size between peaks in broad calls (4 x size bp)
   --nolambda                    Skip lambda control, compare ChIP directly with control
-  --minpeakover integer         Minimum number of overlapping replicate peaks to 
-                                  accept when merging (default n-1)
+  --minpeakover integer         Minimum number of overlapping replicate peaks to accept
+                                  in final when merging (default n-1, minimum 2)
   
  Peak scoring
   --binsize     integer         Size of bins in 25 flanking peak bins for profile ($opts->{binsize})
