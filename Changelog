@@ -1,6 +1,25 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v18.1
+	multirep_macs2_pipeline.pl
+	- New --atac option to simplify setting multiple parameters at once for 
+	  ATAC-Seq cut site analysis
+	- Increase default profile bin size to 100 bp, effectively making profile
+	  plots +/- 2.5 Kb instead of 1 Kb
+	- Generate replicate fragment coverage profile plots in addition to mean 
+	  coverage plots when independent peak calls are generated
+	- Set default minimum replicate peak overlap to at least 2
+	- Set default output directory to 'MultiRepPeakCall'.
+	
+	intersect_peaks.pl
+	- automatically remove commas from sample names, if present
+	
+	plot_peak_figures.R
+	- Spatial intersection UpSet plots is now optional and off by default, 
+	  since these are compute intensive with minimal benefit
+	- Handle replicate fragment coverage plots
+
 v18.0
 	multirep_macs2_pipeline.pl
 	- Running independent replicate peak calls with --independent flag now always
