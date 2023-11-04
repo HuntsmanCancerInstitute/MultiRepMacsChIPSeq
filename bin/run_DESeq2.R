@@ -116,7 +116,7 @@ dds <- DESeqDataSetFromMatrix(countData=counts[,rownames(cond)],
 if (opt$norm == TRUE) {
   sizeFactors(dds) <- rep(1, nrow(cond))
 }
-dds <- DESeq(dds)
+dds <- DESeq(dds, fitType = 'local')
 ddsResults1 <- results(dds, alpha = opt$threshold, contrast = c('condition', opt$first, opt$second))
 
 # shrink log fold changes - is this necessary?
