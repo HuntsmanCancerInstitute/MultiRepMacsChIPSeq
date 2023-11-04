@@ -16,20 +16,22 @@ use English qw(-no_match_vars);
 use IO::File;
 use List::Util qw(sum0);
 
-our $VERSION = 1.2;
+our $VERSION = 1.3;
 
 unless (@ARGV) {
 	print <<END;
 A script to combine 
-    - Novoalign statistics
+    - Novoalign alignment statistics
+    - Bowtie2 alginment statistics
     - bam_partial_dedup (or bam_umi_dedup) statistics
     - bam2wig empirical shift determination 
     - Macs2 predicted shift determination
 
 It parses this information from standard output and/or error text files from these 
 programs. It will also parse the stderr.txt and stdout.txt files from Pysano job
-directories. It will write out a single tab-delimited with the numbers. Sample 
-names are the given input file names or directory names.
+directories. It will write out a single tab-delimited file, with rows representing
+each sample and columns the collected data. Sample names are the given input file
+names or directory names.
 
 Version: $VERSION
 
@@ -49,6 +51,10 @@ END
 my $outfile = shift @ARGV;
 if ( $outfile !~ /\.txt$/i ) {
 	$outfile .= '.txt';
+}
+if ( -e $outfile ) {
+	print "output file already exists!\n";
+	exit 1;
 }
 
 # process input files
@@ -78,6 +84,12 @@ while (@ARGV) {
 			# a Pysano standard error file
 			push @files, $stderr;
 		}
+		my @slurmouts = glob "$path/*.out $path/*.err";
+		if (@slurmouts) {
+
+			# other output files
+			push @files, @slurmouts;
+		}
 	}
 	else {
 		# assume a readable file
@@ -93,9 +105,15 @@ while (@ARGV) {
 	# possible stderr values
 	my (
 		$novoReads, $novoUnique, $novoUniquePer, $novoMulti, $novoMultiPer,
-		$novoNoMap,
-		$novoNoMapPer, $novoPEmean, $novoPEstdev, $macsFragLength
-	) = ( 0, 0, '0.0%', 0, '0.0%', 0, '0.0%', 0, 0.0, 0 );
+		$novoNoMap, $novoNoMapPer, $novoPEmean, $novoPEstdev, $macsFragLength,
+		$bow2Reads, $bow2cncd1, $bow2cncd1Per, $bow2cncdM, $bow2cncdMPer,
+		$bow2unmap, $bow2unmapPer, $bow2sing1, $bow2sing1Per, $bow2singM, $bow2singMPer
+	) = (
+		0,  0,     '0.0%',  0,    '0.0%',
+		0, '0.0%',  0,      0.0,   0,
+		0,  0,     '0.0%',  0,    '0.0%',
+		0, '0.0%',  0,     '0.0%', 0,     '0.0%',
+	);
 
 	# process files
 	foreach my $file (@files) {
@@ -268,6 +286,64 @@ while (@ARGV) {
 			{
 				$macsFragLength = $1;
 			}
+
+			# bowtie2 alignment output
+			elsif ( $line =~
+				/^(\d+) \s reads; \s of \s these:$/x )
+			{
+				$bow2Reads = $1;
+			}
+			elsif ( $line =~
+				/^\s{2} (\d+) \s \( 100 \. 00 % \) \s were \s paired; \s of \s these:$/x )
+			{
+				if ( $1 == $bow2Reads ) {
+					$bow2Reads *= 2;
+				}
+			}
+			elsif ( $line =~
+/^\s{4} (\d+) \s \( (\d+ \. \d\d) % \) \s aligned \s concordantly \s exactly \s 1 \s time$/x
+				)
+			{
+				$bow2cncd1    = $1;
+				$bow2cncd1Per = $2;
+			}
+			elsif ( $line =~
+/^\s{4} (\d+) \s \( (\d+ \. \d\d) % \) \s aligned \s concordantly \s >1 \s times$/x
+				)
+			{
+				$bow2cncdM    = $1;
+				$bow2cncdMPer = $2;
+			}
+			elsif ( $line =~
+/^\s{6} (\d+) \s \( \d+ \. \d\d % \) \s aligned \s discordantly \s 1 \s time$/x
+				)
+			{
+				# bowtie2 discordant pairs are counted as singletons here
+				# which is how they're reported if the --no-discordant option was used
+				$bow2sing1   += (2 * $1);
+				$bow2sing1Per = sprintf "%.2f", 100 * ($bow2sing1 / $bow2Reads);
+			}
+			elsif ( $line =~
+/^\s{2,8} (\d+) \s \( \d+ \. \d\d % \) \s aligned \s 0 \s times$/x
+				)
+			{
+				$bow2unmap    = $1;
+				$bow2unmapPer = sprintf "%.2f", 100 * ($bow2unmap / $bow2Reads);
+			}
+			elsif ( $line =~
+/^\s{2,8} (\d+) \s \( \d+ \. \d\d % \) \s aligned \s exactly \s 1 \s time$/x
+				)
+			{
+				$bow2sing1   += $1;
+				$bow2sing1Per = sprintf "%.2f", 100 * ($bow2sing1 / $bow2Reads);
+			}
+			elsif ( $line =~
+/^\s{2,8} (\d+) \s \( \d+ \. \d\d % \) \s aligned \s >1 \s times$/x
+				)
+			{
+				$bow2singM    = $1;
+				$bow2singMPer = sprintf "%.2f", 100 * ($bow2singM / $bow2Reads);
+			}
 		}
 		$fh->close;
 	}
@@ -287,10 +363,14 @@ while (@ARGV) {
 
 	# store
 	push @output, [
-		$path,          $novoReads,    $novoUnique,    $novoMulti,  $novoNoMap,
-		$novoUniquePer, $novoMultiPer, $novoNoMapPer,  $novoPEmean, $novoPEstdev,
-		$total_mapped,  $optdup,       $optduprate,    $workcount,  $nondup, $dup,
-		$duprate,       $keepdup,      $trimMeanShift, $extension,  $macsFragLength
+		$path,          $novoReads,    $novoUnique,    $novoMulti,    $novoNoMap,
+		$novoUniquePer, $novoMultiPer, $novoNoMapPer,  $novoPEmean,   $novoPEstdev,
+		$bow2Reads,     $bow2cncd1,    $bow2cncd1Per,  $bow2cncdM,    $bow2cncdMPer,
+		$bow2sing1,     $bow2sing1Per, $bow2singM,     $bow2singMPer,
+		$bow2unmap,     $bow2unmapPer,
+		$total_mapped,  $optdup,       $optduprate,    $workcount,    $nondup, $dup,
+		$duprate,       $keepdup,      $trimMeanShift, $extension,    $macsFragLength,
+		
 	];
 
 	# sort order
@@ -324,6 +404,10 @@ while (@ARGV) {
 my @headers = qw(Sample NovoalignTotalReads NovoalignUniqueMapped NovoalignMultiMap
 	NovoalignUnMapped NovoalignUniqueMappedFrac NovoalignMultiMapFrac NovoalignUnMappedFrac
 	NovoalignInsertMean NovoalignInsertStdDev
+	BowtieTotalReads BowtieUniqueMappedPairs BowtieUniqueMappedPairsPerc
+	BowtieMultiMappedPairs BowtieMultiMappedPairsPerc BowtieSingleUniqueMapped
+	BowtieSingleUniqueMappedPerc BowtieSingleMultiMapped BowtieSingleMultiMappedPerc
+	BowtieUnMapped BowtieUnMappedPerc
 	TotalMapped OpticalDuplicateCount OpticalRate WorkingCount NonDuplicateCount
 	DuplicateCount DuplicateRate RetainedDuplicateCount Bam2WigShift Bam2WigExtension
 	Macs2Extension);
