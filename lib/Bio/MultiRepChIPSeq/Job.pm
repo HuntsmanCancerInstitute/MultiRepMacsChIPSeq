@@ -6,9 +6,9 @@ use IO::File;
 use File::Spec;
 use Data::Dumper;
 use base 'Bio::MultiRepChIPSeq::options';
-use Bio::ToolBox::utility qw(format_with_commas);
+use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 
-our $VERSION = 18.1;
+our $VERSION = 18.2;
 
 sub new {
 
@@ -106,7 +106,7 @@ sub new {
 		# generate count bw and dedup bam file names
 		foreach my $bam (@bams) {
 			my ( undef, undef, $fname ) = File::Spec->splitpath($bam);
-			$fname =~ s/\.bam$//i;    # strip extension
+			$fname = simplify_dataset_name($fname);    # strip extension and cleanup
 			$self->chip_rep_names($fname);
 			my $base = File::Spec->catfile( $self->dir, $fname );
 

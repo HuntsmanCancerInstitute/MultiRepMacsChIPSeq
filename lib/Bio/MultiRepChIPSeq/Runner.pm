@@ -14,7 +14,7 @@ use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
 
-our $VERSION = 18.1;
+our $VERSION = 18.2;
 
 sub new {
 	my $class   = shift;
@@ -1677,7 +1677,7 @@ sub _rescore_narrow_input {
 	if ( length $command6 > shift @command_lengths ) {
 		my $log = $output6;
 		$log =~ s/txt\.gz$/out.txt/;
-		$command5 .= " 2>&1 > $log";
+		$command6 .= " 2>&1 > $log";
 		push @commands, [ $command6, $output6, $log ];
 	}
 
