@@ -15,8 +15,9 @@ use strict;
 use Getopt::Long;
 use File::Basename qw(fileparse);
 use Bio::ToolBox 1.65;
+use Bio::ToolBox::utility qw(format_with_commas);
 
-our $VERSION = 3.2;
+our $VERSION = 3.3;
 
 # a script to generate mean coverage bedGraph track
 
@@ -222,19 +223,16 @@ sub process_bdg {
 
 sub calculate_mean {
 	my ( $signal, $empirical ) = @_;
-	my $m;
+	printf " Observed covered genome length is %s bp\n", format_with_commas($empirical);
+	my $m = sprintf "%.6f", ( $signal / $empirical );
+	print " Empirical genomic mean calculated at $m\n";
 	if ($genome_size) {
 
 		# user provided size
+		printf " Using provided genome size of %s bp\n", format_with_commas($genome_size);
 		$m = sprintf "%.6f", ( $signal / $genome_size );
-		print " Using provided genome size of $genome_size bp\n";
+		print " Using genomic mean calculated at $m\n";
 	}
-	else {
-		# calculated non-zero coverage
-		$m = sprintf "%.6f", ( $signal / $empirical );
-		print " Using empirical genome length of $empirical bp\n";
-	}
-	print " Genomic mean calculated at $m\n";
 	return $m;
 }
 
