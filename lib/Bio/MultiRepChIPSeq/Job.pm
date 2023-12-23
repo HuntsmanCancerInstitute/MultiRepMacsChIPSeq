@@ -1447,14 +1447,12 @@ sub generate_enrichment_commands {
 
 	# generate command
 	my $command = sprintf
-		"%s bdgcmp -t %s -c %s -m qpois FE ",
+		"%s bdgcmp -t %s -c %s -S %.4f -m qpois FE ",
 		$self->macs_app || 'macs2',
-		$chip,
-		$lambda;
-	if ( defined $self->targetdep ) {
-		$command .= sprintf "-S %s ", $self->targetdep;
-	}
-	if ( not $self->lambda ) {
+		$chip_file,
+		$lambda_file,
+		$scale;
+	if ( not $self->lambda and $lambda_file !~ /global_mean/ ) {
 		$command .= "-p 1 ";    # add a pseudo count of 1 when doing explicit comparisons
 	}
 	$command .= sprintf "-o %s %s ", $self->qvalue_bdg, $self->fe_bdg;
