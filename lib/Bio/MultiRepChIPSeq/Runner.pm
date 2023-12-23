@@ -1828,6 +1828,7 @@ sub _merge_into_summary {
 	my $maxq_file   = $base . '_maxQvalue.txt.gz';
 
 	# merge peak coordinate, name, source peak, and mean log2 Fold Enrichment
+	my $stat = Statistics::Descriptive::Full->new();
 	if ( -e $matrix_file ) {
 		my $Data = Bio::ToolBox->load_file( $matrix_file );
 		for my $i (0 .. $Data->last_column) {
@@ -1845,6 +1846,7 @@ sub _merge_into_summary {
 				my $col = $Data->column_values($i);
 				my $n   = $SumData->add_column($col);
 				$SumData->name($n, sprintf( "%s_Log2FE", $SumData->name($n) ) );
+				$stat->add_data( @{$col}[ 1 .. $#{$col} ] );
 			}
 		}
 	}
@@ -1859,6 +1861,11 @@ sub _merge_into_summary {
 			my $col = $Data->column_values($i);
 			my $n = $SumData->add_column($col);
 			$SumData->name($n, sprintf( "%s_Log2FE", $SumData->name($n) ) );
+			$stat->add_data( @{$col}[ 1 .. $#{$col} ] );
+		}
+		unless ( $self->plot_log2 ) {
+			my $upper = sprintf "%.2f", $stat->percentile(95);
+			$self->plot_log2($upper);
 		}
 	}
 	else {
@@ -1866,13 +1873,28 @@ sub _merge_into_summary {
 		return;
 	}
 
+	# calculate log2 FE upper limit
+	{
+		my $upper = sprintf "%.2f", ( $stat->percentile(95) || $stat->max );
+		if ( $self->plot_log2 ) {
+			if ( $upper > $self->plot_log2 ) {
+				$self->plot_log2($upper);
+			}
+		}
+		else {
+			$self->plot_log2($upper);
+		}
+	}
+
 	# add Q-value
+	$stat->clear;
 	if ( -e $maxq_file ) {
 		my $Data = Bio::ToolBox->load_file( $maxq_file );
 		for my $i (2 .. $Data->last_column) {
 			my $col = $Data->column_values($i);
 			my $n = $SumData->add_column($col);
 			$SumData->name($n, sprintf( "%s_MaxQValue", $SumData->name($n) ) );
+			$stat->add_data( @{$col}[ 1 .. $#{$col} ] );
 		}
 	}
 	elsif ( -e $meanq_file ) {
@@ -1881,6 +1903,20 @@ sub _merge_into_summary {
 			my $col = $Data->column_values($i);
 			my $n = $SumData->add_column($col);
 			$SumData->name($n, sprintf( "%s_MeanQValue", $SumData->name($n) ) );
+			$stat->add_data( @{$col}[ 1 .. $#{$col} ] );
+		}
+	}
+	
+	# calculate q-value upper limit
+	{
+		my $upper = sprintf "%.0f", ( $stat->percentile(95) || $stat->max );
+		if ( $self->plot_qval ) {
+			if ( $upper > $self->plot_qval ) {
+				$self->plot_qval($upper);
+			}
+		}
+		else {
+			$self->plot_qval($upper);
 		}
 	}
 
@@ -2053,6 +2089,28 @@ sub run_plot_peaks {
 		# don't die here, just return safely - R is hard
 		print "Rscript or plot_peak_figures.R script not defined!\n";
 		return;
+	}
+
+	# calculate reasonable fragment cutoff, qval and log2FE should already be calculated
+	unless ( $self->plot_frag ) {
+		my $stat = Descriptive::Statistics::Full->new();
+		my $example1 = $self->repmean_merge_base . '_profile_mean_fragment.txt.gz';
+		my $example2 = $self->repmerge_merge_base . '_profile_mean_fragment.txt.gz';
+		foreach my $example ( $example1, $example2 ) {
+			next unless -e $example;
+			my $Data = Bio::ToolBox->load_file( $example );
+			for my $i ( 0 .. $Data->last_column ) {
+
+				# take only the values at the midpoint, which is position 1
+				next unless $Data->name($i) =~ /:1$/;
+				my $values = $Data->column_values($i);
+				$stat->add_data( @{$values}[ 1 .. $#{$values} ] );
+			}
+		}
+		if ( $stat->count ) {
+			my $upper = sprintf "%.2f", ( $stat->percentile(95) || $stat->max );
+			$self->plot_frag( $upper );
+		}
 	}
 
 	# set up commands
