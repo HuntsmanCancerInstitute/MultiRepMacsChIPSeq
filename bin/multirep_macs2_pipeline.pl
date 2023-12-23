@@ -133,9 +133,13 @@ Options:
   --nolambda                    Skip lambda control, compare ChIP directly with control
   --minpeakover integer         Minimum number of overlapping replicate peaks to accept
                                   in final when merging (default n-1, minimum 2)
+  --samedepth                   Use same target depth when calculating per sample
+                                  q-value enrichment for replicate-mean peaks
   
  Peak scoring
   --binsize     integer         Size of bins in 25 flanking peak bins for profile ($opts->{binsize})
+  --targetdepth text            Set method for sequence depth scaling for all count data:
+                                  median (default), mean, min
   --rawcounts                   Use unscaled raw counts for re-scoring peaks
   --noplot                      Do not plot figures of results
   
@@ -225,7 +229,8 @@ GetOptions(
 	'chrnorm=f@',
 	'chrapply=s',
 	'cutoff=f',
-	'targetdep|tdep=f',
+	'targetdepth|tdep=s',
+	'samedepth!',
 	'peaksize=i',
 	'peakgap=i',
 	'broad!',
@@ -438,7 +443,7 @@ MESSAGE
 	}
 
 	# check target depth
-	if ( defined $Runner->targetdep ) {
+	if ( $Runner->targetdepth and $Runner->targetdepth =~ /^ \d+ (?: \.\d+)? $/x) {
 		my $files = join( ",", ( $Runner->chip ), ( $Runner->control ) );
 		if ( $files =~ /\.bam/i ) {
 
@@ -453,6 +458,14 @@ this option unless you understand the ramifications.
 
 MESSAGE
 		}
+	}
+	elsif ( $Runner->targetdepth ) {
+		if ( $Runner->targetdepth !~ /mean | median | min/x ) {
+			die sprintf("unrecognized targetdepth parameter '%s'!", $Runner->targetdepth);
+		}
+	}
+	else {
+		$Runner->targetdepth('median');
 	}
 
 	# check sizes

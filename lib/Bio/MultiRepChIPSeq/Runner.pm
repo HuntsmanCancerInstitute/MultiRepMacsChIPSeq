@@ -7,14 +7,14 @@ use IO::File;
 use File::Spec;
 use File::Copy;
 use File::Path qw(make_path);
-use List::Util qw(min);
+use Statistics::Descriptive;
 use Parallel::ForkManager;
 use Bio::ToolBox;
 use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
 
-our $VERSION = 18.2;
+our $VERSION = 19.0;
 
 sub new {
 	my $class   = shift;
@@ -995,18 +995,36 @@ sub run_bam_fragment_conversion {
 
 		# artificially set target depth
 		print "\n Artificially setting target depth to 25 Million for dry run purposes\n";
-		$self->targetdep(25);
+		$self->targetdepth(25);
 		return;
 	}
 
 	# count results
 	my %bam2count;
 	foreach my $com (@commands) {
+
+		# find associated job with this command
+		my $out = $com->[1];
 		my $log = $com->[2];
+		my $this_job;
+		foreach my $Job ( $self->list_jobs ) {
+			if (
+				$out eq $Job->lambda_bdg
+				or $out eq $Job->d_control_bdg
+				or $out eq $Job->chip_bdg
+			) {
+				$this_job = $Job;
+				last;
+			}
+		}
+		next unless $this_job;
+
+		# parse the log
 		my $fh  = IO::File->new( $log, 'r' ) or    # this should open!!!!
 			croak "something is wrong! Job completed but unable to open $log!? $OS_ERROR";
 
 		my @files;    # there may be one or more files processed here
+		my @counts;
 		while ( my $line = $fh->getline ) {
 			chomp $line;
 			if ( $line =~ /^\s+ Processing \s files \s (.+) \. \. \. $/x ) {
@@ -1022,8 +1040,10 @@ sub run_bam_fragment_conversion {
 				# need to grab the name from the list
 				my $count = $1;
 				unless ( exists $bam2count{ $files[0] } ) {
-					$count =~ s/,//g;    # remove commas
-					$bam2count{ $files[0] } = sprintf "%.3f", $count / 1_000_000;
+					$count =~ s/,//g;
+					$count = sprintf "%.6f", $count / 1_000_000;
+					$bam2count{ $files[0] } = $count;
+					push @counts, $count;
 				}
 			}
 			elsif ( $line =~
@@ -1034,12 +1054,36 @@ sub run_bam_fragment_conversion {
 				my $file  = $1;
 				my $count = $2;
 				unless ( exists $bam2count{$file} ) {
-					$count =~ s/,//g;    # remove commas
-					$bam2count{$file} = sprintf "%.3f", $count / 1_000_000;
+					$count =~ s/,//g;
+					$count = sprintf "%.6f", $count / 1_000_000;
+					$bam2count{$file} = $count;
+					push @counts, $count;
 				}
 			}
 		}
 		$fh->close;
+		
+		
+		# store counts
+		my $stat = Statistics::Descriptive::Sparse->new;
+		$stat->add_data(@counts);
+		my $depth = sprintf "%.6f", $stat->mean;
+		if ( $out eq $this_job->chip_bdg ) {
+			printf "\n mean sequence depth for %s is %s M\n", $out, $depth;
+			$self->seq_depth_for_file( $out, $depth );
+		}
+		elsif ( $out eq $this_job->lambda_bdg ) {
+			printf "\n mean sequence depth for %s is %s M\n", $out, $depth;
+			$self->seq_depth_for_file( $out, $depth );
+		}
+		elsif ( $out eq $this_job->d_control_bdg ) {
+			printf "\n mean sequence depth for %s is %s M\n", $this_job->lambda_bdg, 
+				$depth;
+			$self->seq_depth_for_file( $this_job->lambda_bdg, $depth );
+		}
+		else {
+			croak " programming error!";
+		}
 	}
 
 	# print report
@@ -1048,17 +1092,31 @@ sub run_bam_fragment_conversion {
 		printf "  %6sM  $f\n", $bam2count{$f};
 	}
 
-	# Calculate minimum target depth to use
-	my $targetdep = sprintf "%.3f", min( values %bam2count );
-	if ( defined $self->targetdep ) {
-		printf
-"\n WARNING!!! Calculated target sequence depth of %d Million is overridden by manually set value %d\n",
-			$targetdep, $self->targetdep;
+	# Calculate target depth to use
+	my $stat = Statistics::Descriptive::Full->new();
+	$stat->add_data( values %bam2count );
+	if ( $self->targetdepth =~ /^ \d+ (?:\.\d+) $/x ) {
+		printf "\n Using manual target depth of %s Million\n", $self->targetdepth;
+	}
+	elsif ( $self->targetdepth eq 'mean' ) {
+		$self->targetdepth( $stat->mean );
+		printf "\n Using mean target depth of %s Million\n", $self->targetdepth;
+	}
+	elsif ( $self->targetdepth eq 'median' ) {
+		$self->targetdepth( $stat->median );
+		printf "\n Using median target depth of %s Million\n", $self->targetdepth;
+	}
+	elsif ( $self->targetdepth eq 'min' ) {
+		$self->targetdepth( $stat->min );
+		printf "\n Using minimum target depth of %s Million\n", $self->targetdepth;
 	}
 	else {
-		$self->targetdep($targetdep);
-		printf "\n Setting target sequence depth to %s Million\n", $self->targetdep;
+		$self->targetdepth( $stat->median );
+		printf 
+"\n Unknown target depth, using default median target sequence depth to %s Million\n", 
+			$self->targetdepth;
 	}
+	$self->{bam2count} = \%bam2count;
 }
 
 sub run_bam_count_conversion {

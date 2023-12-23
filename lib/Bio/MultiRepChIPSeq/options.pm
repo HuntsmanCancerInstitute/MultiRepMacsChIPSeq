@@ -5,7 +5,7 @@ use Carp;
 use IO::File;
 use File::Which;
 
-our $VERSION = 18.2;
+our $VERSION = 19.0;
 
 sub init_options {
 	my $class = shift;
@@ -40,7 +40,8 @@ sub init_options {
 		slocal      => 1000,
 		llocal      => 10000,
 		cutoff      => 2,
-		targetdep   => undef,
+		targetdepth => undef,
+		samedepth   => 0,
 		peaksize    => undef,
 		peakgap     => undef,
 		broad       => 0,
@@ -93,6 +94,7 @@ sub init_options {
 		samtools    => sprintf( "%s", which 'samtools' ),
 		help        => 0,
 		line_counts => {},  # hash of known file line counts
+		seq_depths  => {},  # hash of sequencing depths for files
 	);
 	return \%opts;
 }
@@ -282,10 +284,16 @@ sub cutoff {
 	return $self->{opts}{cutoff};
 }
 
-sub targetdep {
+sub targetdepth {
 	my $self = shift;
-	$self->{opts}{targetdep} = shift if @_;
-	return $self->{opts}{targetdep};
+	$self->{opts}{targetdepth} = shift if @_;
+	return $self->{opts}{targetdepth};
+}
+
+sub samedepth {
+	my $self = shift;
+	$self->{opts}{samedepth} = shift if @_;
+	return $self->{opts}{samedepth};
 }
 
 sub peaksize {
@@ -616,6 +624,17 @@ sub count_file_lines {
 	return $n;
 }
 
+sub seq_depth_for_file {
+	my $self = shift;
+	my $file = shift;
+	if (@_) {
+		$self->{opts}{seq_depths}{$file} = shift;
+	}
+	else {
+		return $self->{opts}{seq_depths}{$file} || undef;
+	}
+}
+
 1;
 
 =head1 NAME
@@ -709,7 +728,7 @@ Export the hash as a reference.
 
 =item cutoff
 
-=item targetdep
+=item targetdepth
 
 =item peaksize
 

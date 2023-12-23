@@ -5,10 +5,11 @@ use Carp;
 use IO::File;
 use File::Spec;
 use Data::Dumper;
+use List::Util qw(min);
 use base 'Bio::MultiRepChIPSeq::options';
 use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 
-our $VERSION = 18.2;
+our $VERSION = 19.0;
 
 sub new {
 
@@ -1060,7 +1061,7 @@ sub generate_bam2wig_count_commands {
 				}
 				else {
 					# we scale the count back up to target depth
-					$command .= sprintf "--rpm --scale %s ", $self->targetdep;
+					$command .= sprintf "--rpm --scale %s ", $self->targetdepth;
 				}
 				if ( $self->chr_normfactor ) {
 
@@ -1133,7 +1134,7 @@ sub generate_bam2wig_count_commands {
 				}
 				else {
 					# we scale the count back up to target depth
-					$command .= sprintf "--rpm --scale %s ", $self->targetdep;
+					$command .= sprintf "--rpm --scale %s ", $self->targetdepth;
 				}
 				if ( $self->chr_normfactor ) {
 
@@ -1412,17 +1413,39 @@ sub generate_enrichment_commands {
 	unless ( $self->macs_app =~ /\w+/ or $self->dryrun ) {
 		croak "no MACS2 application in path!\n";
 	}
-	my $chip   = $self->chip_bdg   || undef;
-	my $lambda = $self->lambda_bdg || undef;
+	my $chip_file   = $self->chip_bdg   || undef;
+	my $lambda_file = $self->lambda_bdg || undef;
 	unless ( $self->dryrun ) {
-		if ( not $chip or not -e $chip ) {
-			$self->crash("no ChIP fragment file $chip!\n");
+		if ( not $chip_file or not -e $chip_file ) {
+			$self->crash("no ChIP fragment file $chip_file!\n");
 		}
-		if ( not $lambda or not -e $lambda ) {
-			$self->crash("no control lambda fragment file $lambda!\n");
+		if ( not $lambda_file or not -e $lambda_file ) {
+			$self->crash("no control lambda fragment file $lambda_file!\n");
 		}
 	}
 
+	# calculate scaling factor from RPM
+	my $scale;
+	if ( $self->samedepth ) {
+		$scale = $self->targetdepth;
+	}
+	else {
+		my @depths;
+		if ( my $d = $self->seq_depth_for_file($chip_file) ) {
+			push @depths, $d;
+		}
+		if ( my $d = $self->seq_depth_for_file($lambda_file) ) {
+			push @depths, $d;
+		}
+		if (scalar @depths) {
+			$scale = min(@depths);
+		}
+		else {
+			$scale = $self->targetdepth;
+		}
+	}
+
+	# generate command
 	my $command = sprintf
 		"%s bdgcmp -t %s -c %s -m qpois FE ",
 		$self->macs_app || 'macs2',
