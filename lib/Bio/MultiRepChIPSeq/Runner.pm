@@ -2256,6 +2256,9 @@ sub print_config {
 		elsif ($k eq 'line_counts') {
 			next;
 		}
+		elsif ($k eq 'seq_depths') {
+			next;
+		}
 		else {
 			push @output, sprintf "%12s  %s\n", $k, $self->{opts}->{$k};
 		}
