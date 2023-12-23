@@ -1,6 +1,16 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v18.2
+	multirep_macs2_pipeline.pl
+	- bug fixes
+	
+	combine_std_chipstats.pl
+	- Add support for Bowtie2 alignment statistics
+	
+	run_DESeq2.R
+	- use fitType=local
+
 v18.1
 	multirep_macs2_pipeline.pl
 	- New --atac option to simplify setting multiple parameters at once for 
@@ -19,7 +29,7 @@ v18.1
 	- Spatial intersection UpSet plots is now optional and off by default, 
 	  since these are compute intensive with minimal benefit
 	- Handle replicate fragment coverage plots
-
+	
 v18.0
 	multirep_macs2_pipeline.pl
 	- Running independent replicate peak calls with --independent flag now always
