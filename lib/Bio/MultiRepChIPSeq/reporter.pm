@@ -73,7 +73,6 @@ END
 - **QValue**: BigWig files representing the multiple-test corrected statistical
   enrichment (poission distribution) over each base pair in the genome. Values are
   transformed as `-1*log10` for ease in displaying genome browsers.
-
 END
 		}
 		if ( $self->savebam and $self->dedup ) {
@@ -107,7 +106,8 @@ sub add_samples_report {
 	my $string = <<END;
 ### Samples
 
-The following samples (conditions) and replicate files were provided.
+The following samples (conditions) and replicate files were provided as input to
+pipeline.
 
 END
 
@@ -494,8 +494,7 @@ END
 	}
 
 	if ( $self->plot ) {
-		$string .= 
-			"\nThe UpSet intersection plots for each sample are shown below.\n";
+		$string .= "\nThe UpSet intersection plots for each sample are shown below.\n";
 		foreach my $Job ( $self->list_jobs ) {
 			next unless scalar( $Job->chip_use_bams ) > 1;
 			my $name = $Job->job_name;
@@ -626,7 +625,7 @@ END
 		my $merge_length = catfile( $plot_dir, $merged_base . '.peak_lengths.png' );
 		$string .= <<END;
 The UpSet intersection between samples and sample peak length distributions are shown
-below. Additional plots may be found in the **Replicate-Merge_Plots** folder.
+below. Additional plots may be found in the **$plot_dir** folder.
 
 ![rep-merge_upset]($merge_upset)
 
@@ -672,7 +671,7 @@ Fragment coverage data was collected over a $tot_size Kb window centered on each
 interval midpoint (+/- $size Kb). Data was collected for both sample mean coverage
 tracks and individual replicate coverage tracks. The replicate fragment coverage heat
 map and mean fragment class average summary line plot are below. Additional plots may
-be found in the **Replicate-Merge_Plots** folder.
+be found in the **$plot_dir** folder.
 
 ![rep-merge_replicate_frag_profile]($hm_plot)
 
@@ -694,7 +693,7 @@ END
 		if ( -e catfile( $self->dir, $hm_k4_plot ) ) {
 			$string .= <<END;
 The values were plotted as a heat map with a k-means clustering of 4. Additional 
-higher k value plots are also available.
+higher k value plots are also available in the **$plot_dir** folder.
 
 ![rep-merge_enrichment]($hm_k4_plot)
 END
@@ -774,7 +773,7 @@ END
 		my $merge_length = catfile( $plot_dir, $merged_base . '.peak_lengths.png' );
 		$string .= <<END;
 The UpSet intersection between samples and sample peak length distributions are shown
-below. Additional plots may be found in the **Replicate-Merge_Plots** folder.
+below. Additional plots may be found in the **$plot_dir** folder.
 
 ![gap_rep-merge_upset]($merge_upset)
 
@@ -818,7 +817,7 @@ END
 		if ( -e catfile( $self->dir, $hm_k4_plot ) ) {
 			$string .= <<END;
 The values were plotted as a heat map with a k-means clustering of 4. Additional 
-higher k value plots are also available.
+higher k value plots are also available in **$plot_dir**.
 
 ![gap_rep-merge_]($hm_k4_plot)
 END
@@ -876,7 +875,7 @@ END
 	}
 
 	my $mean_base  = $self->out;
-	my $plot_dir   = 'Plots';
+	my $plot_dir   = 'Plots' . $self->dir_suffix;
 	if ( $self->independent ) {
 		$mean_base  = ( splitpath( $self->repmean_merge_base ) )[2];
 		$plot_dir   = 'Replicate-Mean_Plots';
@@ -962,7 +961,7 @@ END
 		if ( -e catfile( $self->dir, $hm_k4_plot ) ) {
 			$string .= <<END;
 The values were plotted as a heat map with a k-means clustering of 4. Additional
-higher k value plots are also available.
+higher k value plots are also available in the **$plot_dir** folder.
 
 ![rep-mean_enrichment]($hm_k4_plot)
 END
@@ -1040,7 +1039,7 @@ END
 	}
 
 	my $mean_base  = $self->out . '_broad';
-	my $plot_dir   = 'Plots';
+	my $plot_dir   = 'Plots' . $self->dir_suffix;
 	if ( $self->independent ) {
 		$mean_base  = ( splitpath( $self->repmean_merge_base ) )[2];
 		$mean_base .= '_broad';
@@ -1105,7 +1104,7 @@ END
 		if ( -e catfile( $self->dir, $hm_k4_plot ) ) {
 			$string .= <<END;
 The values were plotted as a heat map with a k-means clustering of 4. Additional
-higher k value plots are also available.
+higher k value plots are also available in the **$plot_dir**.
 
 ![gap_rep-mean_enrichment]($hm_k4_plot)
 END
@@ -1168,9 +1167,10 @@ The replicate-mean peaks are in `$mean_file`.
 END
 	}
 
+	my $analdir = 'Analysis' . $self->dir_suffix;
 	$string .= <<END;
 
-Count tables are in the **Analysis** folder and may be used directly in differential
+Count tables are in the **$analdir** folder and may be used directly in differential
 analysis between conditions, such as DESeq2. The counts are depth-normalized
 and scaled and should be used directly without additional normalization (otherwise
 any differences may be normalized away). For example, see the script `run_DESeq2.R`.
