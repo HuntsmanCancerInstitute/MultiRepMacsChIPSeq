@@ -29,6 +29,7 @@ undef $opts->{peaksize};
 undef $opts->{peakgap};
 undef $opts->{broadcut};
 undef $opts->{broadgap};
+undef $opts->{dedup};
 
 my $documentation = <<DOC;
 
@@ -100,6 +101,7 @@ Options:
   --meanbdg     path            ($opts->{meanbdg})
   --bedtools    path            ($opts->{bedtools})
   --intersect   path            ($opts->{intersect})
+  --pandoc      path            ($opts->{pandoc})
   --peak2bed    path            ($opts->{peak2bed})
   --updatepeak  path            ($opts->{updatepeak})
   --plotpeak    path            ($opts->{plotpeak})
@@ -164,6 +166,7 @@ GetOptions(
 	'updatepeak=s',
 	'plotpeak=s',
 	'rscript=s',
+	'pandoc=s'
 ) or die "unrecognized option(s)!\n";
 
 if ( $opts->{help} ) {
@@ -193,6 +196,7 @@ $Runner->run_efficiency();
 $Runner->run_plot_peaks();
 $Runner->run_cleanup($argument_string);
 $Runner->run_organize($suffix);
+$Runner->generate_report($argument_string);
 
 # final statement
 printf "\n\nFinished in %.1f minutes\n", ( time - $start ) / 60;
@@ -202,9 +206,10 @@ print "======== Finished ChIPSeq Peak Re-Caller ==========\n";
 
 sub check_inputs {
 	if (@ARGV) {
-		die sprintf(
+		printf(
 "There are unrecognized leftover items on the command line!\n Did you leave spaces in your --chip or --control file lists?\nItems:\n %s\n",
 			join( "\n ", @ARGV ) );
+		exit 1;
 	}
 
 	# sizes
@@ -219,25 +224,33 @@ sub check_inputs {
 		}
 	}
 	unless ( $Runner->cutoff and $Runner->peaksize and $Runner->peakgap ) {
-		die "Must set --cutoff, --peaksize, and --peakgap paramets!\n";
+		print "Must set --cutoff, --peaksize, and --peakgap paramets!\n";
+		exit 1;
 	}
 	$Runner->broad(1) if ( $Runner->broadgap or $Runner->broadcut );
 	if ( $Runner->broad ) {
-		die "Must set --broadcut if doing broad (gapped) peak calling!\n"
-			unless $Runner->broadcut;
-		die "Must set --broadgap if doing broad (gapped) peak calling!\n"
-			unless $Runner->broadgap;
+		unless ( $Runner->broadcut ) {
+			print "Must set --broadcut if doing broad (gapped) peak calling!\n";
+			exit 1;
+		}
+		unless ( $Runner->broadgap ) {
+			print "Must set --broadgap if doing broad (gapped) peak calling!\n";
+			exit 1;
+		}
 	}
 
 	# input / output
 	unless ( $Runner->in ) {
-		die "Must set the previous pipeline run output basename using --in\n";
+		print "Must set the previous pipeline run output basename using --in\n";
+		exit 1;
 	}
 	unless ( $Runner->out ) {
-		die "Must set a new output basename with --out\n";
+		print "Must set a new output basename with --out\n";
+		exit 1;
 	}
 	if ( $Runner->in eq $Runner->out ) {
-		die "Please set different input and output base names\n";
+		print "Please set different input and output base names\n";
+		exit 1;
 	}
 
 	# check suffix
@@ -248,7 +261,7 @@ sub check_inputs {
 			$i++;
 			$check = File::Spec->catfile( $Runner->dir, 'Peaks' . $i );
 		}
-		$suffix = $i;
+		$Runner->dir_suffix($i);
 	}
 }
 

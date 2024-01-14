@@ -166,6 +166,7 @@ Options:
   --meanbdg     path            ($opts->{meanbdg})
   --peak2bed    path            ($opts->{peak2bed})
   --updatepeak  path            ($opts->{updatepeak})
+  --pandoc      path            ($opts->{pandoc})
   --plotpeak    path            ($opts->{plotpeak})
   --printchr    path            ($opts->{printchr})
   --reportmap   path            ($opts->{reportmap})
@@ -272,7 +273,8 @@ GetOptions(
 	'plotpeak=s',
 	'rscript=s',
 	'reportmap=s',
-	'samtools=s'
+	'samtools=s',
+	'pandoc=s'
 ) or die "unrecognized option(s)!\n";
 
 if ( $opts->{help} ) {
@@ -326,33 +328,50 @@ sub check_options {
 
 	# check chip samples
 	if (@ARGV) {
-		die sprintf(
+		printf(
 "There are unrecognized leftover items on the command line!\n Did you leave spaces in your --chip or --control file lists?\nItems:\n %s\n",
 			join( "\n ", @ARGV ) );
+		exit 1;
 	}
-		die "No ChIP file(s) defined!\n";
+	unless ( $Runner->chips ) {
+		print "No ChIP file(s) defined!\n";
+		exit 1;
+	}
 	if ( scalar( $Runner->chips ) == 1 ) {
+		print <<END;
+This pipeline is intended to work with multiple ChIP samples, but only one was provided.
+If you have replicates, try setting each replicate as a separate sample.
+Otherwise, try running MACS2 by itself.
+END
+		exit 1;
 	}
 
 	# check names
-			die "Duplicate sample names are present!\n";
 	if ( $Runner->names ) {
 		my %check = map { $_ => 1 } ( $Runner->names );
 		if ( scalar( keys %check ) != scalar( $Runner->names ) ) {
+			print "Duplicate sample names are present!\n";
+			exit 1;
 		}
 	}
 	else {
-		die "No name(s) defined!\n";
+		print "No name(s) defined!\n";
+		exit 1;
 	}
-		die "Unequal number of ChIP samples and names!\n";
 	unless ( scalar( $Runner->chips ) == scalar( $Runner->names ) ) {
+		print "Unequal number of ChIP samples and names!\n";
+		exit 1;
 	}
 
 	# check controls
 	if (    scalar( $Runner->controls ) > 1
 		and scalar( $Runner->controls ) != scalar( $Runner->chips ) )
 	{
-		die "Unequal number of control and ChIP samples!\n";
+		print <<END;
+Unequal number of control and ChIP samples! Are you missing one?
+You may duplicate control file names and the pipeline will handle these smartly.
+END
+		exit 1;
 	}
 	elsif ( scalar( $Runner->controls ) == 0 ) {
 
@@ -384,18 +403,21 @@ MESSAGE
 	if (    scalar( $Runner->chscales )
 		and scalar( $Runner->chscales ) != scalar( $Runner->chips ) )
 	{
-		die "Unequal number of ChIP samples and ChIP scale factors!\n";
+		print "Unequal number of ChIP samples and ChIP scale factors!\n";
+		exit 1;
 	}
 	if (    scalar( $Runner->coscales )
 		and scalar( $Runner->coscales ) != scalar( $Runner->controls ) )
 	{
-		die "Unequal number of control samples and control scale factors!\n";
+		print "Unequal number of control samples and control scale factors!\n";
+		exit 1;
 	}
 
 	# check chromosome normalization factors
 	if ( scalar( $Runner->chrnorm ) and not $Runner->chrapply ) {
-		die
+		print
 "Must specify chromosome apply regex (--chrapply) for chromosome normalization factors!\n";
+		exit 1;
 	}
 	if (    scalar( $Runner->chrnorm )
 		and scalar( $Runner->chrnorm ) != scalar( $Runner->chips ) )
@@ -412,23 +434,12 @@ MESSAGE
 			}
 		}
 		else {
-			die "Unequal number of chromosome normalization factors and ChIP samples!\n";
+			print "Unequal number of chromosome normalization factors and ChIP samples!\n";
+			exit 1;
 		}
 	}
 	if ( scalar( $Runner->chrnorm ) > 1 and scalar( $Runner->controls ) == 1 ) {
 		print "Using first chromosome normalization factor for universal control!\n";
-	}
-
-	# check species
-	if ( $Runner->species ) {
-		print <<MESSAGE;
-
-WARNING: Specifiying species is now deprecated. The genome mappable size is 
-now determined empirically from all provided Bam files using the script 
-report_mappable_space.pl, or an explicit genome mappable size may be provided 
-with the --genome option. 
-
-MESSAGE
 	}
 
 	# check directory
@@ -453,16 +464,16 @@ MESSAGE
 			print <<MESSAGE;
 
 WARNING: Manually setting the target sequence depth is not recommended!!!!
-Target depth is now automatically calculated empirically as the minimum
-number of accepted fragments from all provided bam files. Reconsider using
-this option unless you understand the ramifications.
+Target depth is now automatically calculated empirically (see documentation).
+Reconsider using this option unless you understand the ramifications.
 
 MESSAGE
 		}
 	}
 	elsif ( $Runner->targetdepth ) {
 		if ( $Runner->targetdepth !~ /mean | median | min/x ) {
-			die sprintf("unrecognized targetdepth parameter '%s'!", $Runner->targetdepth);
+			printf("unrecognized targetdepth parameter '%s'!", $Runner->targetdepth);
+			exit 1;
 		}
 	}
 	else {
@@ -501,8 +512,11 @@ MESSAGE
 			}
 		}
 		else {
-			die
-"Must set an estimated mean fragment size for single-end alignments!\n  Run 'macs2 predictd' or 'bam2wig.pl --shift --model'\n";
+			print <<END;
+ Must set an estimated mean fragment size for single-end alignments!
+ Run 'macs2 predictd' or 'bam2wig.pl --shift --model'
+END
+			exit 1;
 		}
 	}
 	unless ( defined $Runner->peakgap ) {
