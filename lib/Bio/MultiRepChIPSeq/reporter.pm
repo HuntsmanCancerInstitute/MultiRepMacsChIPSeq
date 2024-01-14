@@ -29,22 +29,30 @@ END
 
 	# folder descriptions
 	if ($self->organize) {
+		my $suffix = $self->dir_suffix;
 		$string .= <<END;
 
 The output is organized into the following folders
 
-- **Analysis**: Collected data and QC files. All files are text, with data files
+
+- **Analysis$suffix**: Collected data and QC files. All files are text, with data files
   gzip compressed.
+END
+		if ( $self->{progress}{fragment} ) {
+			$string .= <<END;
 - **Count**: BigWig files representing depth-normalized, scaled, fragment counts at 
   the fragment mid point (or cut-site end point) coordinate, i.e. single-point data.
 - **Fragment**: BigWig files representing depth-normalized (per Million) fragment
   coverage.
 - **Log2FE**: BigWig files representing Log 2 scaled Fold Enrichment (Signal over
   lambda control reference or Input).
-- **Peaks**: The called-peak, genomic-interval files in either narrowPeak, gappedPeak
-  (broad calls only), or bed (6-column, merged peaks only) file formats.
-- **PeakSummits**: Bed files representing the peak signal summit coordinate (1 bp) or 
-  peak midpoint (merged peaks only) for each peak call.
+END
+		}
+		$string .= <<END;
+- **Peaks$suffix**: The called-peak, genomic-interval files in either narrowPeak,
+  gappedPeak (broad calls only), or bed (6-column, merged peaks only) file formats.
+- **PeakSummits$suffix**: Bed files representing the peak signal summit coordinate
+  (1 bp) or peak midpoint (merged peaks only) for each peak call.
 END
 		if ($self->independent) {
 			$string .= <<END;
@@ -57,15 +65,27 @@ END
 		}
 		else {
 			$string .= <<END;
-- **Plots**: Intersection, Analysis, and QC plots for the called sample peaks.
+- **Plots$suffix**: Intersection, Analysis, and QC plots for the called sample peaks.
 END
 		}
-		$string .= <<END;
+		if ( $self->{progress}{fragment} ) {
+			$string .= <<END;
 - **QValue**: BigWig files representing the multiple-test corrected statistical
   enrichment (poission distribution) over each base pair in the genome. Values are
   transformed as `-1*log10` for ease in displaying genome browsers.
 
 END
+		}
+		if ( $self->savebam and $self->dedup ) {
+			$string .= <<END;
+- **DeDupBam**: Saved de-duplicated bam files used in the analysis.
+END
+		}
+		if ( $self->savebdg ) {
+			$string .= <<END;
+- **BedGraph**: Saved intermediate bedGraph files prior to bigWig conversion.
+END
+		}
 	}
 
 	# pipeline parameters section
