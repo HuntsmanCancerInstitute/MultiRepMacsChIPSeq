@@ -1186,7 +1186,41 @@ The replicate-mean count table is `$mean_count`. The sample list table is `$samp
 END
 }
 
-
+sub pandoc_header {
+	my $self = shift;
+	return <<END;
+<style>
+	html {
+	  line-height: 1.5;
+	  font-family: Times, serif;
+	  font-size: 18px;
+	  color: #1a1a1a;
+	  background-color: #fdfdfd;
+	}
+	body {
+	  margin: 0 auto;
+	  max-width: 50em;
+	  padding-left: 50px;
+	  padding-right: 50px;
+	  padding-top: 50px;
+	  padding-bottom: 50px;
+	  hyphens: none;
+	  word-wrap: break-word;
+	  text-rendering: optimizeLegibility;
+	  font-kerning: normal;
+	}
+	\@media (max-width: 500px) {
+	  body {
+		font-size: 0.9em;
+		padding: 1em;
+	  }
+	}
+	img {
+	  max-width: 75%;
+	}
+</style>
+END
+}
 
 1;
 

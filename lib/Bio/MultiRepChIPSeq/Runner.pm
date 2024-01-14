@@ -2623,10 +2623,39 @@ sub generate_report {
 	# write file
 	my $md_file = File::Spec->catfile( $self->dir, $self->out . '.md');
 	my $fh = IO::File->new($md_file, 'w')
-		or confess "cannot write markdown report to '$md_file'!!!!";
+		or confess "cannot write markdown report to '$md_file'! $OS_ERROR";
 	$fh->print($md);
 	$fh->close;
 	print " wrote file '$md_file'\n";
+	
+	# generate html
+	if ( $self->pandoc_app ) {
+		my $curdir = File::Spec->rel2abs( File::Spec->curdir );
+		chdir $self->dir;
+		my $extra_head = 'header.html';
+		$fh = IO::File->new($extra_head, 'w')
+			or die "cannot write extra header file! $OS_ERROR";
+		$fh->print( $self->pandoc_header );
+		$fh->close;
+		my $output = $self->out . '.html';
+		my $command = sprintf
+			"%s -f gfm -t html --embed-resources --self-contained -H %s -o %s %s",
+			$self->pandoc_app,
+			'header.html',
+			$output,
+			$self->out . '.md';
+		print " Executing $command\n";
+		# this will give a warning about a missing metadata title - don't want one
+		system($command);
+		if ( -e $output ) {
+			print " Generated $output\n";
+		}
+		else {
+			print " Something went wrong generating '$output'\n";
+		}
+		unlink $extra_head;
+		chdir $curdir;
+	}
 
 }
 

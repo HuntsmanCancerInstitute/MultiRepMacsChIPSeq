@@ -91,6 +91,7 @@ sub init_options {
 		rscript     => sprintf( "%s", which 'Rscript' ),
 		reportmap   => sprintf( "%s", which 'report_mappable_space.pl' ),
 		samtools    => sprintf( "%s", which 'samtools' ),
+		pandoc      => sprintf( "%s", which 'pandoc' ),
 		help        => 0,
 		line_counts => {},  # hash of known file line counts
 		seq_depths  => {},  # hash of sequencing depths for files
@@ -595,6 +596,12 @@ sub samtools_app {
 	return $self->{opts}{samtools};
 }
 
+sub pandoc_app {
+	my $self = shift;
+	$self->{opts}{pandoc} = shift if @_;
+	return $self->{opts}{pandoc};
+}
+
 sub count_file_lines {
 	my ( $self, $file ) = @_;
 	return 0 unless $file;
@@ -816,6 +823,8 @@ Export the hash as a reference.
 =item reportmap_app
 
 =item samtools_app
+
+=item pandoc_app
 
 =back
 
