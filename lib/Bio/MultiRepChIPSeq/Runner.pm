@@ -858,6 +858,7 @@ sub run_mappable_space_report {
 		}
 		$fh->close;
 	}
+	$self->{full_genome_size} = $genome_size;
 
 	# check the user supplied value
 	if ( $self->genome and not $self->dryrun and not $self->{progress}{mappable_size} ) {
@@ -869,7 +870,7 @@ sub run_mappable_space_report {
 "\n User supplied genome size (%d) is larger than actual genome size (%d)!!!\n",
 				$self->genome, $genome_size;
 			if (@bamlist) {
-				printf " Determining actual empirical mappable size\n", $self->genome(0);
+				print " Determining actual empirical mappable size\n";
 			}
 		}
 		elsif ( $ratio < 0.6 ) {
@@ -877,7 +878,7 @@ sub run_mappable_space_report {
 "\n User supplied genome size (%d) is considerably smaller than actual genome size (%d)!\n",
 				$self->genome, $genome_size;
 			if (@bamlist) {
-				printf " Determining actual empirical mappable size\n", $self->genome(0);
+				print " Determining actual empirical mappable size\n";
 			}
 		}
 		else {
@@ -941,9 +942,19 @@ sub run_mappable_space_report {
 		while ( my $line = $fh->getline ) {
 
 			# we're going to use the all mappable space number
-			if ( $line =~ /All \s mappable \s space: \s ( [\d\.]+ ) \s Mb/x ) {
+			# remember these numbers for the report
+			if ( $line =~ 
+/All \s mappable \s space: \s ( \d+ \. \d+ ) \s Mb \s \( (\d+) % \)/x 
+			) {
 				$self->genome( $1 * 1000000 );
-				last;
+				$self->{all_map_fraction} = $2;
+			}
+			elsif ( $line =~ 
+/Unique \s mappable \s space: \s ( \d+ \. \d+ ) \s Mb \s \( (\d+) % \)/x 
+			) {
+				$self->{unique_map} = $1 * 1000000;
+				$self->{unique_map_fraction} = $2;
+				next;
 			}
 		}
 		$fh->close;
@@ -1095,8 +1106,10 @@ sub run_bam_fragment_conversion {
 	# Calculate target depth to use
 	my $stat = Statistics::Descriptive::Full->new();
 	$stat->add_data( values %bam2count );
+	$self->{original_depth} = $self->targetdepth;  # remember what was provided
 	if ( $self->targetdepth =~ /^ \d+ (?:\.\d+) $/x ) {
 		printf "\n Using manual target depth of %s Million\n", $self->targetdepth;
+		$self->{original_depth} = $stat->median;  # record what it would have been
 	}
 	elsif ( $self->targetdepth eq 'mean' ) {
 		$self->targetdepth( $stat->mean );
