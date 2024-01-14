@@ -31,6 +31,7 @@ sub new {
 		universal_control   => 0,
 		repmean_merge_base  => undef,
 		repmerge_merge_base => undef,
+		dir_suffix          => q(),
 	};
 
 	return bless $self, $class;
@@ -56,6 +57,12 @@ sub repmerge_merge_base {
 	my $self = shift;
 	$self->{repmerge_merge_base} = $_[0] if @_;
 	return $self->{repmerge_merge_base};
+}
+
+sub dir_suffix {
+	my $self = shift;
+	$self->{dir_suffix} = $_[0] if @_;
+	return $self->{dir_suffix};
 }
 
 sub add_job {
@@ -2429,7 +2436,7 @@ sub run_cleanup {
 
 sub run_organize {
 	my $self   = shift;
-	my $suffix = shift || q();
+	my $suffix = $self->dir_suffix;
 	return unless ( $self->organize );
 	return if $self->dryrun;
 	print "\n\n======= Moving files into subdirectories\n";
