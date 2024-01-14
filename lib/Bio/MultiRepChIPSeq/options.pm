@@ -19,7 +19,6 @@ sub init_options {
 		chscale     => [],
 		coscale     => [],
 		genome      => 0,
-		species     => q(),
 		chromofile  => undef,
 		mapq        => 0,
 		paired      => 0,
@@ -128,31 +127,31 @@ sub out {
 	return $self->{opts}{out};
 }
 
-sub name {
+sub names {
 	my $self = shift;
 	push @{ $self->{opts}{name} }, @_ if @_;
 	return @{ $self->{opts}{name} };
 }
 
-sub chip {
+sub chips {
 	my $self = shift;
 	push @{ $self->{opts}{chip} }, @_ if @_;
 	return @{ $self->{opts}{chip} };
 }
 
-sub control {
+sub controls {
 	my $self = shift;
 	push @{ $self->{opts}{control} }, @_ if @_;
 	return @{ $self->{opts}{control} };
 }
 
-sub chscale {
+sub chscales {
 	my $self = shift;
 	push @{ $self->{opts}{chscale} }, @_ if @_;
 	return @{ $self->{opts}{chscale} };
 }
 
-sub coscale {
+sub coscales {
 	my $self = shift;
 	push @{ $self->{opts}{coscale} }, @_ if @_;
 	return @{ $self->{opts}{coscale} };
@@ -162,12 +161,6 @@ sub genome {
 	my $self = shift;
 	$self->{opts}{genome} = shift if @_;
 	return $self->{opts}{genome};
-}
-
-sub species {
-	my $self = shift;
-	$self->{opts}{species} = shift if @_;
-	return $self->{opts}{species};
 }
 
 sub chromofile {
@@ -689,8 +682,6 @@ Export the hash as a reference.
 =item coscale
 
 =item genome
-
-=item species
 
 =item chromofile
 

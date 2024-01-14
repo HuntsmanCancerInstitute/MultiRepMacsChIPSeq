@@ -329,31 +329,31 @@ sub check_options {
 "There are unrecognized leftover items on the command line!\n Did you leave spaces in your --chip or --control file lists?\nItems:\n %s\n",
 			join( "\n ", @ARGV ) );
 	}
-	unless ( $Runner->chip ) {
 		die "No ChIP file(s) defined!\n";
+	if ( scalar( $Runner->chips ) == 1 ) {
 	}
 
 	# check names
-	if ( $Runner->name ) {
-		my %check = map { $_ => 1 } ( $Runner->name );
-		if ( scalar( keys %check ) != scalar( $Runner->name ) ) {
 			die "Duplicate sample names are present!\n";
+	if ( $Runner->names ) {
+		my %check = map { $_ => 1 } ( $Runner->names );
+		if ( scalar( keys %check ) != scalar( $Runner->names ) ) {
 		}
 	}
 	else {
 		die "No name(s) defined!\n";
 	}
-	unless ( scalar( $Runner->chip ) == scalar( $Runner->name ) ) {
 		die "Unequal number of ChIP samples and names!\n";
+	unless ( scalar( $Runner->chips ) == scalar( $Runner->names ) ) {
 	}
 
 	# check controls
-	if (    scalar( $Runner->control ) > 1
-		and scalar( $Runner->control ) != scalar( $Runner->chip ) )
+	if (    scalar( $Runner->controls ) > 1
+		and scalar( $Runner->controls ) != scalar( $Runner->chips ) )
 	{
 		die "Unequal number of control and ChIP samples!\n";
 	}
-	elsif ( scalar( $Runner->control ) == 0 ) {
+	elsif ( scalar( $Runner->controls ) == 0 ) {
 
 		# no controls, turn off lambda
 		$Runner->slocal(0);
@@ -367,7 +367,7 @@ sub check_options {
 	}
 
 	# check scaling factors
-	if ( scalar( $Runner->chscale ) or scalar( $Runner->coscale ) ) {
+	if ( scalar( $Runner->chscales ) or scalar( $Runner->coscales ) ) {
 
 		# no longer recommended
 		print <<MESSAGE;
@@ -380,13 +380,13 @@ peak calling and may reduce confidence of identified peaks.
 
 MESSAGE
 	}
-	if (    scalar( $Runner->chscale )
-		and scalar( $Runner->chscale ) != scalar( $Runner->chip ) )
+	if (    scalar( $Runner->chscales )
+		and scalar( $Runner->chscales ) != scalar( $Runner->chips ) )
 	{
 		die "Unequal number of ChIP samples and ChIP scale factors!\n";
 	}
-	if (    scalar( $Runner->coscale )
-		and scalar( $Runner->coscale ) != scalar( $Runner->control ) )
+	if (    scalar( $Runner->coscales )
+		and scalar( $Runner->coscales ) != scalar( $Runner->controls ) )
 	{
 		die "Unequal number of control samples and control scale factors!\n";
 	}
@@ -397,13 +397,13 @@ MESSAGE
 "Must specify chromosome apply regex (--chrapply) for chromosome normalization factors!\n";
 	}
 	if (    scalar( $Runner->chrnorm )
-		and scalar( $Runner->chrnorm ) != scalar( $Runner->chip ) )
+		and scalar( $Runner->chrnorm ) != scalar( $Runner->chips ) )
 	{
 		# apply to all the ChIPs
 		if ( scalar( $Runner->chrnorm ) == 1 ) {
 			print "Using the same chromosome normalization factor for each ChIP sample\n";
 			my $n = ( $Runner->chrnorm )[0];
-			my $m = scalar( $Runner->name );
+			my $m = scalar( $Runner->names );
 			for ( 2 .. $m ) {
 
 				# add it to the remainder
@@ -414,7 +414,7 @@ MESSAGE
 			die "Unequal number of chromosome normalization factors and ChIP samples!\n";
 		}
 	}
-	if ( scalar( $Runner->chrnorm ) > 1 and scalar( $Runner->control ) == 1 ) {
+	if ( scalar( $Runner->chrnorm ) > 1 and scalar( $Runner->controls ) == 1 ) {
 		print "Using first chromosome normalization factor for universal control!\n";
 	}
 
@@ -444,7 +444,7 @@ MESSAGE
 
 	# check target depth
 	if ( $Runner->targetdepth and $Runner->targetdepth =~ /^ \d+ (?: \.\d+)? $/x) {
-		my $files = join( ",", ( $Runner->chip ), ( $Runner->control ) );
+		my $files = join( ",", ( $Runner->chips ), ( $Runner->controls ) );
 		if ( $files =~ /\.bam/i ) {
 
 			# no longer recommend manually setting with bam files
@@ -522,7 +522,7 @@ MESSAGE
 			"\nWARNING! Unable to find specified black list file '%s'!\n",
 			$Runner->blacklist
 		);
-		if ( scalar( $Runner->control ) ) {
+		if ( scalar( $Runner->controls ) ) {
 			print "Defaulting to using input-derived exclusion list\n";
 			$Runner->blacklist('input');
 		}
@@ -531,7 +531,7 @@ MESSAGE
 		}
 	}
 	elsif ( not defined $Runner->blacklist
-		and scalar( $Runner->control ) )
+		and scalar( $Runner->controls ) )
 	{
 		$Runner->blacklist('input');
 	}
@@ -565,9 +565,9 @@ DRYRUN
 sub check_input_files {
 	print "\n\n======= Checking input files\n";
 	my @errors;
-	my @names          = $Runner->name;
-	my @chips          = $Runner->chip;
-	my @controls       = $Runner->control;
+	my @names          = $Runner->names;
+	my @chips          = $Runner->chips;
+	my @controls       = $Runner->controls;
 	my $chip_max_count = 0;
 	foreach my $i ( 0 .. $#names ) {
 		my @list = split /,/, $chips[$i];
@@ -634,9 +634,9 @@ sub add_jobs_to_runner {
 	# chromosome normalization factor
 
 	# first check for a unversal control
-	if ( scalar( $Runner->control ) == 1 and scalar( $Runner->chip ) > 1 ) {
+	if ( scalar( $Runner->controls ) == 1 and scalar( $Runner->chips ) > 1 ) {
 		print " Using only one control for multiple ChIP experiments\n";
-		my $universal_control = ( $Runner->control )[0];
+		my $universal_control = ( $Runner->controls )[0];
 		$Runner->has_universal_control(1);
 
 		# generate universal name
@@ -663,13 +663,13 @@ sub add_jobs_to_runner {
 		else {
 			die "unrecognized control file '$universal_control'!\n";
 		}
-		my $universal_scale = ( $Runner->coscale )[0] || undef;
+		my $universal_scale = ( $Runner->coscales )[0] || undef;
 
 		# add back universal control with special prefix for each ChIP job
 		$opts->{control} = [];    # unorthodox hack
 		$opts->{coscale} = [];    # unorthodox hack
-		foreach ( $Runner->name ) {
-			$Runner->control( 'Custom-Universal-' . $universal_name );
+		foreach ( $Runner->names ) {
+			$Runner->controls( 'Custom-Universal-' . $universal_name );
 		}
 
 		# generate job - this will always be the first job
@@ -684,16 +684,16 @@ sub add_jobs_to_runner {
 	}
 
 	# walk through each given job
-	my @names = $Runner->name;
+	my @names = $Runner->names;
 	for my $i ( 0 .. $#names ) {
 
 		# add job
 		$Runner->add_job(
 			$names[$i],
-			( $Runner->chip )[$i],
-			( $Runner->control )[$i] || undef,
-			( $Runner->chscale )[$i] || undef,
-			( $Runner->coscale )[$i] || undef,
+			( $Runner->chips )[$i],
+			( $Runner->controls )[$i] || undef,
+			( $Runner->chscales )[$i] || undef,
+			( $Runner->coscales )[$i] || undef,
 			( $Runner->chrnorm )[$i] || undef
 		);
 	}

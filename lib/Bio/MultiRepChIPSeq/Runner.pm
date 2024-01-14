@@ -2237,11 +2237,11 @@ sub print_config {
 
 	# Samples
 	push @output, "\n\n======= Samples\n";
-	my @names = $self->name;
+	my @names = $self->names;
 	for my $i ( 0 .. $#names ) {
-		push @output, sprintf " %s ChIP: %s\n", $names[$i], ( $self->chip )[$i];
+		push @output, sprintf " %s ChIP: %s\n", $names[$i], ( $self->chips )[$i];
 		push @output, sprintf " %s Control: %s\n", $names[$i],
-			( $self->control )[$i] || q();
+			( $self->controls )[$i] || q();
 	}
 
 	# Run parameters
