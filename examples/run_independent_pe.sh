@@ -4,7 +4,7 @@
 
 # cpu and job parameters are machine dependent and set low for this example.
 # Due to extreme subsampling of alignments in example bam files, additional 
-# parameters are supplied AND ARE NOT NORMALLY REQUIRED, including genome and plot options
+# parameters are supplied AND ARE NOT NORMALLY REQUIRED, including genome options
 
 # environment build paths – not needed in production
 BLIB=${PWD}/../blib
@@ -36,8 +36,4 @@ multirep_macs2_pipeline.pl \
 --peakgap 100 \
 --cpu 1 \
 --job 4 \
---genome 230000 \
---plot \
---plot_frag 20000 \
---plot_qval 300
-
+--genome 230000 

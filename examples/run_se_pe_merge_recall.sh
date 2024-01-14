@@ -5,7 +5,7 @@
 
 # cpu and job parameters are machine dependent and set low for this example.
 # Due to extreme subsampling of alignments in example bam files, additional 
-# parameters are supplied AND ARE NOT NORMALLY REQUIRED, including genome and plot options
+# parameters are supplied AND ARE NOT NORMALLY REQUIRED, including genome options
 
 # environment build paths – not needed in production
 BLIB=${PWD}/../blib
@@ -34,10 +34,7 @@ multirep_macs2_pipeline.pl \
 --peakgap 100 \
 --cpu 1 \
 --job 4 \
---genome 230000 \
---plot \
---plot_frag 15000 \
---plot_qval 30
+--genome 230000
 
 
 echo;echo "====================== Tup1 only single-end ======================";echo;
@@ -59,10 +56,7 @@ multirep_macs2_pipeline.pl \
 --peakgap 100 \
 --cpu 1 \
 --job 4 \
---genome 230000 \
---plot \
---plot_frag 20000 \
---plot_qval 300
+--genome 230000
 
 
 echo;echo "====================== Merging Rpd3 and Tup1 Results ======================";echo;
@@ -102,10 +96,6 @@ recall_peaks.pl \
 --peaksize 200 \
 --peakgap 100 \
 --cpu 1 \
---job 4 \
---plot \
---plot_frag 20000 \
---plot_qval 300
-
+--job 4
 
 
