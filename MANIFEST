@@ -18,9 +18,10 @@ bin/run_normR_difference.R
 bin/run_normR_enrichment.R
 bin/subset_bigwig.pl
 bin/update_peak_file.pl
-lib/Bio/MultiRepChIPSeq/Runner.pm
-lib/Bio/MultiRepChIPSeq/options.pm
 lib/Bio/MultiRepChIPSeq/Job.pm
+lib/Bio/MultiRepChIPSeq/options.pm
+lib/Bio/MultiRepChIPSeq/reporter.pm
+lib/Bio/MultiRepChIPSeq/Runner.pm
 Build.PL
 LICENSE
 MANIFEST			This list of files

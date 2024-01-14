@@ -13,6 +13,7 @@ use Bio::ToolBox;
 use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
+use base 'Bio::MultiRepChIPSeq::reporter';
 
 our $VERSION = 19.0;
 
@@ -2574,6 +2575,55 @@ sub run_organize {
 	}
 }
 
+
+sub generate_report {
+	my $self             = shift;
+	my $provided_options = shift || undef;
+	return if $self->dryrun;
+	print "\n\n======= Generating Markdown report\n";
+	
+	my $md = $self->add_header_report($provided_options);
+	$md   .= $self->add_samples_report;
+	if ( $self->genome ) {
+		$md .= $self->add_genome_report;
+	}
+	if ( $self->blacklist ) {
+		$md .= $self->add_exclusion_report;
+	}
+	if ( $self->dedup ) {
+		$md .= $self->add_deduplication_report;
+	}
+	if ( $self->{progress}{bamfilter} ) {
+		$md .= $self->add_filter_report;
+	}
+	if ( $self->{progress}{fragment} ) {
+		$md .= $self->add_coverage_report;
+	}
+	if ( $self->independent ) {
+		$md .= $self->add_independent_peak_calls_report;
+		$md .= $self->add_merged_replicates_report;
+	}
+	$md .= $self->add_mean_replicates_report;
+	if ( $self->broad ) {
+		if ( $self->independent ) {
+			$md .= $self->add_independent_broad_peak_calls_report;
+			$md .= $self->add_merged_replicates_broad_report;
+		}
+		$md .= $self->add_mean_replicates_broad_report;
+	}
+	$md .= $self->add_summary_report;
+	
+	# write file
+	my $md_file = File::Spec->catfile( $self->dir, $self->out . '.md');
+	my $fh = IO::File->new($md_file, 'w')
+		or confess "cannot write markdown report to '$md_file'!!!!";
+	$fh->print($md);
+	$fh->close;
+	print " wrote file '$md_file'\n";
+
+}
+
+
 1;
 
 =head1 name
@@ -2657,9 +2707,13 @@ required therein and passes them directly to respective new() method.
 
 =item run_plot_peaks - run Rscript to plot QC metrics and analysis figures
 
+=item print_config - generate a summary of the pipeline configuration
+
 =item run_cleanup - delete temporary files
 
 =item run_organize - move files into subfolders
+
+=item generate_report - generate a markdown report of results including plots
 
 =back
 

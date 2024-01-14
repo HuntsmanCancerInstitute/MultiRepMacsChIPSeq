@@ -314,6 +314,7 @@ $Runner->run_efficiency();
 $Runner->run_plot_peaks();
 $Runner->run_cleanup($argument_string);
 $Runner->run_organize();
+$Runner->generate_report($argument_string);
 
 # final statement
 printf "\n\nFinished in %.1f minutes\n", ( time - $start ) / 60;
