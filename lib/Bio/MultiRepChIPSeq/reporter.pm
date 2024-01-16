@@ -436,16 +436,22 @@ END
 		$string .= <<END;
 
 The following replicate-mean fragment depths were used for calculating enrichment for
-each sample.
+each sample. The minimum of a ChIP - Control pair was used; see the log file.
 
-| Sample | Mean Depth |
-|---|---|
+| Sample | Item | Mean Depth |
+|---|---|---|
 END
 
 		# add items to table
 		foreach my $Job ( $self->list_jobs ) {
-			$string .= sprintf "| %s | %.3f |\n", $Job->job_name, 
-				$self->seq_depth_for_file( $Job->chip_bdg || $Job->lambda_bdg );
+			if ( $Job->chip_bams ) {
+				$string .= sprintf "| %s | ChIP | %.3f |\n", $Job->job_name, 
+					$self->seq_depth_for_file( $Job->chip_bdg );
+			}
+			if ( $Job->control_bams ) {
+				$string .= sprintf "| %s | Control | %.3f |\n", $Job->job_name, 
+					$self->seq_depth_for_file( $Job->lambda_bdg );
+			}
 		}
 	}
 
