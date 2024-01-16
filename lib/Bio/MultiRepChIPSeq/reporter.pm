@@ -1190,34 +1190,55 @@ sub pandoc_header {
 	my $self = shift;
 	return <<END;
 <style>
-	html {
-	  line-height: 1.5;
-	  font-family: Times, serif;
-	  font-size: 18px;
-	  color: #1a1a1a;
-	  background-color: #fdfdfd;
-	}
-	body {
-	  margin: 0 auto;
-	  max-width: 50em;
-	  padding-left: 50px;
-	  padding-right: 50px;
-	  padding-top: 50px;
-	  padding-bottom: 50px;
-	  hyphens: none;
-	  word-wrap: break-word;
-	  text-rendering: optimizeLegibility;
-	  font-kerning: normal;
-	}
-	\@media (max-width: 500px) {
-	  body {
-		font-size: 0.9em;
-		padding: 1em;
-	  }
-	}
-	img {
-	  max-width: 75%;
-	}
+html {
+  line-height: 1.5;
+  font-family: Times, serif;
+  font-size: 18px;
+  color: #1a1a1a;
+  background-color: #fdfdfd;
+}
+body {
+  margin: 0 auto;
+  max-width: 50em;
+  padding-left: 50px;
+  padding-right: 50px;
+  padding-top: 50px;
+  padding-bottom: 50px;
+  hyphens: none;
+  word-wrap: break-word;
+  text-rendering: optimizeLegibility;
+  font-kerning: normal;
+}
+code {
+  font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+  font-size: 75%;
+  margin: 0;
+  hyphens: manual;
+  word-wrap: break-word;
+}
+img {
+  max-width: 75%;
+}
+table {
+  margin: 1em 0;
+  border-collapse: collapse;
+  width: 100%;
+  overflow-x: auto;
+  display: block;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+tbody {
+  margin-top: 0.5em;
+  border-top: 1px solid #1a1a1a;
+  border-bottom: 2px solid #1a1a1a;
+}
+th {
+  border-top: 2px solid #1a1a1a;
+  padding: 0.25em 0.5em 0.25em 0.5em;
+}
+td {
+  padding: 0.125em 0.5em 0.25em 0.5em;
+}
 </style>
 END
 }
