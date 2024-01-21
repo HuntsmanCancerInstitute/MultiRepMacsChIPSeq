@@ -151,7 +151,7 @@ sub add_genome_report {
 		my $size      = format_with_commas( $self->genome );
 		my $full      = format_with_commas( $self->{full_genome_size} );
 		my $all_frac  = sprintf "%s%%", $self->{all_map_fraction};
-		my $uniq      = $self->{unique_map};
+		my $uniq      = format_with_commas( $self->{unique_map} );
 		my $uniq_frac = sprintf "%s%%", $self->{unique_map_fraction};
 		my $exclusion = $self->chrskip;
 		$string .= <<END
@@ -395,10 +395,10 @@ END
 
 	# add table items
 	foreach my $Job ($self->list_jobs) {
-		foreach my $file ( $Job->chip_bams ) {
+		foreach my $file ( $Job->chip_use_bams ) {
 			$string .= sprintf "| `%s` | %.3f |\n", $file, $self->{bam2count}{$file};
 		}
-		foreach my $file ( $Job->control_bams ) {
+		foreach my $file ( $Job->control_use_bams ) {
 			$string .= sprintf "| `%s` | %.3f |\n", $file, $self->{bam2count}{$file};
 		}
 	}
@@ -896,7 +896,7 @@ sample comparison, file `$mean_peak`, with `$mean_count` intervals.
 END
 
 	# add plots
-	if ( $self->plot and $mean_count > 2 ) {
+	if ( $self->plot and $mean_count ) {
 		my $mean_upset  = catfile( $plot_dir, $mean_base . '.intersection_upset.png' );
 		my $mean_length = catfile( $plot_dir, $mean_base . '.peak_lengths.png' );
 		$string .= <<END;
@@ -910,7 +910,7 @@ END
 	}
 
 	# Mean replicates correlation
-	if ( $self->plot and $mean_count > 2 ) {
+	if ( $self->plot and $mean_count ) {
 		my $pca      = catfile( $plot_dir, $mean_base . '_PCA.png' );
 		my $distance = catfile( $plot_dir, $mean_base . '_distance.png' );
 		my $pearson  = catfile( $plot_dir, $mean_base . '_pearson.png' );
@@ -932,7 +932,7 @@ END
 	}
 
 	# Mean replicates profile
-	if ( $self->plot and $mean_count > 2 ) {
+	if ( $self->plot and $mean_count ) {
 		my $size     = ( 25 * $self->binsize ) / 1000;
 		my $tot_size = $size * 2;
 		my $hm_plot   = catfile( $plot_dir, $mean_base .
@@ -954,7 +954,7 @@ END
 	}
 
 	# Enrichment plot
-	if ( $self->plot and $mean_count > 2 ) {
+	if ( $self->plot and $mean_count ) {
 		$string .= <<END;
 
 ### Replicate-mean Mean Enrichment
@@ -1061,7 +1061,7 @@ combined sample comparison, file `$mean_peak`, with `$mean_count` intervals.
 END
 
 	# add plots
-	if ( $self->plot and $mean_count > 2 ) {
+	if ( $self->plot and $mean_count ) {
 		my $mean_upset  = catfile( $plot_dir, $mean_base . '.intersection_upset.png' );
 		my $mean_length = catfile( $plot_dir, $mean_base . '.peak_lengths.png' );
 		$string .= <<END;
@@ -1075,7 +1075,7 @@ END
 	}
 
 	# Mean replicates correlation
-	if ( $self->plot and $mean_count > 2 ) {
+	if ( $self->plot and $mean_count ) {
 		my $pca      = catfile( $plot_dir, $mean_base . '_PCA.png' );
 		my $distance = catfile( $plot_dir, $mean_base . '_distance.png' );
 		my $pearson  = catfile( $plot_dir, $mean_base . '_pearson.png' );
@@ -1097,7 +1097,7 @@ END
 	}
 
 	# Enrichment plot
-	if ( $self->plot and $mean_count > 2 ) {
+	if ( $self->plot and $mean_count ) {
 		$string .= <<END;
 
 ### Gapped Replicate-mean Mean Enrichment
