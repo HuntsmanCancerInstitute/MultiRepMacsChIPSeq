@@ -177,7 +177,7 @@ $pm->wait_all_children;
 ### Finish
 my $genome = sum( values %chr_list );
 printf
-"\n Total Genome: %.3f Mb\n All mappable space: %.3f Mb (%d%%)\n Unique mappable space %.3f Mb (%d%%)\n",
+"\n Total Genome: %.3f Mb\n All mappable space: %.3f Mb (%d%%)\n Unique mappable space: %.3f Mb (%d%%)\n",
 	( $genome / 1000000 ), ( $all_space / 1000000 ), ( ( $all_space / $genome ) * 100 ),
 	( $unique_space / 1000000 ), ( ( $unique_space / $genome ) * 100 );
 
