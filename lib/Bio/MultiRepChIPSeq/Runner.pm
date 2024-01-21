@@ -2161,6 +2161,10 @@ sub run_plot_peaks {
 
 	# merge-replicate narrow peaks
 	if ( $self->independent ) {
+		my $number = 0;
+		foreach my $Job ( $self->list_jobs ) {
+			$number += scalar( $Job->chip_rep_names );
+		}
 		$command = sprintf "%s --verbose %s --input %s",
 			$self->rscript_app,
 			$self->plotpeak_app,
@@ -2174,6 +2178,9 @@ sub run_plot_peaks {
 		if ( $self->plot_qval ) {
 			$command .= sprintf " --qmax %s", $self->plot_qval;
 		}
+		if ($number > 9 and $number <= 12 ) {
+			$command .= " --palette Set3";
+		} # else use the default of Set1
 		$log = $self->repmerge_merge_base . '.plot_figures.out.txt';
 		$command .= " > $log 2>&1";
 		push @commands, [ $command, q(), $log ];
