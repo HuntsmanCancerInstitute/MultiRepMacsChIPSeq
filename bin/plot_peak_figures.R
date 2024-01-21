@@ -262,6 +262,9 @@ plotMid <- function(gdata, ylabel, figmain, outbase) {
 
 ######## Script #############
 
+# max allowed number of columns for palette
+allowed <- brewer.pal.info[opt$palette,]$maxcolors
+
 # count data
 countfile <- paste0(opt$input,"_counts.txt.gz")
 samplefile <- paste0(opt$input,"_samples.txt")
@@ -582,7 +585,7 @@ qfile <- paste0(opt$input, "_maxQvalue.txt.gz")
 if(file.exists(qfile)) {
     qdata = read.table(qfile, header=TRUE, sep="\t", 
                        row.names = 1, check.names = F, na.strings = '.')
-    if (ncol(qdata) > 2) {
+    if (ncol(qdata) > 2 && ncol(qdata) <= allowed) {
       # only make a heat map file if there is more than one sample
       if ( colnames(qdata)[1] == "Name" ) {
         # exclude this column name
@@ -602,12 +605,12 @@ lfefile <- paste0(opt$input,"_meanLog2FE.txt.gz")
 if(file.exists(lfefile)) {
     lfedata = read.table(lfefile,header=TRUE,sep="\t", 
                          row.names = 1, check.names = F, na.strings = '.')
-    if (ncol(lfedata) > 2) {
+    if ( colnames(lfedata)[1] == "Name" ) {
+      # exclude this column name
+      lfedata <- lfedata[,2:ncol(lfedata)]
+    }
+    if (ncol(lfedata) > 2 && ncol(lfedata) <= allowed) {
       # only make heat map files if there is more than one sample
-      if ( colnames(lfedata)[1] == "Name" ) {
-          # exclude this column name
-          lfedata <- lfedata[,2:ncol(lfedata)]
-      }
       lfedata[is.na(lfedata)] <- 0
       clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(255)
       plot_mean_hm(lfedata, opt$min, opt$max, clrs, 
@@ -641,14 +644,17 @@ if(file.exists(mfproffile)) {
   fprofdata[is.na(fprofdata)] <- 0
   grpdata = read.table(paste0(opt$input, "_profile_mean_fragment.groups.txt"), header=TRUE, sep="\t", 
                        row.names = 1, check.names = F)
-  clrs <- colorRampPalette(brewer.pal(9, 'YlOrRd'))(255)
-  plot_profile_hm(fprofdata, 0, opt$fmax, clrs, grpdata,
-         "ChIP fragment density profile around merged peak midpoints",
-         paste0(opt$input,"_profile_mean_fragment_hm"))
-  if (nrow(fprofdata) >= opt$mincluster) {
-     plot_profile_k_hm(fprofdata, 0, opt$fmax, 4, clrs, color4, grpdata, 
-                       "ChIP fragment density profile around merged peak midpoints, 4 Clusters",
-                       paste0(opt$input, "_profile_mean_fragment_hm_K4"))
+  if (length(as.vector(unique(grpdata[,1]))) <= allowed) {
+    # only plot if number of groups is tolerated by by color palette
+    clrs <- colorRampPalette(brewer.pal(9, 'YlOrRd'))(255)
+    plot_profile_hm(fprofdata, 0, opt$fmax, clrs, grpdata,
+                    "ChIP fragment density profile around merged peak midpoints",
+                    paste0(opt$input,"_profile_mean_fragment_hm"))
+    if (nrow(fprofdata) >= opt$mincluster) {
+      plot_profile_k_hm(fprofdata, 0, opt$fmax, 4, clrs, color4, grpdata, 
+                        "ChIP fragment density profile around merged peak midpoints, 4 Clusters",
+                        paste0(opt$input, "_profile_mean_fragment_hm_K4"))
+    }
   }
 }
 
@@ -664,14 +670,17 @@ if(file.exists(rfproffile)) {
   fprofdata[is.na(fprofdata)] <- 0
   grpdata = read.table(paste0(opt$input, "_profile_replicate_fragment.groups.txt"), header=TRUE, sep="\t", 
                        row.names = 1, check.names = F)
-  clrs <- colorRampPalette(brewer.pal(9, 'YlOrRd'))(255)
-  plot_profile_hm(fprofdata, 0, opt$fmax, clrs, grpdata,
-         "ChIP fragment density profile around merged peak midpoints",
-         paste0(opt$input,"_profile_replicate_fragment_hm"))
-  if (nrow(fprofdata) >= opt$mincluster) {
-     plot_profile_k_hm(fprofdata, 0, opt$fmax, 4, clrs, color4, grpdata, 
-                       "ChIP fragment density profile around merged peak midpoints, 4 Clusters",
-                       paste0(opt$input, "_profile_replicate_fragment_hm_K4"))
+  if (length(as.vector(unique(grpdata[,1]))) <= allowed) {
+    # only plot if number of groups is tolerated by color palette
+    clrs <- colorRampPalette(brewer.pal(9, 'YlOrRd'))(255)
+    plot_profile_hm(fprofdata, 0, opt$fmax, clrs, grpdata,
+                    "ChIP fragment density profile around merged peak midpoints",
+                    paste0(opt$input,"_profile_replicate_fragment_hm"))
+    if (nrow(fprofdata) >= opt$mincluster) {
+      plot_profile_k_hm(fprofdata, 0, opt$fmax, 4, clrs, color4, grpdata, 
+                        "ChIP fragment density profile around merged peak midpoints, 4 Clusters",
+                        paste0(opt$input, "_profile_replicate_fragment_hm_K4"))
+    }
   }
 }
 
@@ -688,14 +697,17 @@ if(file.exists(lfeproffile)) {
   lfeprofdata[is.na(lfeprofdata)] <- 0
   grpdata = read.table(paste0(opt$input, "_profile_log2FE.groups.txt"), header=TRUE, sep="\t", 
                        row.names = 1, check.names = F)
-  clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(255)
-  plot_profile_hm(lfeprofdata, opt$min, opt$max, clrs, grpdata,
-         "ChIP Log2 Fold Enrichment profile around merged peak midpoints",
-         paste0(opt$input,"_profile_log2FE_hm"))
-  if (nrow(lfeprofdata) >= opt$mincluster) {
+  if (length(as.vector(unique(grpdata[,1]))) <= allowed) {
+    # only plot if number of groups tolerated by palette
+    clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(255)
+    plot_profile_hm(lfeprofdata, opt$min, opt$max, clrs, grpdata,
+                    "ChIP Log2 Fold Enrichment profile around merged peak midpoints",
+                    paste0(opt$input,"_profile_log2FE_hm"))
+    if (nrow(lfeprofdata) >= opt$mincluster) {
       plot_profile_k_hm(lfeprofdata, opt$min, opt$max, 4, clrs, color4, grpdata, 
-                    "ChIP Log2 Fold Enrichment profile around merged peak midpoints, 4 Clusters",
-                    paste0(opt$input, "_profile_log2FE_hm_K4"))
+                        "ChIP Log2 Fold Enrichment profile around merged peak midpoints, 4 Clusters",
+                        paste0(opt$input, "_profile_log2FE_hm_K4"))
+    }
   }
 }
 
