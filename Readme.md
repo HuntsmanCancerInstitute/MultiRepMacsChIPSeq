@@ -67,14 +67,13 @@ condition. Technical replicates could also be included.
 	See the [De-Duplication Evaluation](DeDuplicationEvaluation/ReadMe.md) for 
 	further details.
     
-- Generate replicate tracks 
+- Generate replicate count tracks 
 
     To facilitate generating count matrices later, point-data count bigWig files,
     either shifted start positions (single-end) or fragment midpoints (paired-end),
     are generated using [bam2wig](https://metacpan.org/pod/bam2wig.pl) for each
     sample replicate. By default, replicates are depth-normalized and scaled to the
-    target depth (calculated automatically as the minimum observed depth of all
-    provided Bam files). 
+    same target depth (by default the median observed depth of all provided Bam files). 
     
     When independent replicate peaks are called too, fragment coverage tracks for
     each replicate are also generated.
@@ -127,8 +126,18 @@ condition. Technical replicates could also be included.
 - Plot replicate and sample QC and heat maps
 
     A variety of replicate and sample QC plots, correlation plots (Euclidean
-    distance, PCA, Pearson, and Spearman), heat maps, and line plots are generated
-    using a custom R script, [plot_peak_figures](applications.md#plot_peak_figuresr).
+    distance, PCA, Pearson, and Spearman), intersection (UpSet plots, count and 
+    spatial-overlap intersection heat maps), and occupancy and enrichment heat maps
+    and line plots are generated using a custom R script,
+    [plot_peak_figures](applications.md#plot_peak_figuresr).
+
+- Generate report
+
+	Generate a Markdown report that summarizes the pipeline options, alignment
+	statistics, and peak call numbers, intersections, correlations, and results.
+	Includes a select number of plots to illustrate the report. If Pandoc is
+	available, the Markdown report will automatically be converted to a
+	self-contained HTML report.
 
 - Differential analysis
 

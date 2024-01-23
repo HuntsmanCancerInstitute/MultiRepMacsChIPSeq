@@ -356,7 +356,7 @@ as a (poor) substitute.
 
 Advanced users may provide one processed bigWig file per ChIP or control sample. 
 
-Version: 18
+Version: 19
 
 Options:
 
@@ -422,9 +422,13 @@ Options:
 	  --nolambda                    Skip lambda control, compare ChIP directly with control
 	  --minpeakover integer         Minimum number of overlapping replicate peaks to accept
 	                                  in final when merging (default n-1, minimum 2)
+	  --samedepth                   Use same target depth when calculating per sample
+	                                  q-value enrichment for replicate-mean peaks
 	
 	Peak scoring
 	  --binsize     integer         Size of bins in 25 flanking peak bins for profile (100)
+	  --targetdepth text            Set method for sequence depth scaling for all count data:
+	                                  median (default), mean, min
 	  --rawcounts                   Use unscaled raw counts for re-scoring peaks
 	  --noplot                      Do not plot figures of results
 	
@@ -450,11 +454,12 @@ Options:
 	  --manwig       path           (manipulate_wig.pl)
 	  --meanbdg      path           (generate_mean_bedGraph.pl)
 	  --peak2bed     path           (peak2bed.pl)
+	  --updatepeak  path            (update_peak_file.pl)
+	  --pandoc      path            (pandoc)
 	  --plotpeak     path           (plot_peak_figures.R)
 	  --printchr     path           (print_chromosome_lengths.pl)
 	  --reportmap    path           (report_mappable_space.pl)
 	  --rscript      path           (Rscript)
-	  --updatepeak   path           (update_peak_file.pl)
 	  --wig2bw       path           (wigToBigWig)
 
 
@@ -630,7 +635,7 @@ without overwriting pre-existing files. Peaks from different runs can
 subsequently be compared using the [intersect_peaks.pl](#intersect_peakspl) 
 script, if desired.
 
-Version: 18
+Version: 19
 
 OPTIONS:
 
@@ -649,7 +654,7 @@ OPTIONS:
 	 --broadgap  integer           Maximum link size between peaks in broad calls ()
 	 
 	Peak scoring
-	 --binsize   integer           Size of bins in 25 flanking peak bins for profile (40)
+	 --binsize   integer           Size of bins in 25 flanking peak bins for profile (100)
 	 --noplot                      Do not plot figures of results
 	 
 	Job control
@@ -671,6 +676,7 @@ OPTIONS:
 	 --meanbdg     path            (generate_mean_bedGraph.pl)
 	 --bedtools    path            (bedtools)
 	 --intersect   path            (intersect_peaks.pl)
+	 --pandoc      path            (pandoc)
 	 --peak2bed    path            (peak2bed.pl)
 	 --updatepeak  path            (update_peak_file.pl)
 	 --plotpeak    path            (plot_peak_figures.R)

@@ -13,7 +13,7 @@ bam files using [samtools](https://github.com/samtools/samtools) or equivalent.
 University of Utah users using the HCI 
 [pysano](https://healthcare.utah.edu/huntsmancancerinstitute/research/shared-resources/center-managed/bioinformatics/pysano/) 
 system for executing jobs at [CHPC](https://www.chpc.utah.edu) can use the templates 
-in this project's pysano folder. 
+in this project's [examples](examples/Readme.md) folder. 
 
 There are two steps that should be checked prior to the execution of the pipeline. 
 This includes estimating (single-end) or determining (paired-end) fragment sizes 
@@ -121,15 +121,6 @@ option can be repeated for each sample in the same order.
 Each replicate will have a separate peak call, and the replicates merged into a 
 single master set of peaks for subsequent analysis and comparison.
 
-Otherwise for simplicity, replicates can simply be averaged together by using a single 
-`--chip` argument and a comma-delimited list of bam files. In this case, very limited 
-plots will be generated.
-
-    multirep_macs2_pipeline.pl \
-    --chip file1.bam,file2.bam,file3.bam \
-    --control input.bam \
-    --name my_experiment 
-
 ## Differential peak calls
 
 When multiple conditions are being tested and compared for differential binding, then
@@ -168,7 +159,7 @@ plots are generated to assist in evaluation.
 These are descriptions and guidance to the variety of options to the main 
 [multirep_macs2_pipeline](applications.md#multirep_macs2_pipelinepl) script. In most 
 cases, you will want to write the command in a shell script for execution due to the 
-complexity. See the Pysano folder for example scripts.
+complexity. See the [examples](examples/Readme.md) folder for example scripts.
 
 - Exclusion list
 
@@ -634,7 +625,7 @@ See the associated [Install](INSTALL.md) document for details on manually instal
 ### HCI users
 
 HCI users running the pipeline on local servers can simply load the packages into your 
-environment using a module command. This can also be used with [Pysano](pysano/Readme.md).
+environment using a module command. This can also be used with [Pysano](examples/Readme.md).
 
     $ module load multirepChIP-Seq
     $ multirep_macs2_pipeline.pl
