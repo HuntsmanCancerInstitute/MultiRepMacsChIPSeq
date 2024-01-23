@@ -1,6 +1,47 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v19.0
+	multirep_macs2_pipeline.pl
+	- New Markdown report generation, which summarizes options, alignment
+	  statistics, and peak call numbers, intersections, correlations, and results.
+	  Includes select (but not all) plots to illustrate the report. If Pandoc is
+	  available, the Markdown report will automatically be converted to a
+	  self-contained HTML report.
+	- Properly set pseudo counts when generating replicate-mean q-value tracks for
+	  samples with no reference control. Previous versions had a bug that
+	  artificially lowered q-value scores, resulting in fewer peaks called.
+	  Primarily only affected ATAC-Seq and Cut-and-Run samples without reference
+	  (Input) control.
+	- Dynamically adjust sequencing depth when generating mean-replicate q-value
+	  tracks for each sample. Previous versions used the same scaling depth for all
+	  (calculated as the minimum depth observed of all replicates), which
+	  significantly reduced overall peak calling effectiveness when samples had a
+	  large disparity in sequencing depth, for example in Cut-and-Run experiments.
+	  This method was already employed with the `--independent` mode peak calling.
+	  Use the option `--samedepth` option to revert to the old behavior.
+	- By default, the count bigWig tracks are now scaled to the median observed
+	  sequencing depth, rather than minimum observed depth as in previous
+	  versions. This improves differential analysis, particularly when provided
+	  samples that have a large disparity in sequencing depth, for example in
+	  Cut-and-Run experiments. It also mimics the scaling methodology of 
+	  differential analysis programs. Set the option `--targetdepth` to `min` for
+	  previous behavior; `mean` is also available.
+	- Automatically and empirically set the fragment, log2FE, and q-value limit
+	  values when generating heat maps and plots. This makes the plots a little
+	  more accurate and pertinent.
+	- Automatically adjust color palette if sample number exceeds default.
+	
+	recall_peaks.pl
+	- Added report generation as described above
+	
+	generate_mean_bedGraph.pl
+	- Always print empirically derived numbers even if genome size was provided.
+	
+	plot_peak_figures.R
+	- Skip heat map plot generation when the number of samples exceed the number
+	  supported by the indicated color palette.
+
 v18.2
 	multirep_macs2_pipeline.pl
 	- bug fixes
