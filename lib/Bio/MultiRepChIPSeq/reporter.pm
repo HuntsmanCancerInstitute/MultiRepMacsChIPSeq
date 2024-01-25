@@ -593,6 +593,7 @@ sub add_merged_replicates_report {
 
 	my $overlap = $self->minpeakover || 'n-1';
 	my $gap     = $self->fragsize;
+	my $rep_num = 0;  # total number of replicates
 	my $string  = <<END;
 
 --------
@@ -611,6 +612,7 @@ END
 		$string .= sprintf "| %s | `%s` | %s |\n", $Job->job_name,
 			( splitpath( $Job->repmerge_peak ) )[2],
 			format_with_commas( $self->count_file_lines( $Job->repmerge_peak ) );
+		$rep_num += scalar( $Job->chip_rep_names );
 	}
 	
 	# Merged replicates
@@ -640,7 +642,7 @@ END
 	}
 
 	# Merged replicates correlation
-	if ( $self->plot and $merged_count ) {
+	if ( $self->plot and length($merged_count) > 1 and $rep_num > 2 ) {
 		my $pca      = catfile( $plot_dir, $merged_base . '_PCA.png');
 		my $distance = catfile( $plot_dir, $merged_base . '_distance.png');
 		my $pearson  = catfile( $plot_dir, $merged_base . '_pearson.png');
@@ -740,6 +742,7 @@ sub add_merged_replicates_broad_report {
 
 	my $overlap = $self->minpeakover || 'n-1';
 	my $gap     = $self->fragsize;
+	my $rep_num = 0;  # total number of replicates
 	my $string  = <<END;
 
 --------
@@ -758,6 +761,7 @@ END
 		$string .= sprintf "| %s | `%s` | %s |\n", $Job->job_name,
 			( splitpath( $Job->repmerge_gappeak ) )[2],
 			format_with_commas( $self->count_file_lines( $Job->repmerge_gappeak ) );
+		$rep_num += scalar( $Job->chip_rep_names );
 	}
 	
 	# Merged replicates
@@ -788,7 +792,7 @@ END
 	}
 
 	# Merged replicates correlation
-	if ( $self->plot and $merged_count ) {
+	if ( $self->plot and length($merged_count) > 1 and $rep_num > 2 ) {
 		my $pca      = catfile( $plot_dir, $merged_base . '_PCA.png');
 		my $distance = catfile( $plot_dir, $merged_base . '_distance.png');
 		my $pearson  = catfile( $plot_dir, $merged_base . '_pearson.png');
@@ -850,6 +854,7 @@ sub add_mean_replicates_report {
 	my $self = shift;
 
 	# Mean replicates
+	my $rep_num  = 0;  # total number of replicates
 	my $peaksize = $self->peaksize;
 	my $peakgap  = $self->peakgap;
 	my $cutoff   = $self->cutoff;
@@ -878,6 +883,7 @@ END
 		$string .= sprintf "| %s | `%s` | %s |\n", $Job->job_name,
 			( splitpath( $Job->repmean_peak ) )[2],
 			format_with_commas( $self->count_file_lines ( $Job->repmean_peak ) );
+		$rep_num += scalar( $Job->chip_rep_names );
 	}
 
 	my $mean_base  = $self->out;
@@ -910,7 +916,7 @@ END
 	}
 
 	# Mean replicates correlation
-	if ( $self->plot and $mean_count ) {
+	if ( $self->plot and length($mean_count) > 1 and $rep_num > 2 ) {
 		my $pca      = catfile( $plot_dir, $mean_base . '_PCA.png' );
 		my $distance = catfile( $plot_dir, $mean_base . '_distance.png' );
 		my $pearson  = catfile( $plot_dir, $mean_base . '_pearson.png' );
@@ -1006,6 +1012,7 @@ END
 sub add_mean_replicates_broad_report {
 	my $self = shift;
 	# Mean replicates
+	my $rep_num  = 0;  # total number of replicates
 	my $peaksize = $self->peaksize;
 	my $peakgap  = $self->peakgap;
 	my $cutoff   = $self->cutoff;
@@ -1042,6 +1049,7 @@ END
 		$string .= sprintf "| %s | `%s` | %s |\n", $Job->job_name,
 			( splitpath( $Job->repmean_gappeak ) )[2],
 			format_with_commas( $self->count_file_lines ( $Job->repmean_gappeak ) );
+		$rep_num += scalar( $Job->chip_rep_names );
 	}
 
 	my $mean_base  = $self->out . '_broad';
@@ -1075,7 +1083,7 @@ END
 	}
 
 	# Mean replicates correlation
-	if ( $self->plot and $mean_count ) {
+	if ( $self->plot and length($mean_count) > 1 and $rep_num > 2 ) {
 		my $pca      = catfile( $plot_dir, $mean_base . '_PCA.png' );
 		my $distance = catfile( $plot_dir, $mean_base . '_distance.png' );
 		my $pearson  = catfile( $plot_dir, $mean_base . '_pearson.png' );
