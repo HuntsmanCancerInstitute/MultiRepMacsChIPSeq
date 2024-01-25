@@ -141,6 +141,7 @@ GetOptions(
 	'broad!',
 	'broadcut=f',
 	'broadgap=i',
+	'binsize=i',
 	'plot!',
 	'cpu=i',
 	'job=i',
