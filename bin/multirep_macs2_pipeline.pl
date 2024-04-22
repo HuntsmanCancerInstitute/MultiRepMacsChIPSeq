@@ -483,14 +483,17 @@ MESSAGE
 	# check sizes
 	if ( $Runner->atac ) {
 		# set special options for ATACSeq cutsite analysis
+		print " Using specific parameters for ATAC Cut Site mode\n";
 		$Runner->deduppair(1);
 		$Runner->paired(0);
 		$Runner->minsize(30);    # minsize and maxsize technically not required
 		$Runner->maxsize(2000);
-		$Runner->fragsize(100);
-		$Runner->shiftsize(-50);
-		$Runner->peaksize(150);
-		$Runner->peakgap(50);
+		$Runner->fragsize(50);
+		$Runner->shiftsize(-25);
+		$Runner->peaksize(90);
+		$Runner->peakgap(30);
+		$Runner->slocal(100);    # very rare to use lambda with ATAC but just in case
+		$Runner->llocal(1000);
 		$Runner->broad(0);
 	}
 	if ( not $Runner->peaksize ) {
