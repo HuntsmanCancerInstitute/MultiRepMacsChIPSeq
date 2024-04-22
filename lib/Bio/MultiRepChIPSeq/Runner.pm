@@ -2133,6 +2133,22 @@ sub run_plot_peaks {
 			$self->plot_frag( $upper );
 		}
 	}
+	
+	# default color palette
+	my $jn = $self->number_of_jobs;
+	my $pal;
+	if ($jn <= 9) {
+		$pal = 'Set1';
+	}
+	elsif ( $jn > 9 and $jn <= 12 ) {
+		$pal = 'Set3';
+	}
+	else {
+		print
+" Unable to generate plots. RColorBrewer color palettes do not support $jn colors.\n";
+		$self->plot(0);
+		return;
+	}
 
 	# set up commands
 	# with Rscript, standard error redirect needs to be the last element
@@ -2155,6 +2171,7 @@ sub run_plot_peaks {
 	if ( $self->plot_qval ) {
 		$command .= sprintf " --qmax %s", $self->plot_qval;
 	}
+	$command .= " --palette $pal";
 	my $log = $self->repmean_merge_base . '.plot_figures.out.txt';
 	$command .= " > $log 2>&1";
 	push @commands, [ $command, q(), $log ];
@@ -2179,8 +2196,11 @@ sub run_plot_peaks {
 			$command .= sprintf " --qmax %s", $self->plot_qval;
 		}
 		if ($number > 9 and $number <= 12 ) {
-			$command .= " --palette Set3";
-		} # else use the default of Set1
+			$command .= ' --palette Set3';
+		}
+		else {
+			$command .= " --palette $pal",
+		}
 		$log = $self->repmerge_merge_base . '.plot_figures.out.txt';
 		$command .= " > $log 2>&1";
 		push @commands, [ $command, q(), $log ];
@@ -2215,6 +2235,7 @@ sub run_plot_peaks {
 		if ( $self->plot_qval ) {
 			$command2 .= sprintf " --qmax %s", $self->plot_qval;
 		}
+		$command2 .= " --palette $pal";
 		$log = $outbase . '.plot_figures.out.txt';
 		$command2 .= " > $log 2>&1";
 		push @commands, [ $command2, q(), $log ];
@@ -2236,6 +2257,7 @@ sub run_plot_peaks {
 			if ( $self->plot_qval ) {
 				$command2 .= sprintf " --qmax %s", $self->plot_qval;
 			}
+			$command2 .= " --palette $pal";
 			$log = $outbase . '.plot_figures.out.txt';
 			$command2 .= " > $log 2>&1";
 			push @commands, [ $command2, q(), $log ];
@@ -2247,7 +2269,8 @@ sub run_plot_peaks {
 		my @Jobs = $self->list_jobs;
 		shift @Jobs if $self->has_universal_control;
 		foreach my $Job (@Jobs) {
-			next unless ( scalar( $Job->rep_peaks ) > 1 );    # nothing to compare
+			my $number = scalar( $Job->rep_peaks );
+			next unless ( $number > 1 );    # nothing to compare
 			my $jobbase = $Job->repmerge_peak;
 			$jobbase =~ s/\.bed$//;
 			$command = sprintf "%s --verbose %s --input %s",
@@ -2263,6 +2286,18 @@ sub run_plot_peaks {
 			}
 			if ( $self->plot_qval ) {
 				$command .= sprintf " --qmax %s", $self->plot_qval;
+			}
+			if ( $number <= 9 ) {
+				$command .= ' --palette Set1';
+			}
+			elsif ( $number > 9 and $number <= 13 ) {
+				$command .= ' --palette Set3';
+			}
+			else {
+				printf 
+" Job %s with %s replicates is too many to be supported by RColorBrewer palettes. Skipping\n",
+					$Job->job_name, $number;
+				next;
 			}
 			$log = $jobbase . '.plot_figures.out.txt';
 			$command .= " > $log 2>&1";
@@ -2285,6 +2320,12 @@ sub run_plot_peaks {
 				}
 				if ( $self->plot_qval ) {
 					$command .= sprintf " --qmax %s", $self->plot_qval;
+				}
+				if ( $number <= 9 ) {
+					$command .= ' --palette Set1';
+				}
+				elsif ( $number > 9 and $number <= 13 ) {
+					$command .= ' --palette Set3';
 				}
 				$log = $jobbase . '.plot_figures.out.txt';
 				$command .= " > $log 2>&1";
