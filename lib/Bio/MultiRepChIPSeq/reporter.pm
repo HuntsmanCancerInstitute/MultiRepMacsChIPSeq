@@ -667,17 +667,27 @@ END
 	if ( $self->plot and $merged_count ) {
 		my $size     = ( 25 * $self->binsize ) / 1000;
 		my $tot_size = $size * 2;
-		my $hm_plot   = catfile( $plot_dir, $merged_base .
-			'_profile_replicate_fragment_hm.png' );
+		my ( $hm_plot, $which_plot );
+		if ($rep_num > 12) {
+			$hm_plot   = catfile( $plot_dir, $merged_base .
+				'_profile_mean_fragment_hm.png' );
+			$which_plot = 'individual';
+		}
+		elsif ($rep_num >= 2 and $rep_num <= 12) {
+			$hm_plot   = catfile( $plot_dir, $merged_base .
+				'_profile_replicate_fragment_hm.png' );
+			$which_plot = 'mean';
+		}
 		my $line_plot = catfile( $plot_dir, $merged_base . 
 			'_profile_mean_fragment_summary.png' );
-		$string .= <<END;
+		if ( -e catfile( $self->dir, $hm_plot ) ) {
+			$string .= <<END;
 
 ### Merged-replicate Fragment Profile
 
 Fragment coverage data was collected over a `$tot_size` Kb window centered on each
 interval midpoint (+/- `$size` Kb). Data was collected for both sample mean coverage
-tracks and individual replicate coverage tracks. The replicate fragment coverage heat
+tracks and individual replicate coverage tracks. The $which_plot fragment coverage heat
 map and mean fragment class average summary line plot are below. Additional plots may
 be found in the **$plot_dir** folder.
 
@@ -685,6 +695,7 @@ be found in the **$plot_dir** folder.
 
 ![rep-merge_mean_frag_summary]($line_plot)
 END
+		}
 	}
 
 	# Enrichment plot
