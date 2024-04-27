@@ -1,6 +1,14 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v19.1
+	multirep_macs2_pipeline.pl
+	- Improvements to the Markdown and HTML reporting, including which plots
+	  to use, setting palette colors based on sample numbers, and style and
+	  text changes.
+	- Change --atac option parameters to tighter settings
+	
+
 v19.0
 	multirep_macs2_pipeline.pl
 	- New Markdown report generation, which summarizes options, alignment
