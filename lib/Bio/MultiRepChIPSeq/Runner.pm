@@ -15,7 +15,7 @@ use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
 use base 'Bio::MultiRepChIPSeq::reporter';
 
-our $VERSION = 19.0;
+our $VERSION = 19.1;
 
 sub new {
 	my $class   = shift;

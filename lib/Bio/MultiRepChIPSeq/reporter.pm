@@ -6,7 +6,7 @@ use Carp;
 use File::Spec::Functions qw( catfile splitpath );
 use Bio::ToolBox::utility qw(format_with_commas);
 
-our $VERSION = 19.0;
+our $VERSION = 19.1;
 
 sub add_header_report {
 	my $self = shift;

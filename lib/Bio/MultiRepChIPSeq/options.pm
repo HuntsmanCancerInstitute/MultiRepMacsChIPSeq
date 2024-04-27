@@ -5,7 +5,7 @@ use Carp;
 use IO::File;
 use File::Which;
 
-our $VERSION = 19.0;
+our $VERSION = 19.1;
 
 sub init_options {
 	my $class = shift;
