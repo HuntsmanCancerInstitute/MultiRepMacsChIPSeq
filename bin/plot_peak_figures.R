@@ -714,7 +714,7 @@ if(file.exists(lfeproffile)) {
 
 
 # plot fragment mean profile line plot
-fprofsumfile <- paste0(opt$input, "_profile_mean_fragment_summary.txt")
+fprofsumfile <- paste0(opt$input, "_profile_mean_fragment_trimmean_summary.txt")
 if(file.exists(fprofsumfile)) {
   fprofsumdata <- read.table(fprofsumfile, header=TRUE, sep="\t", 
                             row.names = 1, check.names = F, na.strings = '.')
@@ -727,7 +727,7 @@ if(file.exists(fprofsumfile)) {
 
 
 # plot log2FE mean profile line plot
-lfeprofsumfile <- paste0(opt$input, "_profile_log2FE_summary.txt")
+lfeprofsumfile <- paste0(opt$input, "_profile_log2FE_trimmean_summary.txt")
 if(file.exists(lfeprofsumfile)) {
   lfeprofsumdata <- read.table(lfeprofsumfile, header=TRUE, sep="\t", 
                              row.names = 1, check.names = F, na.strings = '.')
