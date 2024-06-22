@@ -13,11 +13,11 @@
 
 use strict;
 use Getopt::Long;
-use Bio::ToolBox 1.65;
+use Bio::ToolBox 1.70;
 use List::Util qw(max sum0);
 use Statistics::Lite qw(median);
 
-our $VERSION = 1.1;
+our $VERSION = 1.2;
 
 unless (@ARGV) {
 	print <<USAGE;
@@ -107,8 +107,8 @@ $Sample->iterate(
 
 		# assuming sample group are the two columns
 		# find the associating column in the input Data for each replicate
-		my $sample = $row->value(0);
-		my $group  = $row->value(1);
+		my $sample = $row->value(1);
+		my $group  = $row->value(2);
 		my $i      = $InData->find_column("^$sample\$");
 		unless ( defined $i ) {
 			warn " can't find column for sample '$sample'!\n";

@@ -16,9 +16,9 @@ use English qw(-no_match_vars);
 use File::Spec;
 use Getopt::Long;
 use List::Util qw(max);
-use Bio::ToolBox 1.65;
+use Bio::ToolBox 1.70;
 
-our $VERSION = 2;
+our $VERSION = 2.1;
 
 ### Documentation
 my $docs = <<DOC;
@@ -132,12 +132,12 @@ while ( my $file = shift @in_files ) {
 	}
 
 	# Sort properly
-	$Data->gsort_data if $Data->last_row > 1;
+	$Data->gsort_data if $Data->number_rows > 1;
 	
 	# Normalize score
 	my $max_score;
 	if ($normalize) {
-		my @scores = $Data->column_values(4);
+		my @scores = $Data->column_values(5);
 		shift @scores;    # discard name
 		$max_score = max(@scores);
 	}
@@ -167,8 +167,8 @@ while ( my $file = shift @in_files ) {
 				# write peak
 				my $name  = sprintf( "%s.%d", $basename, $row->row_index );
 				my $score = $normalize ? 
-					sprintf("%.0f", ($row->value(4) / $max_score) *  1000) :
-					$row->value(4);
+					sprintf("%.0f", ($row->value(5) / $max_score) *  1000) :
+					$row->value(5);
 				my $bed_string = $row->bed_string(
 					bed   => 5,
 					name  => $name,
@@ -180,19 +180,16 @@ while ( my $file = shift @in_files ) {
 				# easier to do it ourselves here than specify everything
 				# to the bed string function
 				if ($write_summit) {
-					my $start =
-						$row->start + $row->value(9);    # start will be 1-based here
-					$summit_fh->printf(
-						"%s\t%d\t%d\t%s\n", $row->seq_id, $start - 1,
-						$start, $name
-					);
+					my $peak = $row->peak;
+					$summit_fh->printf( "%s\t%d\t%d\t%s\n", $row->seq_id, $peak - 1,
+						$peak, $name);
 				}
 			}
 		);
 
 		# Finish
 		$peak_fh->close;
-		printf " Wrote %d peaks to $outfile\n", $Data->last_row;
+		printf " Wrote %d peaks to $outfile\n", $Data->number_rows;
 		if ($write_summit) {
 			$summit_fh->close;
 			print " Wrote summits to $summit_file\n";
@@ -215,8 +212,8 @@ while ( my $file = shift @in_files ) {
 				my $row  = shift;
 				my $name = sprintf( "%s.%d", $basename, $row->row_index );
 				my $score = $normalize ? 
-					sprintf("%.0f", ($row->value(4) / $max_score) *  1000) :
-					$row->value(4);
+					sprintf("%.0f", ($row->value(5) / $max_score) *  1000) :
+					$row->value(5);
 				my @v    = $row->row_values;
 				$peak_fh->printf(
 					"%s\n",
@@ -230,7 +227,7 @@ while ( my $file = shift @in_files ) {
 
 		# Finish
 		$peak_fh->close;
-		printf " Wrote %d gapped peaks to $outfile\n", $Data->last_row;
+		printf " Wrote %d gapped peaks to $outfile\n", $Data->number_rows;
 	}
 
 	### BroadPeak files - just in case
@@ -249,8 +246,8 @@ while ( my $file = shift @in_files ) {
 				my $row  = shift;
 				my $name = sprintf( "%s.%d", $basename, $row->row_index );
 				my $score = $normalize ? 
-					sprintf("%.0f", ($row->value(4) / $max_score) *  1000) :
-					$row->value(4);
+					sprintf("%.0f", ($row->value(5) / $max_score) *  1000) :
+					$row->value(5);
 				my @v    = $row->row_values;
 				$peak_fh->printf( "%s\n",
 					join( "\t", $v[0], $v[1], $v[2], $name, $score ) );
@@ -259,7 +256,7 @@ while ( my $file = shift @in_files ) {
 
 		# Finish
 		$peak_fh->close;
-		printf " Wrote %d broad peaks to $outfile\n", $Data->last_row;
+		printf " Wrote %d broad peaks to $outfile\n", $Data->number_rows;
 	}
 
 	### Empty file

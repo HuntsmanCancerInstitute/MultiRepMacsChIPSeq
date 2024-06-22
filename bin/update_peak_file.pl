@@ -15,9 +15,9 @@ use warnings;
 use strict;
 use Getopt::Long;
 use List::Util qw(max);
-use Bio::ToolBox 1.69;
+use Bio::ToolBox 1.70;
 
-our $VERSION = 1;
+our $VERSION = 1.1;
 
 ### Documentation
 my $docs = <<DOC;
@@ -162,7 +162,7 @@ if ($export_summit) {
 
 ########### Subroutines ############
 sub collect_max_score {
-	my @scores = $Data->column_values(4);
+	my @scores = $Data->column_values(5);
 	shift @scores;    # discard name
 	return max(@scores);
 }
@@ -195,7 +195,7 @@ sub narrowpeak_callback {
 	# check name
 	if ($name_base) {
 		my $n = sprintf "%s.%d", $name_base, $row->row_index;
-		$row->value( 3, $n );
+		$row->value( 4, $n );
 	}
 
 	# peak coordinate
@@ -214,7 +214,7 @@ sub narrowpeak_callback {
 		if ( defined $base ) {
 			$v = $base**$v;
 		}
-		$row->value( 6, sprintf( "%.3f", $v ) );
+		$row->value( 7, sprintf( "%.3f", $v ) );
 	}
 
 	# check p-value
@@ -224,7 +224,7 @@ sub narrowpeak_callback {
 			start   => $p,
 			stop    => $p
 		);
-		$row->value( 7, sprintf( "%.3f", $v ) );
+		$row->value( 8, sprintf( "%.3f", $v ) );
 	}
 
 	# check q-value
@@ -234,13 +234,13 @@ sub narrowpeak_callback {
 			start   => $p,
 			stop    => $p
 		);
-		$row->value( 8, sprintf( "%.3f", $v ) );
+		$row->value( 9, sprintf( "%.3f", $v ) );
 	}
 
 	# normalize
 	if ($normalize) {
-		my $v = $row->value(4);
-		$row->value( 4, sprintf( "%.0f", ( $v / $max_score ) * 1000 ) );
+		my $v = $row->value(5);
+		$row->value( 5, sprintf( "%.0f", ( $v / $max_score ) * 1000 ) );
 	}
 
 	# export summit
@@ -250,7 +250,7 @@ sub narrowpeak_callback {
 				$row->seq_id,
 				$p - 1,
 				$p,
-				$row->value(3)
+				$row->value(4)
 			]
 		);
 	}
@@ -262,7 +262,7 @@ sub gappedpeak_callback {
 	# check name
 	if ($name_base) {
 		my $n = sprintf "%s.%d", $name_base, $row->row_index;
-		$row->value( 3, $n );
+		$row->value( 4, $n );
 	}
 
 	# check enrichment signal value
@@ -274,7 +274,7 @@ sub gappedpeak_callback {
 		if ( defined $base ) {
 			$v = $base**$v;
 		}
-		$row->value( 12, sprintf( "%.3f", $v ) );
+		$row->value( 13, sprintf( "%.3f", $v ) );
 	}
 
 	# check p-value
@@ -283,7 +283,7 @@ sub gappedpeak_callback {
 			dataset => $pval_file,
 			method  => 'mean',
 		);
-		$row->value( 13, sprintf( "%.3f", $v ) );
+		$row->value( 14, sprintf( "%.3f", $v ) );
 	}
 
 	# check q-value
@@ -292,13 +292,13 @@ sub gappedpeak_callback {
 			dataset => $qval_file,
 			method  => 'mean',
 		);
-		$row->value( 14, sprintf( "%.3f", $v ) );
+		$row->value( 15, sprintf( "%.3f", $v ) );
 	}
 
 	# normalize
 	if ($normalize) {
-		my $v = $row->value(4);
-		$row->value( 4, sprintf( "%.0f", ( $v / $max_score ) * 1000 ) );
+		my $v = $row->value(5);
+		$row->value( 5, sprintf( "%.0f", ( $v / $max_score ) * 1000 ) );
 	}
 }
 
@@ -308,7 +308,7 @@ sub broadpeak_callback {
 	# check name
 	if ($name_base) {
 		my $n = sprintf "%s.%d", $name_base, $row->row_index;
-		$row->value( 3, $n );
+		$row->value( 4, $n );
 	}
 
 	# check enrichment signal value
@@ -320,7 +320,7 @@ sub broadpeak_callback {
 		if ( defined $base ) {
 			$v = $base**$v;
 		}
-		$row->value( 6, sprintf( "%.3f", $v ) );
+		$row->value( 7, sprintf( "%.3f", $v ) );
 	}
 
 	# check p-value
@@ -329,7 +329,7 @@ sub broadpeak_callback {
 			dataset => $pval_file,
 			method  => 'mean',
 		);
-		$row->value( 7, sprintf( "%.3f", $v ) );
+		$row->value( 8, sprintf( "%.3f", $v ) );
 	}
 
 	# check q-value
@@ -338,13 +338,13 @@ sub broadpeak_callback {
 			dataset => $qval_file,
 			method  => 'mean',
 		);
-		$row->value( 8, sprintf( "%.3f", $v ) );
+		$row->value( 9, sprintf( "%.3f", $v ) );
 	}
 
 	# normalize
 	if ($normalize) {
-		my $v = $row->value(4);
-		$row->value( 4, sprintf( "%.0f", ( $v / $max_score ) * 1000 ) );
+		my $v = $row->value(5);
+		$row->value( 5, sprintf( "%.0f", ( $v / $max_score ) * 1000 ) );
 	}
 }
 

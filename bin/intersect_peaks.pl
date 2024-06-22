@@ -17,12 +17,12 @@ use English qw(-no_match_vars);
 use Getopt::Long;
 use File::Spec;
 use File::Which;
-use Bio::ToolBox 1.69;
+use Bio::ToolBox 1.70;
 use Bio::ToolBox::utility qw(format_with_commas);
 use List::Util qw(min max uniqstr first);
 use Statistics::Descriptive;
 
-our $VERSION = 6.2;
+our $VERSION = 6.3;
 
 # user variables
 my $tool = which('bedtools');
@@ -164,8 +164,8 @@ sub check_genome_file {
 		file     => $genome_file,
 		noheader => 1
 	) or die "can't read genome file '$genome_file'!";
-	$Data->name( 0, 'chromosome' );
-	$Data->name( 1, 'start' );
+	$Data->name( 1, 'chromosome' );
+	$Data->name( 2, 'start' );
 	$Data->gsort_data;
 	$genome_file = File::Spec->catfile(
 		$out_path,
@@ -180,8 +180,8 @@ sub check_genome_file {
 	$Data->iterate(
 		sub {
 			my $row = shift;
-			$fh->printf( "%s\t%s\n", $row->value(0), $row->value(1) );
-			$chromosomes{ $row->value(0) } = $row->value(1);
+			$fh->printf( "%s\t%s\n", $row->value(1), $row->value(2) );
+			$chromosomes{ $row->value(1) } = $row->value(2);
 		}
 	);
 	$fh->close;
@@ -300,7 +300,7 @@ sub intersect_peaks {
 	print " Parsing intersections....\n";
 	my $MultiData = Bio::ToolBox->load_file($multi_file)
 		or die "can't load $multi_file!\n";
-	$MultiData->name( 1, 'Start0' );    # because it's actually 0-based
+	$MultiData->name( 2, 'Start0' );    # because it's actually 0-based
 	$MultiData->add_comment(
 		sprintf(
 			"Output from bedtools multi-intersect tool between %s",
@@ -311,7 +311,7 @@ sub intersect_peaks {
 
 	# initialize current merged peak
 	%current = (
-		chromo => $MultiData->value( 1, 0 ),
+		chromo => $MultiData->value( 1, 1 ),
 		start1 => 1,
 		end1   => 1,
 		names1 => q(),
@@ -353,14 +353,14 @@ sub intersect_peaks {
 				"%s\n",
 				$row->bed_string(
 					bed   => 5,
-					score => $row->value(4),
+					score => $row->value(5),
 				)
 			);
 		}
 	);
 	$merged_fh->close;
 	my $merge_peak_file = $outfile . '.matrix.txt';
-	$MergeData->delete_column( 0, 1, 2, 4 )
+	$MergeData->delete_column( 1, 2, 3, 5 )
 		;    # delete coordinates and count, no longer needed
 	$MergeData->add_comment('Boolean matrix indicating overlapping source intervals');
 	$MergeData->save($merge_peak_file);
@@ -380,12 +380,12 @@ sub multi_intersect_callback {
 
 	# process length
 	my $length = $row->length;
-	my $key    = join ',', sort { $a cmp $b } split( /,/, $row->value(4) );
+	my $key    = join ',', sort { $a cmp $b } split( /,/, $row->value(5) );
 	$total_bp += $length;
 	$key2space{$key} += $length;
 
 	# process the peak
-	my $n = $row->value(3);    # reported number of overlapping peaks
+	my $n = $row->value(4);    # reported number of overlapping peaks
 	if ( $row->seq_id ne $current{chromo}
 		or ( $row->start - $current{end1} ) > $merge_gap )
 	{
@@ -477,10 +477,10 @@ sub record_merged_peak {
 	# calculate boolean value whether each peak file overlaps this interval
 	foreach my $n (@names) {
 		if ( first { $_ eq $n } @bits ) {
-			push @data, 1;
+			push @data, 'Y';
 		}
 		else {
-			push @data, 0;
+			push @data, 'N';
 		}
 	}
 	$MergeData->add_row( \@data );
@@ -489,8 +489,7 @@ sub record_merged_peak {
 sub write_venn_file {
 	print " Calculating intersection statistics....\n";
 	my $VennData = Bio::ToolBox->new_data(
-		'Peaks', 'BasePairs', 'BasePairFraction',
-		'Count', 'CountFraction'
+		'Peaks', 'BasePairs', 'BasePairFraction', 'Count', 'CountFraction'
 	);
 	foreach my $key ( sort { $a cmp $b } keys %key2space ) {
 		my @data =
@@ -556,8 +555,8 @@ sub calculate_jaccard {
 
 				# self intersection - we know the answer to this
 				my $i = $name2i{ $names[$f1] };
-				$JaccardData->value( $i, $i, '1.0000' );
-				$IntersectionData->value( $i, $i, $name2count{ $names[$f1] } );
+				$JaccardData->value( $i, $i+1, '1.0000' );
+				$IntersectionData->value( $i, $i+1, $name2count{ $names[$f1] } );
 				$reciprocal{"$f2\_$f1"} = 1;
 				next;
 			}
@@ -575,10 +574,10 @@ sub calculate_jaccard {
 				printf "   jaccard between %s and %s failed!!\n", $names[$f1],
 					$names[$f2];
 				$jaccard_warn = $result;
-				$JaccardData->value( $x, $y, '.' );
-				$JaccardData->value( $y, $x, '.' );
-				$IntersectionData->value( $x, $y, '.' );
-				$IntersectionData->value( $y, $x, '.' );
+				$JaccardData->value( $x, $y+1, '.' );
+				$JaccardData->value( $y, $x+1, '.' );
+				$IntersectionData->value( $x, $y+1, '.' );
+				$IntersectionData->value( $y, $x+1, '.' );
 			}
 			elsif ( $result ) {
 
@@ -588,27 +587,27 @@ sub calculate_jaccard {
 					my ( undef, undef, $jaccard, $number ) = split( /\s+/, $lines[1] );
 					printf "   jaccard between %s and %s was %.4f\n", $names[$f1],
 						$names[$f2], $jaccard;
-					$JaccardData->value( $x, $y, sprintf( "%.4f", $jaccard ) );
-					$JaccardData->value( $y, $x, sprintf( "%.4f", $jaccard ) );
-					$IntersectionData->value( $x, $y, $number );
-					$IntersectionData->value( $y, $x, $number );
+					$JaccardData->value( $x, $y+1, sprintf( "%.4f", $jaccard ) );
+					$JaccardData->value( $y, $x+1, sprintf( "%.4f", $jaccard ) );
+					$IntersectionData->value( $x, $y+1, $number );
+					$IntersectionData->value( $y, $x+1, $number );
 				}
 				else {
 					printf "   jaccard between %s and %s was 0.0000\n", $names[$f1],
 						$names[$f2];
-					$JaccardData->value( $x, $y, '0.0000' );
-					$JaccardData->value( $y, $x, '0.0000' );
-					$IntersectionData->value( $x, $y, '0' );
-					$IntersectionData->value( $y, $x, '0' );
+					$JaccardData->value( $x, $y+1, '0.0000' );
+					$JaccardData->value( $y, $x+1, '0.0000' );
+					$IntersectionData->value( $x, $y+1, '0' );
+					$IntersectionData->value( $y, $x+1, '0' );
 				}
 			}
 			else {
 				printf "   jaccard between %s and %s was 0.0000\n", $names[$f1],
 					$names[$f2];
-				$JaccardData->value( $x, $y, '0.0000' );
-				$JaccardData->value( $y, $x, '0.0000' );
-				$IntersectionData->value( $x, $y, '0' );
-				$IntersectionData->value( $y, $x, '0' );
+				$JaccardData->value( $x, $y+1, '0.0000' );
+				$JaccardData->value( $y, $x+1, '0.0000' );
+				$IntersectionData->value( $x, $y+1, '0' );
+				$IntersectionData->value( $y, $x+1, '0' );
 				
 			}
 

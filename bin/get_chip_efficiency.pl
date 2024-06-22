@@ -14,11 +14,11 @@
 use strict;
 use Getopt::Long;
 use Parallel::ForkManager;
-use Bio::ToolBox 1.67;
-use Bio::ToolBox::utility;
+use Bio::ToolBox 1.70;
+use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 use Set::IntervalTree;
 
-our $VERSION = 1.1;
+our $VERSION = 1.2;
 
 # variables
 my $input;
@@ -113,8 +113,8 @@ if ($groupfile) {
 			my $row = shift;
 
 			# assuming standard sample and group/condition column
-			my $sample = $row->value(0);
-			my $group  = $row->value(1);
+			my $sample = $row->value(1);
+			my $group  = $row->value(2);
 			$chip2group{$sample} = $group;
 		}
 	);
@@ -155,7 +155,7 @@ foreach my $chip (@chips) {
 $pm->wait_all_children;
 
 ### Save
-$Output->sort_data( 0, 'i' );    # sort the table by the ChIP names
+$Output->sort_data( 1, 'i' );    # sort the table by the ChIP names
 unless ($outfile) {
 	$outfile = $PeakData->path . $PeakData->basename . ".efficiency.txt";
 }

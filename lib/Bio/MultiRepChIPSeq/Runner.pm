@@ -9,13 +9,13 @@ use File::Copy;
 use File::Path qw(make_path);
 use Statistics::Descriptive;
 use Parallel::ForkManager;
-use Bio::ToolBox;
+use Bio::ToolBox 1.70;
 use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
 use base 'Bio::MultiRepChIPSeq::reporter';
 
-our $VERSION = 19.1;
+our $VERSION = 19.2;
 
 sub new {
 	my $class   = shift;
@@ -1852,18 +1852,18 @@ sub _merge_into_summary {
 	my $stat = Statistics::Descriptive::Full->new();
 	if ( -e $matrix_file ) {
 		my $Data = Bio::ToolBox->load_file( $matrix_file );
-		for my $i (0 .. $Data->last_column) {
+		for my $i ( 1 .. $Data->last_column ) {
 			my $col = $Data->column_values($i);
 			$SumData->add_column($col);
 		}
 		undef $Data;
 		if ( -e $logfe_file ) {
 			$Data   = Bio::ToolBox->load_file( $logfe_file );
-			my $ids = $Data->column_values(0);
+			my $ids = $Data->column_values(1);
 			my $d   = $SumData->add_column($ids);
 			$SumData->name($d, 'Coordinate');
-			$SumData->reorder_column( $d, 0 .. ($d - 1) );
-			for my $i (2 .. $Data->last_column) {
+			$SumData->reorder_column( $d, 1 .. ($d - 1) );
+			for my $i ( 3 .. $Data->last_column ) {
 				my $col = $Data->column_values($i);
 				my $n   = $SumData->add_column($col);
 				$SumData->name($n, sprintf( "%s_Log2FE", $SumData->name($n) ) );
@@ -1873,12 +1873,12 @@ sub _merge_into_summary {
 	}
 	elsif ( -e $logfe_file ) {
 		my $Data = Bio::ToolBox->load_file( $logfe_file );
-		my $ids  = $Data->column_values(0);
+		my $ids  = $Data->column_values(1);
 		$SumData->add_column($ids);
 		$SumData->name(0, 'Coordinate');
-		my $names = $Data->column_values(1);
+		my $names = $Data->column_values(2);
 		$SumData->add_column($names);
-		for my $i (2 .. $Data->last_column) {
+		for my $i ( 3 .. $Data->last_column ) {
 			my $col = $Data->column_values($i);
 			my $n = $SumData->add_column($col);
 			$SumData->name($n, sprintf( "%s_Log2FE", $SumData->name($n) ) );
@@ -1911,7 +1911,7 @@ sub _merge_into_summary {
 	$stat->clear;
 	if ( -e $maxq_file ) {
 		my $Data = Bio::ToolBox->load_file( $maxq_file );
-		for my $i (2 .. $Data->last_column) {
+		for my $i ( 3 .. $Data->last_column ) {
 			my $col = $Data->column_values($i);
 			my $n = $SumData->add_column($col);
 			$SumData->name($n, sprintf( "%s_MaxQValue", $SumData->name($n) ) );
@@ -1920,7 +1920,7 @@ sub _merge_into_summary {
 	}
 	elsif ( -e $meanq_file ) {
 		my $Data = Bio::ToolBox->load_file( $meanq_file );
-		for my $i (2 .. $Data->last_column) {
+		for my $i ( 3 .. $Data->last_column ) {
 			my $col = $Data->column_values($i);
 			my $n = $SumData->add_column($col);
 			$SumData->name($n, sprintf( "%s_MeanQValue", $SumData->name($n) ) );
@@ -2120,7 +2120,7 @@ sub run_plot_peaks {
 		foreach my $example ( $example1, $example2 ) {
 			next unless -e $example;
 			my $Data = Bio::ToolBox->load_file( $example );
-			for my $i ( 0 .. $Data->last_column ) {
+			for my $i ( 1 .. $Data->last_column ) {
 
 				# take only the values at the midpoint, which is position 1
 				next unless $Data->name($i) =~ /:1$/;

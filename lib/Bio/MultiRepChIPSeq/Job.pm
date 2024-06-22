@@ -9,7 +9,7 @@ use List::Util qw(min);
 use base 'Bio::MultiRepChIPSeq::options';
 use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 
-our $VERSION = 19.1;
+our $VERSION = 19.2;
 
 sub new {
 
@@ -1273,7 +1273,7 @@ sub generate_lambda_control_commands {
 
 		# second step
 		$command .= sprintf
-"&& %s --in %s --zero --fast --bdg --notrack --score 3-6 --method max --out %s ",
+"&& %s --in %s --zero --fast --bdg --notrack --score 4-7 --method max --out %s ",
 			$self->data2wig_app || 'data2wig.pl',
 			$self->sld_control_file,
 			$self->lambda_bdg;
@@ -1299,7 +1299,7 @@ sub generate_lambda_control_commands {
 
 		# second step
 		$command .= sprintf
-"&& %s --in %s --zero --fast --bdg --notrack --score 3-5 --method max --out %s ",
+"&& %s --in %s --zero --fast --bdg --notrack --score 4-6 --method max --out %s ",
 			$self->data2wig_app || 'data2wig.pl',
 			$self->sld_control_file,
 			$self->lambda_bdg;
@@ -1324,7 +1324,7 @@ sub generate_lambda_control_commands {
 
 		# second step
 		$command .= sprintf
-"&& %s --in %s --zero --fast --bdg --notrack --score 3-5 --method max --out %s ",
+"&& %s --in %s --zero --fast --bdg --notrack --score 4-6 --method max --out %s ",
 			$self->data2wig_app || 'data2wig.pl',
 			$self->sld_control_file,
 			$self->lambda_bdg;
