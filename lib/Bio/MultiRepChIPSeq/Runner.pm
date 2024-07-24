@@ -2688,15 +2688,14 @@ sub generate_report {
 	
 	# pandoc options
 	my $output   = $self->out . '.html';
-	my $cmd_opt2 = sprintf "-f gfm -t html --self-contained -H %s -o %s %s",
-		$html_head, $output, $md_file;
+	my $cmd_opt2 = sprintf "-f gfm -t html --self-contained -H %s -M title=%s -o %s %s",
+		$html_head, $self->out, $output, $md_file;
 	my $cmd_opt3 = sprintf
-		"-f gfm -t html --embed-resources --standalone -H %s -o %s %s",
-		$html_head, $output, $md_file;
+		"-f gfm -t html --embed-resources --standalone -H %s -M title=%s -o %s %s",
+		$html_head, $self->out, $output, $md_file;
 		# these options are for pandoc version 2.x or 3.x
 		# which use different options for generating standalone html reports 
 		# v3 will respect --self-contained with a warning, but why add extra stress?
-		# this will also give a warning about a missing metadata title - don't need one
 	
 	# generate html
 	if ( my $app = $self->pandoc_app ) {
