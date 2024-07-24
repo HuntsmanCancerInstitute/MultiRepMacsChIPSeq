@@ -1,6 +1,11 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v19.2
+	- Update multiple library and script code for new Bio::ToolBox compatibility
+	- Set pandoc title
+	
+
 v19.1
 	multirep_macs2_pipeline.pl
 	- Improvements to the Markdown and HTML reporting, including which plots
