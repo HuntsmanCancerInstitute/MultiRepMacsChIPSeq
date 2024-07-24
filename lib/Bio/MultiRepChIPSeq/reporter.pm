@@ -6,7 +6,7 @@ use Carp;
 use File::Spec::Functions qw( catfile splitpath );
 use Bio::ToolBox::utility qw(format_with_commas);
 
-our $VERSION = 19.1;
+our $VERSION = 19.2;
 
 sub add_header_report {
 	my $self = shift;
@@ -1168,7 +1168,7 @@ sub add_summary_report {
 ## Summary Tables
 
 Summary tables were written for the master list of peaks identified across all samples.
-These include the coordinates, peak name, a boolean value (0 or 1) indicating whether
+These include the coordinates, peak name, a boolean value (Y or N) indicating whether
 the peak was identified in each sample, and the mean log2 Fold Enrichment and
 maximum observered Q-Value statistical values over each interval for each sample.
 These files are tab-delimited text files and can be directly imported into spreadsheet
