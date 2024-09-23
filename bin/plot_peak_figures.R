@@ -60,11 +60,15 @@ including the following:
   - Heat map of the mean log2 fold enrichment for each ChIP over merged peaks
     with k-means clustering (4, 6, and 8 clusters)
   - Profile heat map of the fragment density over the midpoint of merged
-    peaks for all samples, with and without k-means (4) clustering
+    peaks for all samples, with and without k-means (4) clustering, or
+    clustered by sample calls
   - Profile heat map of the log2 Fold Enrichment over the midpoint of merged
-    peaks for all samples, with and without k-means (4) clustering
-  - Mean profile line plot of fragment density over merged peaks
-  - Mean profile line plot of log2 Fold Enrichment over merged peaks
+    peaks for all samples, with and without k-means (4) clustering, or
+    clustered by sample calls
+  - Mean profile line plot of fragment density over merged peaks, including
+    for each group sample calls
+  - Mean profile line plot of log2 Fold Enrichment over merged peaks,
+    including for each group of sample calls
 
 Samples are identified by color palette: Try Set1, Set2, Set3, Spectral, Dark2, 
 or any other named palette in RColorBrewer. Note that excessive sample numbers 
