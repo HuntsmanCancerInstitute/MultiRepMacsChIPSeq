@@ -15,7 +15,7 @@ use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
 use base 'Bio::MultiRepChIPSeq::reporter';
 
-our $VERSION = 19.2;
+our $VERSION = 20.0;
 
 sub new {
 	my $class   = shift;
@@ -1626,6 +1626,16 @@ sub run_rescore {
 	foreach my $base (@accepted_bases) {
 		$self->_merge_into_summary($base);
 	}
+	
+	# sort the profile data files
+	@commands = ();
+	print "\n\n======= Sorting profile data files\n";
+	foreach my $base (@accepted_bases) {
+		push @commands, $self->_sort_profile_data_file($base);
+	}
+	if (@commands) {
+		$self->execute_commands( \@commands );
+	}
 }
 
 sub _rescore_narrow_input {
@@ -1946,6 +1956,33 @@ sub _merge_into_summary {
 	$SumData->add_file_metadata($sum_file);
 	my $s = $SumData->save;
 	print " Wrote combined summary file $s\n";
+}
+
+sub _sort_profile_data_file {
+	my ($self, $base) = @_;
+
+	my $matrix   = $base . '.matrix.txt';
+	my $profile1 = $base . '_profile_mean_fragment.txt.gz';
+	my $profile2 = $base . '_profile_log2FE.txt.gz';
+	my $profile3 = $base . '_profile_replicate_fragment.txt.gz';
+	return unless (-e $matrix);
+
+	# generate commands for each
+	my @commands;
+	foreach my $file ( $profile1, $profile2, $profile3 ) {
+		next unless ( -e $file );
+		my $log = $file;
+		$log =~ s/ \.txt \.gz$ /.sorted.out.txt/x;
+		my $command = sprintf "%s --key %s --input %s 2>&1 > $log",
+			$self->sortdata_app || 'sort_data_by_key.pl',
+			$matrix,
+			$file;
+		my $out = $file;
+		$out =~ s/ \.txt \.gz$ /.sorted.txt.gz/x;
+		push @commands, [ $command, $out, $log ];
+	}
+	
+	return @commands;	
 }
 
 sub run_efficiency {
