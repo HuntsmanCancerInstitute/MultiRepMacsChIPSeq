@@ -154,7 +154,7 @@ sub add_genome_report {
 		my $uniq      = format_with_commas( $self->{unique_map} );
 		my $uniq_frac = sprintf "%s%%", $self->{unique_map_fraction};
 		my $exclusion = $self->chrskip;
-		$string .= <<END
+		$string .= <<END;
 
 ### Genome Size
 
@@ -165,9 +165,15 @@ or `$all_frac`. Uniquely mapping alignments cover $uniq bp, or $uniq_frac.
 
 For enrichment calculations, $size bp was used.
 
+END
+		if ( $all_frac < 75 ) {
+			$string .= <<END;
+**WARNING**: The mapped fraction of the genome is low and may potentially
+negatively impact background estimation and q-value scores. Manually setting
+the genome size may improve peak calling.
 
 END
-	
+		}
 	}
 	elsif ( $self->genome ) {
 		my $size = format_with_commas( $self->genome );

@@ -954,7 +954,7 @@ sub run_mappable_space_report {
 			if ( $line =~ 
 /All \s mappable \s space: \s ( \d+ \. \d+ ) \s Mb \s \( (\d+) % \)/x 
 			) {
-				$self->genome( $1 * 1000000 );
+				$self->{all_map} = ( $1 * 1000000 );
 				$self->{all_map_fraction} = $2;
 			}
 			elsif ( $line =~ 
@@ -966,11 +966,70 @@ sub run_mappable_space_report {
 			}
 		}
 		$fh->close;
-		if ( $self->genome ) {
-			printf "\n Genome mappable space calculated to be %d bp\n", $self->genome;
+
+		# report and record genome size to use
+		unless ( exists $self->{all_map} ) {
+			croak "\n Unable to extract genome mappable space from report '$logfile'!\n";
+		}
+		if ( $self->mapq >= 10 ) {
+			printf "\n Genome mappable space calculated to be %d bp (%d%%)\n",
+				$self->{unique_map}, $self->{unique_map_fraction};
+			if ( $self->{unique_map_fraction} > 75 ) {
+				$self->genome( $self->{unique_map} );
+			}
+			elsif ( $self->{unique_map_fraction} > 50 ) {
+				$self->genome( $self->{unique_map} );
+				print <<END;
+
+ WARNING!!! Mapped genome fraction is less than 75%!
+ You should consider manually setting the genome size to a more appropriate value
+ using the --genome option, as this may negatively affect your background estimation
+ and q-value calculations.
+ 
+END
+			}
+			else {
+				printf <<END;
+
+ WARNING!!! Mapped genome fraction is less than 50%!
+ This will negatively affect your background estimation and q-value calculations.
+ You should manually set the genome size to a more appropriate value using the 
+ --genome option. The full size of the genome minus exclusions is calculated at
+ $genome_size bp. Typically mappability is ~90% of genome size.
+ Exiting now.
+END
+				exit 1;
+			}
 		}
 		else {
-			croak "\n Unable to extract genome mappable space from report '$logfile'!\n";
+			printf "\n Genome mappable space calculated to be %d bp (%d%%)\n",
+				$self->{all_map}, $self->{all_map_fraction};
+			if ( $self->{all_map_fraction} > 75 ) {
+				$self->genome( $self->{all_map} );
+			}
+			elsif ( $self->{all_map_fraction} > 50 ) {
+				$self->genome( $self->{all_map} );
+				print <<END;
+
+ WARNING!!! Mapped genome fraction is less than 75%!
+ You should consider manually setting the genome size to a more appropriate value
+ using the --genome option, as this may negatively affect your background estimation
+ and q-value calculations.
+ 
+END
+			}
+			else {
+				printf <<END;
+
+ WARNING!!! Mapped genome fraction is less than 50%!
+ This will negatively affect your background estimation and q-value calculations.
+ You should manually set the genome size to a more appropriate value using the 
+ --genome option. The full size of the genome minus exclusions is calculated at
+ $genome_size bp. Typically mappability is ~90% of genome size.
+ Exiting now.
+END
+				exit 1;
+			}
 		}
 	}
 	elsif ( $self->dryrun ) {
