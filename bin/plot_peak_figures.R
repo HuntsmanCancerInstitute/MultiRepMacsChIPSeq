@@ -123,8 +123,8 @@ plot_mean_k_hm <-function(rdata, hm_min, hm_max, k, hm_color, rowColor, figmain,
   
   pheatmap(kdata$data[,1:n],  
            border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
-           cluster_rows = F, cluster_cols = T, 
-           show_rownames = F, show_colnames = T, 
+           cluster_rows = FALSE, cluster_cols = TRUE, 
+           show_rownames = FALSE, show_colnames = TRUE, 
            color = hm_color,
            annotation_row = kdata$anno, 
            annotation_colors = list("Cluster" = rowColor), 
@@ -146,8 +146,8 @@ plot_profile_k_hm <-function(rdata, hm_min, hm_max, k, hm_color, rowColor, colAn
   names(clrs) <- nms
   pheatmap(kdata$data[,1:n], 
            border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
-           cluster_rows = F, cluster_cols = F, 
-           show_rownames = F, show_colnames = F, 
+           cluster_rows = FALSE, cluster_cols = FALSE, 
+           show_rownames = FALSE, show_colnames = FALSE, 
            color = hm_color, 
            annotation_row = kdata$anno, 
            annotation_col = colAnno, 
@@ -169,8 +169,8 @@ plot_profile_hm <-function(rdata, hm_min, hm_max, hm_color, colAnno, figmain, ou
   names(clrs) <- nms
   pheatmap(rdata, 
            border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
-           cluster_rows = F, cluster_cols = F, 
-           show_rownames = F, show_colnames = F, 
+           cluster_rows = FALSE, cluster_cols = FALSE, 
+           show_rownames = FALSE, show_colnames = FALSE, 
            color = hm_color, 
            annotation_col = colAnno, 
            annotation_colors = list("Dataset" = clrs), 
@@ -204,10 +204,10 @@ plot_sorted_profile_hm <-function(rdata, hm_min, hm_max, hm_color, rowAnno, colA
 
 plot_mean_hm <-function(rdata, hm_min, hm_max, hm_color, figmain, outbase) {
   o <- apply(rdata, 1, mean)
-  rdata <- rdata[order(o, decreasing = T),]
-  pheatmap(rdata, cluster_cols = T, color = hm_color, 
+  rdata <- rdata[order(o, decreasing = TRUE),]
+  pheatmap(rdata, cluster_cols = TRUE, color = hm_color, 
            border_color = NA, breaks = seq(hm_min,hm_max,length=256), 
-           cluster_rows = F, show_rownames = F, show_colnames = T, main = figmain,
+           cluster_rows = FALSE, show_rownames = FALSE, show_colnames = TRUE, main = figmain,
            filename = paste0(outbase, ".", opt$format), width = 8, height = 10)
 }
 
@@ -220,7 +220,7 @@ makeDist <- function(rdata, cdata, outfile) {
   names(anclrs) <- nms
   pheatmap(sampleDistMatrix, color=hmclrs, annotation_row = cdata,
            annotation_colors = list("Dataset" = anclrs),
-           cluster_cols = T, cluster_rows = T,
+           cluster_cols = TRUE, cluster_rows = TRUE,
            main = "Distance Correlation of Sample Counts",
            filename = outfile, width = 10, height = 8)
 }
@@ -235,7 +235,7 @@ makePearCorr <- function(rdata, cdata, outfile) {
   pheatmap(sampleMatrix, color = hmclrs, annotation_row = cdata, 
            annotation_colors = list("Dataset" = anclrs),
            breaks = seq(0,1,length=255),
-           cluster_cols = T, cluster_rows = T,
+           cluster_cols = TRUE, cluster_rows = TRUE,
            main = "Pearson Correlation of Sample Counts",
            filename = outfile, width = 10, height = 8)
 }
@@ -250,7 +250,7 @@ makeSpearCorr <- function(rdata, cdata, outfile) {
   pheatmap(sampleMatrix, color = hmclrs, annotation_row = cdata,
            annotation_colors = list("Dataset" = anclrs),
            breaks = seq(0,1,length=255),
-           cluster_cols = T, cluster_rows = T,
+           cluster_cols = TRUE, cluster_rows = TRUE,
            main = "Spearman Correlation of Sample Counts",
            filename = outfile, width = 10, height = 8)
 }
@@ -365,7 +365,7 @@ if(file.exists(countfile)) {
 jaccardfile <- paste0(opt$input,'.jaccard.txt')
 if(file.exists(jaccardfile)) {
     jdata <- read.table(jaccardfile,header=TRUE, sep="\t", row.names = 1, 
-                        check.names = F, na.strings = ".")
+                        check.names = FALSE, na.strings = ".")
     jdata[is.na(jdata)] <- 0
     pheatmap(jdata, col=colorRampPalette(brewer.pal(9, 'Blues'))(255), 
              main = "Spatial Overlap Between Peaks", 
@@ -382,7 +382,7 @@ if(file.exists(jaccardfile)) {
 intersectfile <- paste0(opt$input,'.n_intersection.txt')
 if(file.exists(intersectfile)) {
     ndata <- read.table(intersectfile,header=TRUE,sep="\t", 
-                        row.names = 1, check.names = F)
+                        row.names = 1, check.names = FALSE)
     maxval <- max(ndata)
     pheatmap(ndata, col=colorRampPalette(brewer.pal(9, 'Blues'))(255), 
              main = "Number of Peak Intersections", 
@@ -399,7 +399,7 @@ if(file.exists(intersectfile)) {
 interfile <- paste0(opt$input, '.intersection.txt')
 if (file.exists(interfile)) {
   interdata <- read.table(interfile, header=TRUE, sep="\t", 
-                          check.names = F, na.strings = '.')
+                          check.names = FALSE, na.strings = '.')
   
   # change names to be &-delimited strings for UpSetR
   n <- interdata$Peaks
@@ -496,7 +496,7 @@ if (file.exists(interfile)) {
 svennfile <- paste0(opt$input, '.spatialVenn.txt')
 if(file.exists(svennfile)) {
   svenndata <- read.table(svennfile, header=TRUE, sep="\t", 
-                          check.names = F, na.strings = '.')
+                          check.names = FALSE, na.strings = '.')
   colnames(svenndata)[1] <- "Dataset"
   svenndata <- subset(svenndata, svenndata$Fraction >= 0.02)
   svenndata <- head(svenndata[order(svenndata$Fraction, decreasing = T),], 9)
@@ -523,7 +523,7 @@ if(file.exists(svennfile)) {
 efffile <- paste0(opt$input, '.chip_efficiency.txt')
 if(file.exists(efffile)) {
   effdata <- read.table(efffile, header=TRUE, sep = "\t",
-                        check.names = F, na.strings = '.')
+                        check.names = FALSE, na.strings = '.')
   effdata$Replicate <- make.unique(as.character(effdata$Replicate))
   p <- ggplot(effdata, aes(x = Replicate, y = Efficiency)) +
     geom_col(aes(fill = Dataset)) +
@@ -578,7 +578,7 @@ if(file.exists(lengthfile)) {
 ddupfile <- paste0(opt$input, '.dedup-stats.txt')
 if(file.exists(ddupfile)) {
   ddupdata <- read.table(ddupfile, header=TRUE, sep="\t", 
-                        check.names = F, na.strings = '.')
+                        check.names = FALSE, na.strings = '.')
   
   # XY scatter comparison
   colnames(ddupdata)[4] <- "Before"
@@ -636,7 +636,7 @@ if(file.exists(qfile)) {
 lfefile <- paste0(opt$input,"_meanLog2FE.txt.gz")
 if(file.exists(lfefile)) {
     lfedata = read.table(lfefile,header=TRUE,sep="\t", 
-                         row.names = 1, check.names = F, na.strings = '.')
+                         row.names = 1, check.names = FALSE, na.strings = '.')
     if ( colnames(lfedata)[1] == "Name" ) {
       # exclude this column name
       lfedata <- lfedata[,2:ncol(lfedata)]
@@ -668,7 +668,7 @@ if(file.exists(lfefile)) {
 mfproffile <- paste0(opt$input, "_profile_mean_fragment.txt.gz")
 if(file.exists(mfproffile)) {
   fprofdata = read.table(mfproffile,header=TRUE,sep="\t", 
-                         row.names = 1, check.names = F, na.strings = '.')
+                         row.names = 1, check.names = FALSE, na.strings = '.')
   if ( colnames(fprofdata)[1] == "Name" ) {
     # exclude this column name
     fprofdata <- fprofdata[,2:ncol(fprofdata)]
