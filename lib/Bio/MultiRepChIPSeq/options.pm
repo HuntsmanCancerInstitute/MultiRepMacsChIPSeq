@@ -89,6 +89,7 @@ sub init_options {
 		combrep     => sprintf( "%s", which 'combine_replicate_data.pl' ),
 		sortdata    => sprintf( "%s", which 'sort_data_by_key.pl'),
 		plotpeak    => sprintf( "%s", which 'plot_peak_figures.R' ),
+		render      => sprintf( "%s", which 'render.pl' ),
 		rscript     => sprintf( "%s", which 'Rscript' ),
 		reportmap   => sprintf( "%s", which 'report_mappable_space.pl' ),
 		samtools    => sprintf( "%s", which 'samtools' ),
@@ -585,6 +586,12 @@ sub plotpeak_app {
 	return $self->{opts}{plotpeak};
 }
 
+sub render_app {
+	my $self = shift;
+	$self->{opts}{render} = shift if @_;
+	return $self->{opts}{render};
+}
+
 sub rscript_app {
 	my $self = shift;
 	$self->{opts}{rscript} = shift if @_;
@@ -826,6 +833,8 @@ Export the hash as a reference.
 =item sortdata_app
 
 =item plotpeak_app
+
+=item render_app
 
 =item rscript_app
 

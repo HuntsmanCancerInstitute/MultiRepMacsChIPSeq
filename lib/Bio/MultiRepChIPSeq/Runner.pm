@@ -2706,71 +2706,27 @@ sub generate_report {
 	$md .= $self->add_summary_report;
 	
 	# write file
-	my $md_file  = $self->out . '.md';
-	my $md_file2 = File::Spec->catfile( $self->dir, $md_file );
-	my $fh = IO::File->new($md_file2, 'w')
-		or confess "cannot write markdown report to '$md_file2'! $OS_ERROR";
+	my $md_file = File::Spec->catfile( $self->dir, $self->out ) . '.md';
+	my $fh = IO::File->new($md_file, 'w')
+		or confess " cannot write markdown report to '$md_file'! $OS_ERROR";
 	$fh->print($md);
 	$fh->close;
-	printf " wrote file '%s'\n", $md_file2;
+	printf " Wrote report file '%s'\n", $md_file;
 	
-	# write html head style file
-	my $html_head  = 'pandoc_head.html';
-	my $html_head2 = File::Spec->catfile( $self->dir, $html_head );
-	$fh = IO::File->new( $html_head2, 'w')
-		or die "cannot write extra header file! $OS_ERROR";
-	$fh->print( $self->pandoc_header );
-	$fh->close;
-	printf " wrote HTML Head Style file '%s'\n", $html_head2;
-	
-	# pandoc options
-	my $output   = $self->out . '.html';
-	my $cmd_opt2 = sprintf "-f gfm -t html --self-contained -H %s -M title=%s -o %s %s",
-		$html_head, $self->out, $output, $md_file;
-	my $cmd_opt3 = sprintf
-		"-f gfm -t html --embed-resources --standalone -H %s -M title=%s -o %s %s",
-		$html_head, $self->out, $output, $md_file;
-		# these options are for pandoc version 2.x or 3.x
-		# which use different options for generating standalone html reports 
-		# v3 will respect --self-contained with a warning, but why add extra stress?
-	
-	# generate html
-	if ( my $app = $self->pandoc_app ) {
-		my $curdir = File::Spec->rel2abs( File::Spec->curdir );
-		chdir $self->dir;
-		my $version = qx($app --version);
-		my $command;
-		if ( $version =~ /pandoc \s 2 \. \d+/x ) {
-			$command = sprintf "%s %s", $app, $cmd_opt2;
-		}
-		elsif ( $version =~ /pandoc \s 3 \. \d+/x ) {
-			$command = sprintf "%s %s", $app, $cmd_opt3;
-		}
-		else {
-			# use the older format when unknown????
-			$command = sprintf "%s %s", $app, $cmd_opt2;
-		}
-		print " Executing $command\n";
-		system($command);
-		if ( -e $output ) {
-			print " Generated $output\n";
-			unlink $html_head;
-		}
-		else {
-			print " Something went wrong generating '$output'\n";
-		}
-		chdir $curdir;
+	# generate html with external utility
+	my $pandoc = $self->pandoc_app;
+	if ( $pandoc ) {
+		my $command = sprintf "%s --in %s --pandoc %s", $self->render_app, $md_file,
+			$pandoc;
+		my $result = qx($command);
+		printf "%s\n", $result;
 	}
 	else {
 		printf <<END;
- Pandoc is not available in the PATH. To generate a self contained HTML report,
- execute one of the following commands within the output directory:
+ No pandoc executable found. You may generate an HTML version of the report by
+ running the following command:
 
- Pandoc version 2:
-    pandoc $cmd_opt2
-
- Pandoc version 3:
-    pandoc $cmd_opt3
+    render.pl -in $md_file --pandoc /path/to/pandoc
 
 END
 	}
