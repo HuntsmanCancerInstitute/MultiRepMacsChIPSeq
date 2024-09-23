@@ -6,7 +6,7 @@ use Carp;
 use File::Spec::Functions qw( catfile splitpath );
 use Bio::ToolBox::utility qw(format_with_commas);
 
-our $VERSION = 19.2;
+our $VERSION = 20.0;
 
 sub add_header_report {
 	my $self = shift;
@@ -672,12 +672,12 @@ END
 		my ( $hm_plot, $which_plot );
 		if ($rep_num > 12) {
 			$hm_plot   = catfile( $plot_dir, $merged_base .
-				'_profile_mean_fragment_hm.png' );
+				'_profile_mean_fragment_sorted_hm.png' );
 			$which_plot = 'individual';
 		}
 		elsif ($rep_num >= 2 and $rep_num <= 12) {
 			$hm_plot   = catfile( $plot_dir, $merged_base .
-				'_profile_replicate_fragment_hm.png' );
+				'_profile_replicate_fragment_sorted_hm.png' );
 			$which_plot = 'mean';
 		}
 		my $line_plot = catfile( $plot_dir, $merged_base . 
@@ -689,9 +689,12 @@ END
 
 Fragment coverage data was collected over a $tot_size Kb window centered on each
 interval midpoint (+/- $size Kb). Data was collected for both sample mean coverage
-tracks and individual replicate coverage tracks. The $which_plot fragment coverage heat
-map and mean fragment class average summary line plot are below. Additional plots may
-be found in the **$plot_dir** folder.
+tracks and individual replicate coverage tracks. The $which_plot fragment coverage
+heat map is shown below. The peaks (rows) are grouped based on which sample generated
+the peak call and indicated on the left. The mean fragment class-average summary line
+plot for all peaks is also shown.  Additional class-average summary line plots for
+each group, as well as additional heat maps, are available in the **$plot_dir**
+folder.
 
 ![rep-merge_replicate_frag_profile]($hm_plot)
 
@@ -957,7 +960,7 @@ END
 		my $size     = ( 25 * $self->binsize ) / 1000;
 		my $tot_size = $size * 2;
 		my $hm_plot   = catfile( $plot_dir, $mean_base .
-			'_profile_mean_fragment_hm.png' );
+			'_profile_mean_fragment_sorted_hm.png' );
 		my $line_plot = catfile( $plot_dir, $mean_base .
 			'_profile_mean_fragment_summary.png' );
 		$string .= <<END;
@@ -965,8 +968,11 @@ END
 ### Replicate-mean Fragment Profile
 
 Fragment coverage data was collected over a $tot_size Kb window centered on each peak
-interval midpoint (+/- $size Kb). The replicate-mean fragment coverage heat map and
-mean fragment class average summary line plot are below.
+interval midpoint (+/- $size Kb). The replicate-mean fragment coverage heat map is
+shown below. The peaks (rows) are grouped based on which sample generated the peak
+call and indicated on the left. The mean fragment class-average summary line plot for
+all peaks is also shown. Additional class-average summary line plots for each group,
+as well as additional heat maps, are available in the **$plot_dir** folder.
 
 ![rep-mean_replicate_frag_profile]($hm_plot)
 
@@ -999,6 +1005,12 @@ The values were plotted as a sorted heat map. Not enough intervals were availabl
 k-means clustering.
 
 ![rep-mean_enrichment]($hm_plot)
+END
+		}
+		else {
+			$string .= <<END;
+Unable to plot this map.
+
 END
 		}
 	}
