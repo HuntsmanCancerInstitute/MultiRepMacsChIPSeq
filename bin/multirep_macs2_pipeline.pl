@@ -483,7 +483,8 @@ MESSAGE
 	# check sizes
 	if ( $Runner->atac ) {
 		# set special options for ATACSeq cutsite analysis
-		print " Using specific parameters for ATAC Cut Site mode\n";
+		print 
+" Using specific parameters for ATAC Cut Site mode\n These may override manual settings\n";
 		$Runner->deduppair(1);
 		$Runner->paired(0);
 		$Runner->minsize(30);    # minsize and maxsize technically not required
@@ -532,25 +533,28 @@ END
 	}
 
 	# check exclusion list
-	if (    $Runner->blacklist
-		and ( $Runner->blacklist ne 'input' or $Runner->blacklist ne 'none' )
-		and not -e $Runner->blacklist )
-	{
-		printf(
-			"\nWARNING! Unable to find specified black list file '%s'!\n",
-			$Runner->blacklist
-		);
-		if ( scalar( $Runner->controls ) ) {
-			print "Defaulting to using input-derived exclusion list\n";
-			$Runner->blacklist('input');
+	if ( my $black = $Runner->blacklist ) {
+		if ( $black eq 'none' ) {
+			# this is ok, we ignore
+		}
+		elsif ( $black eq 'input' ) {
+			# this is ok so long as we actually have controls
+			unless ( scalar( $Runner->controls ) ) {
+				print
+				"\nWARNING! No Control files, cannot use 'input' as exclusion list!\n";
+				$Runner->blacklist('none');
+			}
 		}
 		else {
-			$Runner->blacklist('none');
+			unless ( -e $black ) {
+				print
+"\nWARNING! Unable to find specified black list file '%s'!\n Defaulting to 'none'\n",
+				$black;
+				$Runner->blacklist('none');
+			}
 		}
 	}
-	elsif ( not defined $Runner->blacklist
-		and scalar( $Runner->controls ) )
-	{
+	elsif ( not defined $Runner->blacklist and scalar( $Runner->controls ) ) {
 		$Runner->blacklist('input');
 	}
 
