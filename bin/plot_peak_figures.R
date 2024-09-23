@@ -138,7 +138,11 @@ plot_profile_k_hm <-function(rdata, hm_min, hm_max, k, hm_color, rowColor, colAn
   n <- ncol(rdata)
   kdata <- makekmeans(rdata, k)
   nms <- as.vector(unique(colAnno[,1]))
-  clrs <- brewer.pal(length(nms), opt$palette)
+  if (length(nms) == 2) {
+    clrs <- c("#984EA3", "#4DAF4A")
+  }else{
+    clrs <- brewer.pal(length(nms), opt$palette)
+  }
   names(clrs) <- nms
   pheatmap(kdata$data[,1:n], 
            border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
@@ -154,11 +158,14 @@ plot_profile_k_hm <-function(rdata, hm_min, hm_max, k, hm_color, rowColor, colAn
 }
 
 plot_profile_hm <-function(rdata, hm_min, hm_max, hm_color, colAnno, figmain, outbase) {
-  n <- ncol(rdata)
   o <- apply(rdata, 1, mean)
   rdata <- rdata[order(o, decreasing = T),]
   nms <- as.vector(unique(colAnno[,1]))
-  clrs <- brewer.pal(length(nms), opt$palette)
+  if (length(nms) == 2) {
+    clrs <- c("#984EA3", "#4DAF4A")
+  }else{
+    clrs <- brewer.pal(length(nms), opt$palette)
+  }
   names(clrs) <- nms
   pheatmap(rdata, 
            border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
@@ -167,8 +174,33 @@ plot_profile_hm <-function(rdata, hm_min, hm_max, hm_color, colAnno, figmain, ou
            color = hm_color, 
            annotation_col = colAnno, 
            annotation_colors = list("Dataset" = clrs), 
-           main = figmain,filename = paste0(outbase, ".png"), width = 8, height = 10)
+           main = figmain, filename = paste0(outbase, ".png"), width = 8, height = 10)
 }
+
+plot_sorted_profile_hm <-function(rdata, hm_min, hm_max, hm_color, rowAnno, colAnno, figmain, outbase) {
+  nms <- as.vector(unique(colAnno[,1]))
+  if (length(nms) == 2) {
+    clrs <- c("#984EA3", "#4DAF4A")
+  }else{
+    clrs <- brewer.pal(length(nms), opt$palette)
+  }
+  names(clrs) <- nms
+  annoColors <- list("Dataset" = clrs)
+  for (i in 1:ncol(rowAnno)) {
+    n <- colnames(rowAnno)[i]
+    annoColors[[n]] <- c(Y = "red", N = "blue")
+  }
+  pheatmap(rdata, 
+           border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
+           cluster_rows = FALSE, cluster_cols = FALSE, 
+           show_rownames = FALSE, show_colnames = FALSE, 
+           color = hm_color, 
+           annotation_col = colAnno, annotation_row = rowAnno,
+           annotation_colors = annoColors, 
+           main = figmain, filename = paste0(outbase, ".png"), width = 8, height = 10)
+}
+
+
 
 plot_mean_hm <-function(rdata, hm_min, hm_max, hm_color, figmain, outbase) {
   o <- apply(rdata, 1, mean)
@@ -584,13 +616,13 @@ if(file.exists(ddupfile)) {
 qfile <- paste0(opt$input, "_maxQvalue.txt.gz")
 if(file.exists(qfile)) {
     qdata = read.table(qfile, header=TRUE, sep="\t", 
-                       row.names = 1, check.names = F, na.strings = '.')
-    if (ncol(qdata) > 2 && ncol(qdata) <= allowed) {
+                       row.names = 1, check.names = FALSE, na.strings = '.')
+    if ( colnames(qdata)[1] == "Name" ) {
+      # exclude this column name
+      qdata <- qdata[,2:ncol(qdata)]
+    }
+    if (ncol(qdata) >= 2 && ncol(qdata) <= allowed) {
       # only make a heat map file if there is more than one sample
-      if ( colnames(qdata)[1] == "Name" ) {
-        # exclude this column name
-        qdata <- qdata[,2:ncol(qdata)]
-      }
       qdata[is.na(qdata)] <- 0
       plot_mean_k_hm(qdata, 0, opt$qmax, 4, colorRampPalette(brewer.pal(9, 'Reds'))(255), 
              color4, "Mean Q-Value over merged peaks, 4 Clusters",
@@ -609,7 +641,7 @@ if(file.exists(lfefile)) {
       # exclude this column name
       lfedata <- lfedata[,2:ncol(lfedata)]
     }
-    if (ncol(lfedata) > 2 && ncol(lfedata) <= allowed) {
+    if (ncol(lfedata) >= 2 && ncol(lfedata) <= allowed) {
       # only make heat map files if there is more than one sample
       lfedata[is.na(lfedata)] <- 0
       clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(255)
@@ -642,8 +674,8 @@ if(file.exists(mfproffile)) {
     fprofdata <- fprofdata[,2:ncol(fprofdata)]
   }
   fprofdata[is.na(fprofdata)] <- 0
-  grpdata = read.table(paste0(opt$input, "_profile_mean_fragment.groups.txt"), header=TRUE, sep="\t", 
-                       row.names = 1, check.names = F)
+  grpdata = read.table(paste0(opt$input, "_profile_mean_fragment.col_groups.txt"), header=TRUE, sep="\t", 
+                       row.names = 1, check.names = FALSE)
   if (length(as.vector(unique(grpdata[,1]))) <= allowed) {
     # only plot if number of groups is tolerated by by color palette
     clrs <- colorRampPalette(brewer.pal(9, 'YlOrRd'))(255)
@@ -658,6 +690,31 @@ if(file.exists(mfproffile)) {
   }
 }
 
+# pre-sorted mean fragment profile heat map
+mfsproffile <- paste0(opt$input, "_profile_mean_fragment.sorted.txt.gz")
+if(file.exists(mfsproffile)) {
+  fprofdata = read.table(mfsproffile,header=TRUE,sep="\t", 
+                         row.names = 1, check.names = FALSE, na.strings = '.')
+  if ( colnames(fprofdata)[1] == "Name" ) {
+    # exclude this column name
+    fprofdata <- fprofdata[,2:ncol(fprofdata)]
+  }
+  fprofdata[is.na(fprofdata)] <- 0
+  cgrpdata = read.table(paste0(opt$input, "_profile_mean_fragment.col_groups.txt"), header=TRUE, sep="\t", 
+                       row.names = 1, check.names = FALSE)
+  rgrpdata = read.table(paste0(opt$input, "_profile_mean_fragment.sorted.row_groups.txt"), header=TRUE,
+                        sep="\t", row.names = 1, check.names = FALSE)
+  if (length(as.vector(unique(grpdata[,1]))) <= allowed) {
+    # only plot if number of groups is tolerated by by color palette
+    clrs <- colorRampPalette(brewer.pal(9, 'YlOrRd'))(255)
+    plot_sorted_profile_hm(fprofdata, 0, opt$fmax, clrs, rgrpdata, cgrpdata,
+                    "ChIP fragment density profile around merged peak midpoints",
+                    paste0(opt$input,"_profile_mean_fragment_sorted_hm"))
+  }
+}
+
+
+
 # replicate fragment profile heat map
 rfproffile <- paste0(opt$input, "_profile_replicate_fragment.txt.gz")
 if(file.exists(rfproffile)) {
@@ -668,8 +725,8 @@ if(file.exists(rfproffile)) {
     fprofdata <- fprofdata[,2:ncol(fprofdata)]
   }
   fprofdata[is.na(fprofdata)] <- 0
-  grpdata = read.table(paste0(opt$input, "_profile_replicate_fragment.groups.txt"), header=TRUE, sep="\t", 
-                       row.names = 1, check.names = F)
+  grpdata = read.table(paste0(opt$input, "_profile_replicate_fragment.col_groups.txt"), header=TRUE, sep="\t", 
+                       row.names = 1, check.names = FALSE)
   if (length(as.vector(unique(grpdata[,1]))) <= allowed) {
     # only plot if number of groups is tolerated by color palette
     clrs <- colorRampPalette(brewer.pal(9, 'YlOrRd'))(255)
@@ -684,6 +741,29 @@ if(file.exists(rfproffile)) {
   }
 }
 
+# pre-sorted replicate fragment profile heat map
+rfsproffile <- paste0(opt$input, "_profile_replicate_fragment.sorted.txt.gz")
+if(file.exists(rfsproffile)) {
+  fprofdata = read.table(rfsproffile,header=TRUE,sep="\t", 
+                         row.names = 1, check.names = F, na.strings = '.')
+  if ( colnames(fprofdata)[1] == "Name" ) {
+    # exclude this column name
+    fprofdata <- fprofdata[,2:ncol(fprofdata)]
+  }
+  fprofdata[is.na(fprofdata)] <- 0
+  cgrpdata = read.table(paste0(opt$input, "_profile_replicate_fragment.col_groups.txt"), header=TRUE, sep="\t", 
+                       row.names = 1, check.names = FALSE)
+  rgrpdata = read.table(paste0(opt$input, "_profile_replicate_fragment.sorted.row_groups.txt"), header=TRUE,
+                        sep="\t", row.names = 1, check.names = FALSE)
+  if (length(as.vector(unique(grpdata[,1]))) <= allowed) {
+    # only plot if number of groups is tolerated by color palette
+    clrs <- colorRampPalette(brewer.pal(9, 'YlOrRd'))(255)
+    plot_sorted_profile_hm(fprofdata, 0, opt$fmax, clrs, rgrpdata, cgrpdata,
+                    "ChIP fragment density profile around merged peak midpoints",
+                    paste0(opt$input,"_profile_replicate_fragment_sorted_hm"))
+  }
+}
+
 
 # log2FE profile heat map
 lfeproffile <- paste0(opt$input, "_profile_log2FE.txt.gz")
@@ -695,7 +775,7 @@ if(file.exists(lfeproffile)) {
     lfeprofdata <- lfeprofdata[,2:ncol(lfeprofdata)]
   }
   lfeprofdata[is.na(lfeprofdata)] <- 0
-  grpdata = read.table(paste0(opt$input, "_profile_log2FE.groups.txt"), header=TRUE, sep="\t", 
+  grpdata = read.table(paste0(opt$input, "_profile_log2FE.col_groups.txt"), header=TRUE, sep="\t", 
                        row.names = 1, check.names = F)
   if (length(as.vector(unique(grpdata[,1]))) <= allowed) {
     # only plot if number of groups tolerated by palette
@@ -711,29 +791,66 @@ if(file.exists(lfeproffile)) {
   }
 }
 
-
-
-# plot fragment mean profile line plot
-fprofsumfile <- paste0(opt$input, "_profile_mean_fragment_trimmean_summary.txt")
-if(file.exists(fprofsumfile)) {
-  fprofsumdata <- read.table(fprofsumfile, header=TRUE, sep="\t", 
-                            row.names = 1, check.names = F, na.strings = '.')
-  fprofsumdata[is.na(fprofsumdata)] <- 0
-  plotMid(fprofsumdata, "Fragment Density", "Mean fragment density profile around merged peak midpoints", 
-          paste0(opt$input, "_profile_mean_fragment_summary"))
-  
+# pre-sorted log2FE profile heat map
+lfesproffile <- paste0(opt$input, "_profile_log2FE.sorted.txt.gz")
+if(file.exists(lfesproffile)) {
+  lfeprofdata = read.table(lfesproffile,header=TRUE,sep="\t", 
+                           row.names = 1, check.names = F, na.strings = '.')
+  if ( colnames(lfeprofdata)[1] == "Name" ) {
+    # exclude this column name
+    lfeprofdata <- lfeprofdata[,2:ncol(lfeprofdata)]
+  }
+  lfeprofdata[is.na(lfeprofdata)] <- 0
+  cgrpdata = read.table(paste0(opt$input, "_profile_log2FE.col_groups.txt"), header=TRUE, sep="\t", 
+                       row.names = 1, check.names = F)
+  rgrpdata = read.table(paste0(opt$input, "_profile_log2FE.sorted.row_groups.txt"), header=TRUE,
+                        sep="\t", row.names = 1, check.names = F)
+  if (length(as.vector(unique(grpdata[,1]))) <= allowed) {
+    # only plot if number of groups tolerated by palette
+    clrs <- colorRampPalette(rev(brewer.pal(9, 'RdBu')))(255)
+    plot_sorted_profile_hm(lfeprofdata, opt$min, opt$max, clrs, rgrpdata, cgrpdata,
+                    "ChIP Log2 Fold Enrichment profile around merged peak midpoints",
+                    paste0(opt$input,"_profile_log2FE_hm"))
+  }
 }
 
 
 
+# plot fragment mean profile line plot
+inpath <- dirname(opt$input)
+inbase <- basename(opt$input)
+fprofsumfiles <- list.files(path = inpath, full.names = TRUE,
+                            pattern = paste0(inbase, '_profile_mean_fragment.*_summary\\.txt'))
+for (fprofsumfile in fprofsumfiles) {
+  fprofsumdata <- read.table(fprofsumfile, header=TRUE, sep="\t", 
+                            row.names = 1, check.names = F, na.strings = '.')
+  fprofsumdata[is.na(fprofsumdata)] <- 0
+  plotMid(fprofsumdata, "Fragment Density", "Mean fragment density profile around merged peak midpoints", 
+          gsub("\\.txt", "", fprofsumfile) )
+}
+
+
+# plot replicate fragment mean profile line plot
+repfprofsumfiles <- list.files(path = inpath, full.names = TRUE,
+                               pattern = paste0(inbase, '_profile_replicate_fragment.*_summary\\.txt'))
+for (fprofsumfile in repfprofsumfiles) {
+  fprofsumdata <- read.table(fprofsumfile, header=TRUE, sep="\t", 
+                             row.names = 1, check.names = F, na.strings = '.')
+  fprofsumdata[is.na(fprofsumdata)] <- 0
+  plotMid(fprofsumdata, "Fragment Density", "Mean fragment density profile around merged peak midpoints", 
+          gsub("\\.txt", "", fprofsumfile) )
+}
+
+
 # plot log2FE mean profile line plot
-lfeprofsumfile <- paste0(opt$input, "_profile_log2FE_trimmean_summary.txt")
-if(file.exists(lfeprofsumfile)) {
+lfeprofsumfiles <- list.files(path = inpath, full.names = TRUE,
+                              pattern = paste0(inbase, "_profile_log2FE.*_summary\\.txt"))
+for (lfeprofsumfile in lfeprofsumfiles) {
   lfeprofsumdata <- read.table(lfeprofsumfile, header=TRUE, sep="\t", 
                              row.names = 1, check.names = F, na.strings = '.')
   lfeprofsumdata[is.na(lfeprofsumdata)] <- 0
   plotMid(lfeprofsumdata, "Log2 Fold Enrichment", "Mean Log2 Fold Enrichment profile around merged peak midpoints", 
-          paste0(opt$input, "_profile_log2FE_summary"))
+          gsub("\\.txt", "", lfeprofsumfile) )
   
 }
 
