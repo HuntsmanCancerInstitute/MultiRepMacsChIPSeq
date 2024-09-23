@@ -5,7 +5,7 @@ use Carp;
 use IO::File;
 use File::Which;
 
-our $VERSION = 19.2;
+our $VERSION = 20.0;
 
 sub init_options {
 	my $class = shift;
@@ -87,6 +87,7 @@ sub init_options {
 		peak2bed    => sprintf( "%s", which 'peak2bed.pl' ),
 		updatepeak  => sprintf( "%s", which 'update_peak_file.pl' ),
 		combrep     => sprintf( "%s", which 'combine_replicate_data.pl' ),
+		sortdata    => sprintf( "%s", which 'sort_data_by_key.pl'),
 		plotpeak    => sprintf( "%s", which 'plot_peak_figures.R' ),
 		rscript     => sprintf( "%s", which 'Rscript' ),
 		reportmap   => sprintf( "%s", which 'report_mappable_space.pl' ),
@@ -572,6 +573,12 @@ sub combrep_app {
 	return $self->{opts}{combrep};
 }
 
+sub sortdata_app {
+	my $self = shift;
+	$self->{opts}{sortdata} = shift if @_;
+	return $self->{opts}{sortdata};
+}
+
 sub plotpeak_app {
 	my $self = shift;
 	$self->{opts}{plotpeak} = shift if @_;
@@ -815,6 +822,8 @@ Export the hash as a reference.
 =item updatepeak_app
 
 =item combrep_app
+
+=item sortdata_app
 
 =item plotpeak_app
 
