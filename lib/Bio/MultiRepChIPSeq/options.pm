@@ -26,7 +26,7 @@ sub init_options {
 		minsize     => 50,
 		maxsize     => 500,
 		chrskip     => "chrM|MT|alt|Adapter|Lambda|PhiX",
-		blacklist   => undef,
+		exclude     => undef,
 		dedup       => 1,
 		maxdup      => undef,   # old option
 		maxdepth    => undef,
@@ -352,10 +352,10 @@ sub chrskip {
 	return $self->{opts}{chrskip};
 }
 
-sub blacklist {
+sub exclude {
 	my $self = shift;
-	$self->{opts}{blacklist} = shift if @_;
-	return $self->{opts}{blacklist};
+	$self->{opts}{exclude} = shift if @_;
+	return $self->{opts}{exclude};
 }
 
 sub cpu {
@@ -762,7 +762,7 @@ Export the hash as a reference.
 
 =item chrskip
 
-=item blacklist
+=item exclude
 
 =item cpu
 

@@ -481,20 +481,20 @@ sub _check_command_finished {
 
 sub run_input_peak_detection {
 	my $self = shift;
-	return unless ( $self->blacklist eq 'input' );
+	return unless ( $self->exclude eq 'input' );
 	print "\n\n======= Generating exclusion list from reference control\n";
 	if ( $self->{progress}{control_peak} ) {
 
 		# check that we actually have the expected file
-		my $blacklist = File::Spec->catfile(
+		my $exclude_file = File::Spec->catfile(
 			$self->dir,
 			sprintf( "%s.control_peak.bed", $self->out )
 		);
-		if ( -e $blacklist ) {
-			$self->blacklist($blacklist);
+		if ( -e $exclude_file ) {
+			$self->exclude($exclude_file);
 		}
 		else {
-			$self->blacklist(q());
+			$self->exclude( q() );
 		}
 		print "\nStep is completed\n";
 		return;
@@ -505,18 +505,18 @@ sub run_input_peak_detection {
 	foreach my $Job ( $self->list_jobs ) {
 		push @refbams, $Job->control_bams;
 	}
-	my $blacklist;
+	my $exclude_file;
 	if (@refbams) {
 
 		# we have at least one reference bam file to process
 		# set the name of the exclusion list file
-		$blacklist =
+		$exclude_file =
 			File::Spec->catfile( $self->dir, sprintf( "%s.control_peak", $self->out ) );
 	}
 	else {
 		# no reference bam files!
 		print " No control reference bam files to process. Skipping\n";
-		$self->blacklist('none');
+		$self->exclude('none');
 		$self->update_progress_file('control_peak');
 		return;
 	}
@@ -540,7 +540,7 @@ sub run_input_peak_detection {
 	my $command = sprintf
 "%s --out %s.bdg --nosecondary --noduplicate --nosupplementary --mean --bdg --bin %s --cpu %s ",
 		$self->bam2wig_app || 'bam2wig.pl',
-		$blacklist,
+		$exclude_file,
 		$self->chipbin,
 		$self->cpu * $self->job;    # give it everything we've got, single job
 	if ( $self->paired ) {
@@ -554,67 +554,67 @@ sub run_input_peak_detection {
 		$command .= sprintf "--chrskip \'%s\' ", $self->chrskip;
 	}
 	$command .= sprintf "--in %s ", join( ',', @refbams );
-	my $logfile = sprintf "%s.out.txt", $blacklist;
+	my $logfile = sprintf "%s.out.txt", $exclude_file;
 	$command .= " 2>&1 > $logfile ";
 
 	# add the mean bedgraph file
 	$command .= sprintf
 		" && %s --in %s.bdg --genome %d --out %s.global_mean.bdg 2>&1 >> $logfile ",
 		$self->meanbdg_app || 'generate_mean_bedGraph.pl',
-		$blacklist,
+		$exclude_file,
 		$self->genome || 0,
-		$blacklist;
+		$exclude_file;
 
 	# add the q-value conversion
 	$command .= sprintf
 " && %s bdgcmp -t %s.bdg -c %s.global_mean.bdg -m qpois -o %s.qvalue.bdg 2>> $logfile ",
 		$self->macs_app || 'macs2',
-		$blacklist,
-		$blacklist,
-		$blacklist;
+		$exclude_file,
+		$exclude_file,
+		$exclude_file;
 
 	# add the peak call
 	# we are using hard coded parameters for now, but these should be generic enough
 	$command .= sprintf
 " && %s bdgpeakcall -i %s.qvalue.bdg -c 3 -l 250 -g 500 --no-trackline -o %s.narrowPeak 2>> $logfile",
 		$self->macs_app || 'macs2',
-		$blacklist,
-		$blacklist;
+		$exclude_file,
+		$exclude_file;
 
 	# execute the call
-	$self->execute_commands( [ [ $command, "$blacklist.narrowPeak", $logfile ], ] );
+	$self->execute_commands( [ [ $command, "$exclude_file.narrowPeak", $logfile ], ] );
 
 	# check whether peaks were found
-	if ( -e "$blacklist.narrowPeak" and -s _ ) {
+	if ( -e "$exclude_file.narrowPeak" and -s _ ) {
 
 		# we have identified peaks
 
-		$self->blacklist( $blacklist . '.bed' );    # set the actual output file
+		$self->exclude( $exclude_file . '.bed' );    # set the actual output file
 
 		# convert to simple bed
 		$command = sprintf "%s --norm --nosummit --in %s.narrowPeak 2>&1 >> $logfile ",
-			$self->peak2bed_app || 'peak2bed.pl', $blacklist;
+			$self->peak2bed_app || 'peak2bed.pl', $exclude_file;
 
 		# and clean up
 		$command .= sprintf
 			"&& rm %s.bdg %s.global_mean.bdg %s.qvalue.bdg %s.narrowPeak",
-			$blacklist,
-			$blacklist,
-			$blacklist,
-			$blacklist;
-		$self->execute_commands( [ [ $command, $self->blacklist, $logfile ], ] );
+			$exclude_file,
+			$exclude_file,
+			$exclude_file,
+			$exclude_file;
+		$self->execute_commands( [ [ $command, $self->exclude, $logfile ], ] );
 	}
 	else {
 		# no peaks were identified
 		print "\n No peaks were found in control\n\n";
-		$self->blacklist(q());
+		$self->exclude( q() );
 
 		# clean up
 		$command = sprintf "rm %s.bdg %s.global_mean.bdg %s.qvalue.bdg ",
-			$blacklist,
-			$blacklist,
-			$blacklist;
-		$command .= "$blacklist.narrowPeak " if -e "$blacklist.narrowPeak";
+			$exclude_file,
+			$exclude_file,
+			$exclude_file;
+		$command .= "$exclude_file.narrowPeak " if -e "$exclude_file.narrowPeak";
 		$self->execute_commands( [ [ $command, q(), q() ], ] );
 	}
 
@@ -754,8 +754,8 @@ sub run_bam_filter {
 
 			# first add existing exclusion list intervals if present
 			my @exclusions;
-			if ( $self->blacklist and $self->blacklist ne 'none' ) {
-				my $Data = Bio::ToolBox->load_file( $self->blacklist );
+			if ( $self->exclude and $self->exclude ne 'none' ) {
+				my $Data = Bio::ToolBox->load_file( $self->exclude );
 				if ($Data) {
 					$Data->iterate(
 						sub {
@@ -803,10 +803,10 @@ sub run_bam_filter {
 	}
 	else {
 		# no chromosomes to exclude
-		if ( $self->blacklist and $self->blacklist ne 'none' ) {
+		if ( $self->exclude and $self->exclude ne 'none' ) {
 
-			# still use the black list exclusion file to filter if present
-			$filter_file = $self->blacklist;
+			# still use the exclusion file to filter if present
+			$filter_file = $self->exclude;
 		}
 	}
 
@@ -819,7 +819,7 @@ sub run_bam_filter {
 	if (@commands) {
 		$self->execute_commands( \@commands );
 	}
-	if ( $filter_file and $filter_file ne $self->blacklist and -e $filter_file ) {
+	if ( $filter_file and $filter_file ne $self->exclude and -e $filter_file ) {
 		unlink $filter_file;
 	}
 	$self->update_progress_file('bamfilter');
@@ -2738,7 +2738,7 @@ sub generate_report {
 	if ( $self->genome ) {
 		$md .= $self->add_genome_report;
 	}
-	if ( $self->blacklist ) {
+	if ( $self->exclude ) {
 		$md .= $self->add_exclusion_report;
 	}
 	if ( $self->dedup ) {

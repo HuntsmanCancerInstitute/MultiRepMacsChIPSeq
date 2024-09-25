@@ -90,7 +90,7 @@ Options:
  Alignment filtering options
   --mapq        integer         Minimum mapping quality, ($opts->{mapq})
   --chrskip     "text"          Chromosome skip regex ($opts->{chrskip})
-  --blacklist   file            Bed file of repeats or hotspots to avoid
+  --exclude     file            Coordinate (bed) file of repeats or hotspots to avoid
                                   Default determined empirically from control samples.
                                   Specify 'none' for no filtering.
   --min         integer         Minimum paired-end size allowed ($opts->{minsize} bp)
@@ -213,7 +213,7 @@ GetOptions(
 	'minsize|min=i',
 	'maxsize|max=i',
 	'chrskip=s',
-	'blacklist=s',
+	'exclude|blacklist=s',
 	'dedup!',
 	'dupfrac=f',
 	'maxdepth=i',
@@ -533,29 +533,29 @@ END
 	}
 
 	# check exclusion list
-	if ( my $black = $Runner->blacklist ) {
-		if ( $black eq 'none' ) {
+	if ( my $exclude = $Runner->exclude ) {
+		if ( $exclude eq 'none' ) {
 			# this is ok, we ignore
 		}
-		elsif ( $black eq 'input' ) {
+		elsif ( $exclude eq 'input' ) {
 			# this is ok so long as we actually have controls
 			unless ( scalar( $Runner->controls ) ) {
 				print
 				"\nWARNING! No Control files, cannot use 'input' as exclusion list!\n";
-				$Runner->blacklist('none');
+				$Runner->exclude('none');
 			}
 		}
 		else {
-			unless ( -e $black ) {
+			unless ( -e $exclude ) {
 				print
-"\nWARNING! Unable to find specified black list file '%s'!\n Defaulting to 'none'\n",
-				$black;
-				$Runner->blacklist('none');
+"\nWARNING! Unable to find specified exclusion list file '%s'!\n Defaulting to 'none'\n",
+				$exclude;
+				$Runner->exclude('none');
 			}
 		}
 	}
-	elsif ( not defined $Runner->blacklist and scalar( $Runner->controls ) ) {
-		$Runner->blacklist('input');
+	elsif ( not defined $Runner->exclude and scalar( $Runner->controls ) ) {
+		$Runner->exclude('input');
 	}
 
 	# max depth-duplication confusion

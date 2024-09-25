@@ -32,7 +32,7 @@ eval {
 	$parallel = 1;
 };
 
-our $VERSION = 5.4;
+our $VERSION = 5.5;
 
 my $DOC = <<END;
 
@@ -127,7 +127,7 @@ OPTIONS:
   --coord <string>    Provide the tile:X:Y integer 1-base positions in the 
                         read name for optical checking. For Illumina CASAVA 1.8 
                         7-element names, this is 5:6:7 (default)
-  --blacklist <file>  Provide a bed/gff/text file of repeat regions to skip
+  --exclude <file>    Provide a bed/gff/text file of repeat regions to skip
   --chrskip <regex>   Provide a regex for skipping certain chromosomes
   --seed <int>        Provide an integer to set the random seed generator to 
                         make the subsampling consistent (non-random).
@@ -164,7 +164,7 @@ END
 ### Get Options
 my (
 	$fraction, $max,    $infile, $outfile,  $do_optical,  $optical_thresh, $keep_optical,
-	$mark,     $random, $paired, $min_mapq, $chr_exclude, $black_list,     $seed, $cpu,
+	$mark,     $random, $paired, $min_mapq, $chr_exclude, $exclude_file,   $seed, $cpu,
 	$tilepos,
 	$xpos, $ypos, $name_coordinates, $report_distance, $no_sam, $verbose, $help
 );
@@ -183,7 +183,7 @@ GetOptions(
 	'pe!'          => \$paired,          # treat as paired-end alignments
 	'qual|mapq=i'  => \$min_mapq,        # minimum mapping quality
 	'chrskip=s'    => \$chr_exclude,     # skip chromosomes
-	'blacklist=s'  => \$black_list,      # file of high copy repeat regions to avoid
+	'exclude=s'    => \$exclude_file,    # file of high copy repeat regions to avoid
 	'seed=i'       => \$seed,            # seed for non-random random subsampling
 	'cpu=i'        => \$cpu,             # number of cpu cores to use
 	'coord=s'      => \$name_coordinates,    # tile:X:Y name positions
@@ -286,12 +286,10 @@ else {
 ### Global varaibles
 # these get modified in the count_*_callbacks
 my $items = $paired ? 'properly paired fragments' : 'alignments';
-
-# explain what we are counting in the output
-my $write_out_alignments;    # subroutine reference for writing out alignments
+		# explain what we are counting in the output
+my $write_out_alignments;   # subroutine reference for writing out alignments
 my $callback;
-my $chance          = 0;                      # probability for subsampling
-my $black_list_hash = process_black_list();
+my $chance = 0;    # probability for subsampling
 
 # chromosome list
 my @tid_list;
@@ -302,6 +300,10 @@ for my $tid ( 0 .. $sam->n_targets - 1 ) {
 	}
 	push @tid_list, $tid;
 }
+
+# load exclusion lists
+my $exclude_hash = process_exclusion_list();
+
 
 ### count the reads and number at each position
 if ( $fraction > 0 or not defined $max ) {
@@ -325,7 +327,7 @@ $htext .= " --mark"                                if $mark;
 $htext .= " --optical --distance=$optical_thresh " if ($do_optical);
 $htext .= " --keepoptical"                         if $keep_optical;
 $htext .= " --chrskip='$chr_exclude'"              if $chr_exclude;
-$htext .= " --blacklist=$black_list"               if $black_list;
+$htext .= " --exclude=$exclude_file"               if $exclude_file;
 $htext .= " --qual=$min_mapq"                      if $min_mapq;
 $htext .= " --coord $name_coordinates"             if $name_coordinates;
 $htext .= " --bam $BAM_ADAPTER --in $infile --out $outfile\n";
@@ -353,32 +355,39 @@ exit 0;    # bam files should automatically be closed
 
 ######################## Subroutines ###################################################
 
-sub process_black_list {
-	return unless $black_list;
-	if ( -e $black_list ) {
+sub process_exclusion_list {
+	return unless $exclude_file;
+	if ( -e $exclude_file ) {
 		my $i = 0;
 		eval { require Set::IntervalTree; $i = 1; };
 		unless ($i) {
-			warn " PROBLEM! Please install Set::IntervalTree to use black lists\n";
-			undef $black_list;
+			warn " PROBLEM! Please install Set::IntervalTree to use exclusion lists\n";
+			undef $exclude_file;
 			return;
 		}
-		my $Data = Bio::ToolBox->load_file( $black_list )
-			or die "unable to read black list file '$black_list'\n";
-		my %black_list_hash;
+		my $Data = Bio::ToolBox->load_file( $exclude_file )
+			or die "unable to read exclusion list file '$exclude_file'\n";
+		my %list_hash = map { $_ => [] } ( $sam->seq_ids );
+		unless ( $Data->feature_type eq 'coordinate' ) {
+			printf
+			" WARNING! Exclusion list file '%s' does not have coordinates! Ignoring.\n",
+				$exclude_file;
+			return \%list_hash;
+		}
 		$Data->iterate(
 			sub {
 				my $row = shift;
-				$black_list_hash{ $row->seq_id } ||= [];
-				push @{ $black_list_hash{ $row->seq_id } },
+				$list_hash{ $row->seq_id } ||= [];
+				push @{ $list_hash{ $row->seq_id } },
 					[ $row->start - 1, $row->end + 0 ];
 			}
 		);
-		printf " Loaded %d black list regions\n", ( $Data->last_row );
-		return \%black_list_hash;
+		printf " Loaded %d exclusion regions\n", ( $Data->number_rows );
+		return \%list_hash;
 	}
 	else {
-		print " PROBLEM: Specified black list file '$black_list' not found, skipping\n";
+		print " PROBLEM! Specified exclusion list file '%s' not found, ignoring\n",
+			$exclude_file;
 	}
 	return;
 }
@@ -669,26 +678,26 @@ sub count_alignments_singlethread {
 			totalCount     => 0,       # total count of reads
 			optCount       => 0,       # optical count
 			coordError     => 0,       # pixel coordinate errors
-			black_list     => undef,
+			exclusion      => undef,   # interval tree of excluded regions
 			depth2count    => {},      # depth to count hash
 			dupmatrix      => {},      # duplicate x,y coordinates for reporting
 			distance2count => {},      # max distance to count hash
 			reads          => [],      # temp buffer for collecting reads
 		};
 
-		# process black lists for this chromosome
+		# process excluded regions for this chromosome
 		# since we're using external interval tree module that is not fork-safe, must
 		# recreate interval tree each time
 		my $seq_id = $sam->target_name($tid);
 		print "  counting $seq_id $items...\n" if $verbose;
-		if ( $black_list_hash and exists $black_list_hash->{$seq_id} ) {
+		if ( $exclude_hash and scalar @{ $exclude_hash->{$seq_id} } ) {
 			my $tree = Set::IntervalTree->new;
-			foreach ( @{ $black_list_hash->{$seq_id} } ) {
+			foreach ( @{ $exclude_hash->{$seq_id} } ) {
 
 				# don't need to insert any particular value, just want the interval
 				$tree->insert( 1, $_->[0], $_->[1] );
 			}
-			$data->{black_list} = $tree;
+			$data->{exclusion} = $tree;
 		}
 
 		# walk through the reads on the chromosome
@@ -793,24 +802,24 @@ sub count_alignments_multithread {
 			totalCount     => 0,       # total count of reads
 			optCount       => 0,       # optical count
 			coordError     => 0,       # pixel coordinate errors
-			black_list     => undef,
+			exclusion      => undef,
 			depth2count    => {},      # depth to count hash
 			dupmatrix      => {},      # duplicate x,y coordinates for reporting
 			distance2count => {},      # max distance to count hash
 			reads          => [],      # temp buffer for collecting reads
 		};
 
-		# process black lists for this chromosome
+		# process excluded regions for this chromosome
 		# since we're using external interval tree module that is not fork-safe, must
 		# recreate interval tree each time
-		if ( $black_list_hash and exists $black_list_hash->{$seq_id} ) {
+		if ( $exclude_hash and scalar @{ $exclude_hash->{$seq_id} } ) {
 			my $tree = Set::IntervalTree->new or die "unable to make interval tree!";
-			foreach ( @{ $black_list_hash->{$seq_id} } ) {
+			foreach ( @{ $exclude_hash->{$seq_id} } ) {
 
 				# don't need to insert any particular value, just want the interval
 				$tree->insert( 1, $_->[0], $_->[1] );
 			}
-			$data->{black_list} = $tree;
+			$data->{exclusion} = $tree;
 		}
 
 		# walk through the reads on the chromosome
@@ -826,8 +835,8 @@ sub count_alignments_multithread {
 		printf( "   %d $items counted on $seq_id\n", $data->{totalCount} ) if $verbose;
 		delete $data->{reads};
 		delete $data->{position};
-		undef $data->{black_list};    # why is this necessary?
-		delete $data->{black_list};
+		undef $data->{exclusion};    # why is this necessary?
+		delete $data->{exclusion};
 		$pm->finish( 0, $data );
 	}
 	$pm->wait_all_children;
@@ -845,9 +854,9 @@ sub count_se_callback {
 	# mapping quality
 	return if ( $min_mapq and $a->qual < $min_mapq );    # mapping quality
 
-	# filter black listed regions
-	if ( defined $data->{black_list} ) {
-		my $results = $data->{black_list}->fetch( $a->pos, $a->calend );
+	# filter excluded regions
+	if ( defined $data->{exclusion} ) {
+		my $results = $data->{exclusion}->fetch( $a->pos, $a->calend );
 		return if @{$results};
 	}
 
@@ -881,10 +890,10 @@ sub count_pe_callback {
 	return unless $a->mreversed;
 	return if $a->isize < 0;    # wierd RF pair, a F alignment should only have + isize
 	return if ( $min_mapq and $a->qual < $min_mapq );    # mapping quality
-	if ( defined $data->{black_list} ) {
+	if ( defined $data->{exclusion} ) {
 
-		# filter black listed regions
-		my $results = $data->{black_list}->fetch( $a->pos, $a->calend );
+		# filter excluded regions
+		my $results = $data->{exclusion}->fetch( $a->pos, $a->calend );
 		return if @{$results};
 	}
 
@@ -1260,25 +1269,25 @@ sub deduplicate_singlethread {
 			toss       => 0,
 			position   => -1,
 			outbam     => $outbam,
-			black_list => undef,
+			exclusion  => undef,
 			reads      => [],
 			keepers    => {},        # hash of names of rev pe reads to keep
 			dupkeepers => {},        # hash of names of rev pe dup reads to keep
 		};
 
-		# process black lists for this chromosome
+		# process exclusion regions for this chromosome
 		# since we're using external interval tree module that is not fork-safe, must
 		# recreate interval tree each time
 		my $seq_id = $sam->target_name($tid);
 		print "  deduplicating $seq_id $items...\n" if $verbose;
-		if ( $black_list_hash and exists $black_list_hash->{$seq_id} ) {
+		if ( $exclude_hash and scalar @{ $exclude_hash->{$seq_id} } ) {
 			my $tree = Set::IntervalTree->new;
-			foreach ( @{ $black_list_hash->{$seq_id} } ) {
+			foreach ( @{ $exclude_hash->{$seq_id} } ) {
 
 				# don't need to insert any particular value, just want the interval
 				$tree->insert( 1, $_->[0], $_->[1] );
 			}
-			$data->{black_list} = $tree;
+			$data->{exclusion} = $tree;
 		}
 
 		# walk through the reads on the chromosome
@@ -1366,23 +1375,23 @@ sub deduplicate_multithread {
 			unpaired   => 0,
 			position   => -1,
 			outbam     => $tempbam,
-			black_list => undef,
+			exclusion  => undef,
 			reads      => [],
 			keepers    => {},         # hash of names of rev pe reads to keep
 			dupkeepers => {},         # hash of names of rev pe dup reads to keep
 		};
 
-		# process black lists for this chromosome
+		# process exclusion regions for this chromosome
 		# since we're using external interval tree module that is not fork-safe, must
 		# recreate interval tree each time
-		if ( $black_list_hash and exists $black_list_hash->{$seq_id} ) {
+		if ( $exclude_hash and scalar @{ $exclude_hash->{$seq_id} } ) {
 			my $tree = Set::IntervalTree->new;
-			foreach ( @{ $black_list_hash->{$seq_id} } ) {
+			foreach ( @{ $exclude_hash->{$seq_id} } ) {
 
 				# don't need to insert any particular value, just want the interval
 				$tree->insert( 1, $_->[0], $_->[1] );
 			}
-			$data->{black_list} = $tree;
+			$data->{exclusion} = $tree;
 		}
 
 		# walk through the reads on the chromosome
@@ -1404,8 +1413,8 @@ sub deduplicate_multithread {
 		delete $data->{keepers};
 		delete $data->{dupkeepers};
 		delete $data->{position};
-		undef $data->{black_list};    # why is this necessary?
-		delete $data->{black_list};
+		undef $data->{exclusion};    # why is this necessary?
+		delete $data->{exclusion};
 		undef $tempbam;
 		printf( "   wrote %d $items for $seq_id\n", $data->{nondup} + $data->{duplicate} )
 			if $verbose;
@@ -1500,9 +1509,9 @@ sub write_se_callback {
 	# mapping quality
 	return if ( $min_mapq and $a->qual < $min_mapq );    # mapping quality
 
-	# filter black listed regions
-	if ( defined $data->{black_list} ) {
-		my $results = $data->{black_list}->fetch( $a->pos, $a->calend );
+	# filter excluded regions
+	if ( defined $data->{exclusion} ) {
+		my $results = $data->{exclusion}->fetch( $a->pos, $a->calend );
 		return if @{$results};
 	}
 
@@ -1530,10 +1539,10 @@ sub write_pe_callback {
 	return unless $a->proper_pair;       # consider only proper pair alignments
 	return unless $a->tid == $a->mtid;
 	return if ( $min_mapq and $a->qual < $min_mapq );    # mapping quality
-	if ( defined $data->{black_list} ) {
+	if ( defined $data->{exclusion} ) {
 
-		# filter black listed regions
-		my $results = $data->{black_list}->fetch( $a->pos, $a->calend );
+		# filter excluded regions
+		my $results = $data->{exclusion}->fetch( $a->pos, $a->calend );
 		return if @{$results};
 	}
 

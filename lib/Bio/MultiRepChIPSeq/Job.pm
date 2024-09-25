@@ -517,8 +517,8 @@ sub generate_dedup_commands {
 				$command .= sprintf "--optical --distance %s ", $self->optdist;
 			}
 		}
-		if ( $self->blacklist and $self->blacklist ne 'none' ) {
-			$command .= sprintf "--blacklist %s ", $self->blacklist;
+		if ( $self->exclude and $self->exclude ne 'none' ) {
+			$command .= sprintf "--exclude %s ", $self->exclude;
 		}
 		if ( $self->chrskip ) {
 			$command .= sprintf "--chrskip \'%s\' ", $self->chrskip;
@@ -726,8 +726,8 @@ sub generate_bam2wig_frag_commands {
 		if ( $self->fraction ) {
 			$frag_base .= "--fraction ";
 		}
-		if ( $self->blacklist and $self->blacklist ne 'none' ) {
-			$frag_base .= sprintf "--blacklist %s ", $self->blacklist;
+		if ( $self->exclude and $self->exclude ne 'none' ) {
+			$frag_base .= sprintf "--exclude %s ", $self->exclude;
 		}
 		if ( $self->chrskip ) {
 			$frag_base .= sprintf "--chrskip \'%s\' ", $self->chrskip;
@@ -813,8 +813,8 @@ sub generate_bam2wig_frag_commands {
 		if ( $self->fraction ) {
 			$frag_command .= "--fraction ";
 		}
-		if ( $self->blacklist and $self->blacklist ne 'none' ) {
-			$frag_command .= sprintf "--blacklist %s ", $self->blacklist;
+		if ( $self->exclude and $self->exclude ne 'none' ) {
+			$frag_command .= sprintf "--exclude %s ", $self->exclude;
 		}
 		if ( $self->chrskip ) {
 			$frag_command .= sprintf "--chrskip \'%s\' ", $self->chrskip;
@@ -965,8 +965,8 @@ sub generate_bam2wig_frag_commands {
 		}
 
 		# additional filters
-		if ( $self->blacklist and $self->blacklist ne 'none' ) {
-			$frag_command .= sprintf "--blacklist %s ", $self->blacklist;
+		if ( $self->exclude and $self->exclude ne 'none' ) {
+			$frag_command .= sprintf "--exclude %s ", $self->exclude;
 		}
 		if ( $self->chrskip ) {
 			$frag_command .= sprintf "--chrskip \'%s\' ", $self->chrskip;
@@ -1042,8 +1042,8 @@ sub generate_bam2wig_count_commands {
 		if ( $self->fraction ) {
 			$count_command .= "--fraction ";
 		}
-		if ( $self->blacklist and $self->blacklist ne 'none' ) {
-			$count_command .= sprintf "--blacklist %s ", $self->blacklist;
+		if ( $self->exclude and $self->exclude ne 'none' ) {
+			$count_command .= sprintf "--exclude %s ", $self->exclude;
 		}
 		if ( $self->chrskip ) {
 			$count_command .= sprintf "--chrskip \'%s\' ", $self->chrskip;
@@ -1115,8 +1115,8 @@ sub generate_bam2wig_count_commands {
 		if ( $self->fraction ) {
 			$count_command .= "--fraction ";
 		}
-		if ( $self->blacklist and $self->blacklist ne 'none' ) {
-			$count_command .= sprintf "--blacklist %s ", $self->blacklist;
+		if ( $self->exclude and $self->exclude ne 'none' ) {
+			$count_command .= sprintf "--exclude %s ", $self->exclude;
 		}
 		if ( $self->chrskip ) {
 			$count_command .= sprintf "--chrskip \'%s\' ", $self->chrskip;

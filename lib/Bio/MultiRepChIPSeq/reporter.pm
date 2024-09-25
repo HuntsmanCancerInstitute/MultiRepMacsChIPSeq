@@ -203,7 +203,7 @@ sub add_exclusion_report {
 	# exclusion list
 	if ( $self->{progress}{control_peak} ) {
 		# input generated exclusion list
-		my $file = ( splitpath( $self->blacklist ) )[2];
+		my $file = ( splitpath( $self->exclude ) )[2];
 		my ($control, $count);
 		if ( $self->organize ) {
 			$control  = catfile( 'Peaks', $file );
@@ -212,7 +212,7 @@ sub add_exclusion_report {
 		}
 		else {
 			$control  = $file;
-			$count = format_with_commas( $self->count_file_lines( $self->blacklist ) );
+			$count = format_with_commas( $self->count_file_lines( $self->exclude ) );
 		}
 		$string .= <<END;
 
@@ -231,9 +231,9 @@ There were **$count** exclusion intervals identified in the file `$control`.
 END
 		
 	}
-	elsif ( $self->blacklist ) {
+	elsif ( $self->exclude ) {
 		# user supplied
-		my $f = $self->blacklist;
+		my $f = $self->exclude;
 		$string .= <<END;
 
 ### Exclusion List
