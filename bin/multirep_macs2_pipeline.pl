@@ -106,7 +106,7 @@ Options:
   --deduppair                   Run deduplication as paired-end, but coverage as single-end
 
  Fragment coverage
-  --atac                        Set multiple options specific for ATACSeq cutsite analysis
+  --cutsite                     Set multiple options specific for ATACSeq cutsite analysis
   --size        integer         Predicted fragment size. REQUIRED for single-end
   --shift       integer         Shift the fragment in special situations
   --fraction                    Record multiple-hit alignments as fraction of hits
@@ -221,7 +221,7 @@ GetOptions(
 	'deduppair!',
 	'fragsize|size=i',
 	'shiftsize|shift=i',
-	'atac!',
+	'cutsite|atac!',
 	'slocal=i',
 	'llocal=i',
 	'chipbin|cbin=i',
@@ -481,7 +481,7 @@ MESSAGE
 	}
 
 	# check sizes
-	if ( $Runner->atac ) {
+	if ( $Runner->cutsite ) {
 		# set special options for ATACSeq cutsite analysis
 		print 
 " Using specific parameters for ATAC Cut Site mode\n These may override manual settings\n";

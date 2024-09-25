@@ -33,7 +33,7 @@ sub init_options {
 		dupfrac     => 0.05,
 		optdist     => 0,
 		deduppair   => 0,
-		atac        => 0,
+		cutsite     => 0,
 		fragsize    => 250,
 		shiftsize   => 0,
 		slocal      => 1000,
@@ -244,10 +244,10 @@ sub savebam {
 	return $self->{opts}{savebam};
 }
 
-sub atac {
+sub cutsite {
 	my $self = shift;
-	$self->{opts}{atac} = shift if @_;
-	return $self->{opts}{atac};
+	$self->{opts}{cutsite} = shift if @_;
+	return $self->{opts}{cutsite};
 }
 
 sub fragsize {
@@ -729,6 +729,8 @@ Export the hash as a reference.
 =item deduppair
 
 =item savebam
+
+=item cutsite
 
 =item fragsize
 

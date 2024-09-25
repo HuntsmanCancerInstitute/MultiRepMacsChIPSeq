@@ -1022,7 +1022,7 @@ sub generate_bam2wig_count_commands {
 			$count_command .= sprintf "--pe --mid --minsize %s --maxsize %s ",
 				$self->minsize, $self->maxsize;
 		}
-		elsif ( $self->atac ) {
+		elsif ( $self->cutsite ) {
 			# Special options for ATAC cutsite point data.
 			# Recommended options are to shift by unequal amounts based on strand
 			# +5/-4 for F and R reads, but bam2wig isn't set up to do handle that
