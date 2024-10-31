@@ -1,6 +1,30 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
 
+v20.0
+	multirep_macs2_pipeline.pl
+	- Pre-sorts profile data files based on number of peaks in each group
+	- Improve genomic coverage interpretation, including warnings if coverage
+	  is insufficient, which may affect background and q-value scores.
+	- Change --atac option to --cutsite as it is more appropriate
+	- Change --blacklist option to --exclude as it is more appropriate
+	- Requires latest Bio::ToolBox version 2
+	
+	sort_data_by_key.pl
+	- New script to sort a data file by groups using an external key list.
+	  In this context, sorting by the matrix key list based on which samples
+	  from which the peaks were called.
+	
+	render.pl
+	- New script to generate the HTML report from the markdown report. This
+	  allows the markdown report to be edited after the pipeline completes
+	  and a new HTML file generated.
+	- Fixes warnings about pandoc options
+	
+	plot_peak_figures.R
+	- Updated to handle and generate plots for pre-sorted profile heat maps
+	  and group-specific mean profile line plots.
+
 v19.2
 	- Update multiple library and script code for new Bio::ToolBox compatibility
 	- Set pandoc title
