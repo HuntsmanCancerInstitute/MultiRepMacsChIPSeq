@@ -1,7 +1,7 @@
 # De-Duplication Evaluation
 
 The Multi-Replica Macs ChIPSeq Wrapper includes a novel application,
-[bam_partial_dedup](../applications.md#bam_partial_deduppl), for sub-sampling
+[bam_partial_dedup](applications/bam_partial_dedup), for sub-sampling
 duplicate alignments to a standard fractional level across all replicates and
 samples. The theory behind the application is to keep some fraction of duplicate
 alignments on the assumption that these may include biological duplicates, known to
@@ -40,7 +40,7 @@ package](https://github.com/HuntsmanCancerInstitute/UMIScripts). Reads were alig
 to the genome using Novocraft Novoalign (version 4.3).
 
 Alignment bam files were processed with either
-[bam_partial_dedup.pl](../applications.md#bam_partial_deduppl) or with
+[bam_partial_dedup.pl](applications/bam_partial_dedup) or with
 `bam_umi_dedup.pl` from the [UMIScripts
 package](https://github.com/HuntsmanCancerInstitute/UMIScripts). With partial
 de-duplication, all optical duplicates (optical threshold of 2500 pixels) were
