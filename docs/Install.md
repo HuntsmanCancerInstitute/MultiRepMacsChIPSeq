@@ -25,7 +25,8 @@ necessarily need to re-install. Simply point, or symlink, the tool into a conven
 location, or otherwise ensure that it is in your `PATH`. 
 
 **NOTE on installation PREFIX:** The following examples show an installation into a
-custom directory, noted below by the environment variable `$DEST`. Adjust accordingly. 
+custom directory, noted below by the environment variable `$DEST`. Adjust accordingly,
+or leave out if installing to standard locations, i.e. `/usr/local`. 
 
 ## List of external library packages
 This is a list of the primary Perl and R modules that need to be installed. These, 
@@ -147,9 +148,9 @@ Then compile and install
 
 A modern Perl package manager, such as [CPAN
 Minus](https://metacpan.org/pod/App::cpanminus), or any other package manager, is
-highly recommended and used in the examples below. The `cpanm` utility will
-conveniently install required prerequisites with little additional effort on the
-user. Most Perl packages require numerous dependencies.
+highly recommended and used in the examples below. Follow the link to install it. The
+`cpanm` utility will conveniently install required prerequisites with little
+additional effort on the user. Most Perl packages require numerous dependencies.
 
 Where the Perl modules will be installed depends on how Perl is installed and whether
 you have write access.
@@ -190,12 +191,13 @@ installing on a macOS system and need additional help, take a look at the
 
 [BioPerl](https://metacpan.org/pod/BioPerl) is a large bundle of bioinformatics
 related Perl modules and is required by Bio::DB::HTS. Unless you have other software
-needs for BioPerl, install an unofficial, custom, [minimal
+needs for BioPerl, install an unofficial, custom, stripped-down [minimal
 version](https://github.com/tjparnell/bioperl-live/tree/minimal-tjparnell), which is
 considerably faster and easier to install and has a footprint one-third the size of
 the full distribution.
 
 	curl -O -L https://github.com/tjparnell/bioperl-live/releases/download/minimal-v1.7.8/Minimal-BioPerl-1.7.8.tar.gz
+
 The [Bio::DB::HTS](https://metacpan.org/pod/Bio::DB::HTS) package requires the C
 `htslib` library that was compiled and installed above. If this was installed in a
 standard prefix location, such as `/usr/local`, then it should be found
@@ -255,7 +257,9 @@ Note that some of them may already be installed if you've worked with R before.
 	quit()
 
 These R packages are the essentials for generating plots. Additional packages may be
-installed as desired, for example `DESeq2` from BioConductor.
+installed as desired, for example
+[DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html) from
+BioConductor.
 
 
 ## Additional applications
@@ -272,7 +276,7 @@ utilities](http://hgdownload.soe.ucsc.edu/downloads.html#utilities_downloads)
 from UCSC. The following command collects Linux executables and copies them
 into your destination `bin` directory. MacOS executables are also available.
 
-	for name in wigToBigWig bedGraphToBigWig bigWigToWig bedToBigBed; \
+	for name in wigToBigWig bigWigToBedGraph bigWigToWig bedToBigBed; \
 	do curl -o $DEST/bin/$name -L http://hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/$name \
 	&& chmod +x $DEST/bin/$name; done;
 

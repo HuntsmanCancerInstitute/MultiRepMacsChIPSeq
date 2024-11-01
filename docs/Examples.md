@@ -20,10 +20,10 @@ installed. See the [Install](Install.md) document for details.
 
 To build the project and run the first example pipeline script, run the following:
 
-	$ perl Build.PL
-	$ ./Build
-	$ cd examples
-	$ bash ./run_se.sh
+	perl Build.PL
+	./Build
+	cd examples
+	bash ./run_se.sh
 
 **NOTE**: The shell scripts include additional parameters that are excluded below for
 simplicity. However, they can certainly be used as templates for actual analysis
@@ -104,7 +104,7 @@ situations if edited appropriately.
 		--peaksize 200 \
 		--peakgap 100
 
-- Two Sample paired-end with independent replicates
+- Two sample paired-end with independent replicates
 
 	[run\_independent\_pe Script](https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq/blob/master/examples/run_independent_pe.sh).
 	This example is with two paired-end samples but with unequal numbers of
@@ -129,7 +129,7 @@ situations if edited appropriately.
 		--peakgap 100 \
 
 
-- Two Sample paired-end with independent replicates and no deduplication
+- Two sample paired-end with independent replicates and no deduplication
 
 	[run\_independent\_nodup Script](https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq/blob/master/examples/run_independent_nodup.sh).
 	This example is with two ChIP samples, each with three replicates, and with
@@ -154,7 +154,7 @@ situations if edited appropriately.
 		--peaksize 200 \
 		--peakgap 100
 
-- Two Sample Paired-end without controls
+- Two sample paired-end without controls
 
 	[run\_pe\_nocontrol Script](https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq/blob/master/examples/run_pe_nocontrol.sh).
 	This example is with two paired-end samples, each with three replicates, but
@@ -172,7 +172,7 @@ situations if edited appropriately.
 		--peaksize 200 \
 		--peakgap 100
 
-- Two Sample Paired-end broad call
+- Two sample paired-end broad call
 
 	[run\_pe\_gapped Script](https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq/blob/master/examples/run_pe_gapped.sh).
 	This example is with two paired-end samples with broad (or gapped) peak calling.
@@ -218,7 +218,7 @@ situations if edited appropriately.
 		--cutsite \
 		--cutoff 2
 
-- Single-end and Paired-end combination analysis
+- Single-end and paired-end combination analysis
 	[run\_se\_pe\_merge\_recall Script](https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq/blob/master/examples/run_se_pe_merge_recall.sh).
 	This script example runs two pipelines sequentially, one sample as paired-end and
 	the other sample as single-end. The resulting files are then merged into a third
@@ -252,7 +252,7 @@ three biological replicates and one Input reference per experiment.
 |Tup1_Input.bam | Tup1-V5_Input | GSM4794788|
 |Rpd3_Input.bam | Rpd3-V5_Input | GSM4794789|
 
-Example Bam files were aligned to SacCer3. Properly paired alignments on chrI were
+Example Bam files were aligned to SacCer3. Properly paired alignments on `chrI` were
 extracted and subsampled to < 5%. Read sequence, qualities, and CIGAR string were
 condensed to the first aligned base. Read names were condensed to tile coordinates
 only. Extraneous SAM attributes were excluded.

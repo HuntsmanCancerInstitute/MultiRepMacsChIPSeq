@@ -69,6 +69,11 @@ Documentation for the applications included in this package.
 	An application for recalling peaks with different thresholds without having
 	to re-run the entire MultiRepMacsChIPSeq pipeline.
 
+- [render.pl](applications/render.md)
+
+	An application to render a Markdown report into a self-contained HTML file
+	using `pandoc`, providing reasonable if minimal styling.
+
 - [report\_mappable\_space.pl](applications/report_mappable_space.md)
 
 	An application to report the fraction of a genome that is covered by unique
@@ -78,6 +83,11 @@ Documentation for the applications included in this package.
 
 	A simple R script to run `DESeq2` on collected peak counts, particularly
 	for differential peak analysis.
+
+- [sort\_data\_by\_key.pl](applications/sort_data_by_key.md)
+
+	An application to sort a data table by extrinsic keys, in this case by the
+	samples that contributed to a peak call.
 
 - [subset_bigwig.pl](applications/subset_bigwig.md)
 

@@ -274,10 +274,10 @@ complexity. See the [examples](examples/Readme.md) folder for example scripts.
 	generates very high optical (technical) duplicates. Note that this works with
 	Illumina CASAVA style read names; reads from SRA don't retain original spot
 	names, so optical duplicate checking can't be performed. For an evaluation of the
-	effectiveness of duplicate sub-sampling, see [De-Duplication
-	Evaluation](DeDuplicationEvaluation/ReadMe.md).
+	effectiveness of duplicate sub-sampling, see
+	[De-Duplication Evaluation](DeDuplicationEvaluation/DeDuplication.md).
 	
-	For a traditional approach to remove **all** duplicates, use the following settings:
+	For a traditional approach to **remove all duplicates**, use the following settings:
 	
 		--dupfrac 0 \
 		--maxdepth 1 \
@@ -286,8 +286,8 @@ complexity. See the [examples](examples/Readme.md) folder for example scripts.
 	might help with hotspots (but exclusion lists are a better approach). It is possible
 	to set both sub-sampling and maximum depth.
 	
-	Or you may completely turn off de-duplication if you have already marked or removed
-	duplicates. 
+	Or you may completely **turn off de-duplication** if you have already marked or
+	removed duplicates. 
 	
 		--nodedup \
 	
