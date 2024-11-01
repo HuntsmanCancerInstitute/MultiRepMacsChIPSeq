@@ -47,6 +47,14 @@ pipeline.
 See the accompanying [Installation guide](INSTALL.md) for detailed notes on getting
 the pipeline setup.
 
+Users at HCI running the pipeline on local Linux servers can simply load the packages
+into your environment using a `module` command. 
+
+	module load multirepchipseq
+
+This is also installed at CHPC at the University of Utah; please contact the
+Cancer Bioinformatics shared resource for details.
+
 ## Usage
 
 See the [Usage Guide](Usage.md) for detailed notes on how to run the pipeline. For
@@ -56,14 +64,6 @@ variations in running the pipeline, such as with ATAC-Seq or Cut & Run, see the
 A full [list of application menus](applications.md) is available. 
 
 See the [examples page](Examples.md) for using the pipeline in common scenarios.
-
-Users at HCI running the pipeline on local Linux servers can simply load the packages
-into your environment using a `module` command. 
-
-	module load multirepchipseq
-
-This is also installed at CHPC at the University of Utah CHPC; please contact the
-Cancer Bioinformatics shared resource for details.
 
 
 ## AUTHOR

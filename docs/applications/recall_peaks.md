@@ -25,7 +25,7 @@ New peak and analysis files are placed into new subdirectories with a
 numeric suffix (allowing for multiple conditions to be run
 consecutively) without overwriting pre-existing files. Peaks from
 different runs can subsequently be compared using the
-[intersect_peaks.pl](applications/intersect_peaks.md) script, if
+[intersect_peaks.pl](intersect_peaks.md) script, if
 desired.
 
 Version: 19
@@ -45,6 +45,7 @@ OPTIONS:
 	 --broad                       Also perform broad (gapped) peak calling
 	 --broadcut  number            Q-value cutoff for linking broad regions ()
 	 --broadgap  integer           Maximum link size between peaks in broad calls ()
+	 --cutsite                     Convenience option to set peak size and gap only
 	 
 	Peak scoring
 	 --binsize   integer           Size of bins in 25 flanking peak bins for profile (100)

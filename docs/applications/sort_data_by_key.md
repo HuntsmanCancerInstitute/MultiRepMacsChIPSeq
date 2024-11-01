@@ -20,7 +20,7 @@ The key or matrix file should contain the same unique feature identifiers
 (Name or ID) in the first column as the input data file. The groups should
 be in one or more subsequent columns. If more than one column, the values 
 are concatenated with a '-' delimiter. The boolean intersection matrix 
-file from [intersect_peaks.pl](applications/intersect_peaks.md) may be used here, for example. 
+file from [intersect_peaks.pl](intersect_peaks.md) may be used here, for example. 
 
 An opportunity is provided to normalize the data values by specifying 
 the reference columns. In each row, the mean value from the reference 

@@ -33,7 +33,7 @@ This is a list of the primary Perl and R modules that need to be installed. Thes
 of course, require various prerequisites, so the list is not to be considered
 absolute.
 
-- Perl [Bio::ToolBox](https://metacpan.org/pod/Bio::ToolBox)
+- Perl [Bio::ToolBox](http://tjparnell.github.io/biotoolbox)
   
 - Perl [Bio::DB::HTS](https://metacpan.org/pod/Bio::DB::HTS)
 
@@ -114,7 +114,7 @@ available through your package manger. Version `1.9` is officially recommended b
 Bio::DB::HTS authors; however, later versions appear to work just fine and should
 probably be preferred. [Version
 1.19](https://github.com/samtools/htslib/releases/download/1.19/htslib-1.19.tar.bz2)
-have been used successfully by this author. 
+has been used successfully by this author. 
 
 Note that the `htslib` package is included with the `samtools` source code packages
 and is compiled therein, but is not installed by default. The code below compiles and
@@ -197,6 +197,7 @@ considerably faster and easier to install and has a footprint one-third the size
 the full distribution.
 
 	curl -O -L https://github.com/tjparnell/bioperl-live/releases/download/minimal-v1.7.8/Minimal-BioPerl-1.7.8.tar.gz
+	cpanm Minimal-BioPerl-1.7.8.tar.gz
 
 The [Bio::DB::HTS](https://metacpan.org/pod/Bio::DB::HTS) package requires the C
 `htslib` library that was compiled and installed above. If this was installed in a

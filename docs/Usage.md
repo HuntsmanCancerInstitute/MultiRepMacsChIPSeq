@@ -346,6 +346,9 @@ complexity. See the [examples](examples/Readme.md) folder for example scripts.
 	All tracks are generated as Read (Fragment) Per Million (or RPM) depth-normalized 
 	values. Multiple replicates are mean averaged and reported as a single track.
 	
+	When the `--independent` flag is enabled (see below), individual replicate fragment
+	coverage tracks are also generated, but these are not used in peak calling.
+	
 - Chromosome normalization
 
 	For chromosome-specific normalizations, calculate the sum of alignments on the 
@@ -376,10 +379,26 @@ complexity. See the [examples](examples/Readme.md) folder for example scripts.
 
 	Two enrichment tracks are generated: a log2 fold enrichment (log2FE) and a
 	q-value (FDR) statistical enrichment track, suitable for visualization and peak
-	calling. Since the fragment tracks are expressed as RPM depth-normalized, they
-	are scaled automatically up to the minimum observed depth (in millions) amongst
-	all of the provided bam files. This number may be overridden with the advanced
-	option `--tdep` (not generally recommended).
+	calling. To generate these, the RPM-scaled coverage tracks for the ChIP and
+	Input reference are scaled to the same depth; the minimum depth of the two is
+	used. This is done independently for each sample condition. Previous versions
+	of the pipeline (< 19) used the same depth for all samples, and this can be
+	mimicked with `--samedepth` flag if desired. The numbers are reported in the
+	final report.
+
+- Count tracks
+
+	Count bigWig files (`.count.bw`) are generated for each replicate, and these
+	are used to generate the count tables for use in generating correlation metrics
+	(Pearson and PCA) and differential analysis. The count bigWigs record each
+	alignment at the midpoint base of each fragment and are scaled to the same
+	depth for each replicate. By default, this is the median depth observed across
+	all replicates, but can be set to `median`, `mean`, or `min`.
+	
+		--targetdepth mean \
+
+	If desired, unscaled count bigWigs may be generated using the flag `--rawcounts`.
+	Be aware that correlation and metric plots may become skewed.
 
 - Peak detection
 
@@ -391,8 +410,8 @@ complexity. See the [examples](examples/Readme.md) folder for example scripts.
 	or a little larger, and gap size is around half of the fragment size, or mean
 	read length. However, depending on the nature of the factor being detected and
 	the efficiency of the enrichment, there can be considerable leeway in setting
-	these values – do not consider these static! These three variables are probably
-	the most critical in calling peaks.
+	these values – do not consider these static! _These three variables are 
+	the most critical in calling peaks._
 	
 		--cutoff 2 \
 		--peaksize 250 \
@@ -402,11 +421,18 @@ complexity. See the [examples](examples/Readme.md) folder for example scripts.
 	representing a master list of all possible peaks identified across all conditions.
 	This is used in the final analysis across all conditions for comparison purposes.
 
-	Separate parameters are provided for broad peak calling, which are supplemental to 
-	narrow peak calling, including `--broadcut` and `--broadgap`. In general, Macs2 
-	uses these additional parameters to merge distant peak signals into broader 
-	intervals. These are provided to the user as is, and no further analysis is 
-	automatically performed with them.
+	Separate parameters are available for broad peak calling, which are supplemental
+	to narrow peak calling. Macs2 uses these additional parameters to merge nearby
+	adjacent peaks into broader, gapped intervals, rather than true broad peak
+	calling. These are provided to the user as is, and no further analysis is
+	automatically performed with them. There are two variables: `broadcut` is the
+	minimum q-value score (-log10 transformed) for linking adjacent peaks, and
+	`broadgap` is the maximum gap in bp between adjacent peaks for merging. In
+	practice, setting these values requires trial and error.
+	
+		--broad \
+		--broadcut 0.5 \
+		--broadgap 1000 \
 
 - Independent replicate peak calls
 
@@ -416,8 +442,11 @@ complexity. See the [examples](examples/Readme.md) folder for example scripts.
 		--independent \
 	
 	This is particularly helpful when the replicates do not have good correlation
-	with each other or there is high background and spurious peak calls not shared
-	between replicates. The replicate peaks are then merged into a single sample peak
+	with each other or if there is high background and spurious peak calls not shared
+	between replicates. _If you have biological replicates, it is best practice
+	to always include this option._
+	
+	The replicate peaks are then merged into a single _sample_ peak
 	file. By default, the minimum number of replicates with overlapping peaks to
 	accept as a final merged sample peak is `n - 1`, where `n` is the number of
 	replicates. For example, if a peak is identified at gene `XYZ1` in two out of
@@ -428,7 +457,10 @@ complexity. See the [examples](examples/Readme.md) folder for example scripts.
 		--minpeakover 1 \
 	
 	Mean-replicate peaks are always called in parallel with independent-replicate 
-	peak calls. Analysis folders are kept separately. 
+	peak calls. Final summary tables and reports are kept independent, as are Plot 
+	folders. Each should be evaluated separately. In personal experience, these can
+	generate very different numbers of final peaks, depending on the strength and
+	correlation between individual replicates. 
 
 - Peak scoring
 

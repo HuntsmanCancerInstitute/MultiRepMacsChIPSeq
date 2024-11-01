@@ -6,7 +6,7 @@
 
 This is a wrapper for calling and/or comparing peaks in ChIPSeq or ATACSeq with
 single or multiple replicas using the [Macs2](https://pypi.org/project/MACS2/)
-ChIPSeq caller. It uses [BioToolBox](https://metacpan.org/pod/Bio::ToolBox)
+ChIPSeq caller. It uses [BioToolBox](http://tjparnell.github.io/biotoolbox)
 applications to normalize duplicate levels and read depths between samples and
 replicates.
 
@@ -43,7 +43,7 @@ as a (poor) substitute.
 
 Advanced users may provide one processed bigWig file per ChIP or control sample. 
 
-Version: 19
+Version: 20
 
 Options:
 
@@ -82,7 +82,7 @@ Options:
 	  --deduppair                   Run deduplication as paired-end, but coverage as single-end
 	
 	Fragment coverage
-	  --atac                        Set multiple options specific for ATACSeq cutsite analysis
+	  --cutsite                     Set multiple options specific for ATACSeq cutsite analysis
 	  --size        integer         Predicted fragment size. REQUIRED for single-end
 	  --shift       integer         Shift the fragment in special situations
 	  --fraction                    Record multiple-hit alignments as fraction of hits
@@ -141,8 +141,8 @@ Options:
 	  --manwig       path           (manipulate_wig.pl)
 	  --meanbdg      path           (generate_mean_bedGraph.pl)
 	  --peak2bed     path           (peak2bed.pl)
-	  --updatepeak  path            (update_peak_file.pl)
-	  --pandoc      path            (pandoc)
+	  --updatepeak   path           (update_peak_file.pl)
+	  --pandoc       path           (pandoc)
 	  --plotpeak     path           (plot_peak_figures.R)
 	  --printchr     path           (print_chromosome_lengths.pl)
 	  --reportmap    path           (report_mappable_space.pl)

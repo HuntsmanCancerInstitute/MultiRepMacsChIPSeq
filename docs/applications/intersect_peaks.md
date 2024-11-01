@@ -20,7 +20,7 @@ the merged peaks to those represented by multiple input peak files (default 1).
 It will report the pairwise number of intersections and spatial overlap 
 (Jaccard statistic) between all pairwise combinations of peak intervals. 
 
-Results may be plotted using [plot_peak_figures.R](applications/plot_peak_figures.md) 
+Results may be plotted using [plot_peak_figures.R](plot_peak_figures.md) 
 using the out basename as input.
 
 Seven files will be written:
