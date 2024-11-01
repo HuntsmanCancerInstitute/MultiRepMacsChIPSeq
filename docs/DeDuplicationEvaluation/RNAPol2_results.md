@@ -19,7 +19,7 @@ retained duplicates.
 
 The mean peak length was 1140 ± 1883 bp, median 635 bp at a threshold q-value of 2. 
 
-![RNAPol2_peak_number](DeDuplicationEvaluation/RNAPol2.peak_number.png)
+![RNAPol2_peak_number](RNAPol2.peak_number.png)
 
 
 ### ChIP Efficiency
@@ -27,7 +27,7 @@ The mean peak length was 1140 ± 1883 bp, median 635 bp at a threshold q-value o
 The fraction of alignments within the respectively called peaks was quite good, with 
 nearly identical fractions between the subsets, ranging from 33-35%. 
 
-![RNAPol2_chip_efficiency](DeDuplicationEvaluation/RNAPol2.chip_efficiency.png)
+![RNAPol2_chip_efficiency](RNAPol2.chip_efficiency.png)
 
 
 ### Peak Fragment Coverage Profile
@@ -35,7 +35,7 @@ nearly identical fractions between the subsets, ranging from 33-35%.
 The depth-normalized fragment coverage profile over the called peak midpoint ± 1 Kb 
 shows no difference between the subsets.
 
-![RNAPol2_profile_fragment](DeDuplicationEvaluation/RNAPol2_profile_fragment_hm.png)
+![RNAPol2_profile_fragment](RNAPol2_profile_fragment_hm.png)
 
 
 ### Comparison of Duplicate Alignments Within Peaks
@@ -51,7 +51,7 @@ duplicate alignments found within peaks. Notably, however, the difference is onl
 few percentage points, and more importantly, very little with UMI-deduplicated
 alignments. 
 
-![RNAPol2_efficiency_comparison](DeDuplicationEvaluation/RNAPol2_comparison.chip_efficiency.png)
+![RNAPol2_efficiency_comparison](RNAPol2_comparison.chip_efficiency.png)
 
 
 ### Conclusion

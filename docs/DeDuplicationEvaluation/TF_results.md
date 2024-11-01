@@ -20,7 +20,7 @@ Leaving in all duplicates calls nearly 40% more peaks.
 
 The mean peak length was 418 ± 182 bp, median 370 bp at a threshold q-value of 2. 
 
-![TF_peak_number](DeDuplicationEvaluation/TF.peak_number.png)
+![TF_peak_number](TF.peak_number.png)
 
 
 ### ChIP Efficiency
@@ -28,7 +28,7 @@ The mean peak length was 418 ± 182 bp, median 370 bp at a threshold q-value of 
 The fraction of alignments within the respectively called peaks was quite low, as 
 expected for such few peak numbers called, ranging from 0.25% to 0.30%.  
 
-![TF_chip_efficiency](DeDuplicationEvaluation/TF.chip_efficiency.png)
+![TF_chip_efficiency](TF.chip_efficiency.png)
 
 
 ### Peak Fragment Coverage Profile
@@ -36,7 +36,7 @@ expected for such few peak numbers called, ranging from 0.25% to 0.30%.
 The depth-normalized fragment coverage profile over the called peak midpoint ± 1 Kb 
 shows no difference between the subsets.
 
-![TF_profile_fragment](DeDuplicationEvaluation/TF_profile_fragment_hm.png)
+![TF_profile_fragment](TF_profile_fragment_hm.png)
 
 
 ### Comparison of Duplicate Alignments Within Peaks
@@ -51,7 +51,7 @@ the peaks than completely deduplicated alignments, indicating there are indeed
 duplicate alignments found within peaks. Notably, however, the difference is quite
 small. 
 
-![TF_efficiency_comparison](DeDuplicationEvaluation/TF_comparison.chip_efficiency.png)
+![TF_efficiency_comparison](TF_comparison.chip_efficiency.png)
 
 
 ### Conclusion

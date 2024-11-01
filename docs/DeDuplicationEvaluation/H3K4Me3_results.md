@@ -15,7 +15,7 @@ The number of peaks called between different subsets were nearly identical. Usin
 alignments called the most number of peaks. The mean peak length was 1568 ± 1140 bp, 
 median 1350 bp at a threshold q-value of 2. 
 
-![H3K4me3_peak_number](DeDuplicationEvaluation/H3K4me3.peak_number.png)
+![H3K4me3_peak_number](H3K4me3.peak_number.png)
 
 
 ### ChIP Efficiency
@@ -23,7 +23,7 @@ median 1350 bp at a threshold q-value of 2.
 The fraction of alignments within the respectively called peaks was quite good, with 
 nearly identical fractions between the subsets, ranging from 43-45%. 
 
-![H3K4me3_chip_efficiency](DeDuplicationEvaluation/H3K4me3.chip_efficiency.png)
+![H3K4me3_chip_efficiency](H3K4me3.chip_efficiency.png)
 
 
 ### Peak Fragment Coverage Profile
@@ -31,7 +31,7 @@ nearly identical fractions between the subsets, ranging from 43-45%.
 The depth-normalized fragment coverage profile over the called peak midpoint ± 1 Kb 
 shows no difference between the subsets.
 
-![H3K4me3_profile_fragment](DeDuplicationEvaluation/H3K4me3_profile_fragment_hm.png)
+![H3K4me3_profile_fragment](H3K4me3_profile_fragment_hm.png)
 
 
 ### Comparison of Duplicate Alignments Within Peaks
@@ -47,7 +47,7 @@ duplicate alignments found within peaks. Notably, however, the difference is onl
 few percentage points, and more importantly, very little with UMI-deduplicated
 alignments. 
 
-![H3K4me3_efficiency_comparison](DeDuplicationEvaluation/H3K4me3_comparison.chip_efficiency.png)
+![H3K4me3_efficiency_comparison](H3K4me3_comparison.chip_efficiency.png)
 
 
 ### Conclusion
