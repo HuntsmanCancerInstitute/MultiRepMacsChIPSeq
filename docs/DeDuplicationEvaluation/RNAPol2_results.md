@@ -1,4 +1,8 @@
-# RNA Polymerase II ChIPSeq Partial Duplication Example
+# MultiRepMacsChIPSeq - Pol2 DeDup
+
+|[Home](../Readme.md)|[Overview](../Overview.md)|[Usage](../Usage.md)|[Variations](../Variations.md)|[Examples](../Examples.md)|[Applications](../applications.md)|[Install](../Install.md)|
+
+## RNA Polymerase II ChIPSeq Partial Duplication Example
 
 An example of RNA Polymerase II ChIPSeq from mammalian cells. The ChIP samples were
 prepared with NEBNext Ultra II DNA Library kit and sequenced on a NovaSeq 6000. This

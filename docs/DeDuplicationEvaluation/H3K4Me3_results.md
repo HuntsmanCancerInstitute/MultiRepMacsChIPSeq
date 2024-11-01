@@ -1,4 +1,8 @@
-# H3K4me3 ChIPSeq Partial Duplication Example
+# MultiRepMacsChIPSeq - H3K4me3 DeDup
+
+|[Home](../Readme.md)|[Overview](../Overview.md)|[Usage](../Usage.md)|[Variations](../Variations.md)|[Examples](../Examples.md)|[Applications](../applications.md)|[Install](../Install.md)|
+
+## H3K4me3 ChIPSeq Partial Duplication Example
 
 An example of H3K4me3 ChIPSeq from mammalian cells. The ChIP samples were prepared with 
 NEBNext Ultra II DNA Library kit and sequenced on a NovaSeq 6000. This ChIPSeq had a 

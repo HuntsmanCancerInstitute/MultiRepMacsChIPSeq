@@ -1,4 +1,8 @@
-# Transcription Factor ChIPSeq Partial Duplication Example
+# MultiRepMacsChIPSeq - TF DeDup
+
+|[Home](../Readme.md)|[Overview](../Overview.md)|[Usage](../Usage.md)|[Variations](../Variations.md)|[Examples](../Examples.md)|[Applications](../applications.md)|[Install](../Install.md)|
+
+## Transcription Factor ChIPSeq Partial Duplication Example
 
 An example of a DNA-binding transcription factor ChIPSeq from mammalian cells. The
 ChIP samples were prepared with NEBNext Ultra II DNA Library kit and sequenced on a

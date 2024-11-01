@@ -1,6 +1,6 @@
 # MultiRepMacsChIPSeq - De-Duplication
 
-|[Home](Readme.md)|[Overview](Overview.md)|[Usage](Usage.md)|[Variations](Variations.md)|[Examples](Examples.md)|[Applications](applications.md)|[Install](Install.md)|
+|[Home](../Readme.md)|[Overview](../Overview.md)|[Usage](../Usage.md)|[Variations](../Variations.md)|[Examples](../Examples.md)|[Applications](../applications.md)|[Install](../Install.md)|
 
 ## De-Duplication sub-sampling evaluation
 
