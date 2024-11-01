@@ -28,7 +28,7 @@ multirep_macs2_pipeline.pl \
 --out all_cut \
 --dupfrac 0.1 \
 --optdist 2500 \
---atac \
+--cutsite \
 --cutoff 3 \
 --cpu 1 \
 --job 4 \
