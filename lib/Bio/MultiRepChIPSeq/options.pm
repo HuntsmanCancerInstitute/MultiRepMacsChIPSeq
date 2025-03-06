@@ -5,7 +5,7 @@ use Carp;
 use IO::File;
 use File::Which;
 
-our $VERSION = 20.0;
+our $VERSION = 20.1;
 
 sub init_options {
 	my $class = shift;
@@ -25,7 +25,7 @@ sub init_options {
 		fraction    => 0,
 		minsize     => 50,
 		maxsize     => 500,
-		chrskip     => "chrM|MT|alt|Adapter|Lambda|PhiX",
+		chrskip     => "chrM|MT|alt|chrUn|random|EBV|Adapter|Lambda|PhiX",
 		exclude     => undef,
 		dedup       => 1,
 		maxdup      => undef,   # old option
