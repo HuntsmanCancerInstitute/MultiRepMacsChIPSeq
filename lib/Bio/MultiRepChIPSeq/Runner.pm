@@ -2812,6 +2812,7 @@ sub generate_report {
 	if ( $self->{progress}{bamfilter} ) {
 		$md .= $self->add_filter_report;
 	}
+	$md .= $self->add_peak_call_parameters;
 	if ( $self->{progress}{fragment} ) {
 		$md .= $self->add_coverage_report;
 	}
@@ -2826,6 +2827,9 @@ sub generate_report {
 			$md .= $self->add_merged_replicates_broad_report;
 		}
 		$md .= $self->add_mean_replicates_broad_report;
+	}
+	if ( $self->independent ) {
+		$md .= $self->add_mean_merge_comparison;
 	}
 	$md .= $self->add_summary_report;
 	
