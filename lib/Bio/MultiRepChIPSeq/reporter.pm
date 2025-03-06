@@ -319,7 +319,6 @@ sub add_filter_report {
 	my $self = shift;
 
 	# bam filter
-#	if ( $self->{progress}{bamfilter} ) {
 	my $string = <<END;
 
 ### Alignment Filtering
@@ -334,6 +333,81 @@ END
 		my $m = $self->mapq;
 		$string .=
 			"Alignments with a mapping quality score less than $m were discarded\n";
+	}
+
+	return $string;
+}
+
+sub add_peak_call_parameters {
+	my $self = shift;
+	
+	my $peaksize = $self->peaksize;
+	my $peakgap  = $self->peakgap;
+	my $cutoff   = $self->cutoff;
+	my $broadcut = $self->broadcut;
+	my $broadgap = $self->broadgap;
+	my ($decimal, $decimal2);
+	{
+		my $number  = int($cutoff) + 1;
+		my $pattern = qq(%.$number) . 'f';
+		$decimal    = sprintf $pattern, ( 1 / ( 10 ** $cutoff ) );
+		$number     = int($broadcut) + 1;
+		$pattern    = "%.$number" . 'f';
+		$decimal2   = sprintf $pattern, ( 1 / ( 10 ** $broadcut ) );
+	}
+	my $string = <<END;
+
+### Peak Calling parameters
+
+Narrow peaks calls were made using a q-value threshold of **$cutoff** (essentially
+a False Discovery Rate <= $decimal), a minimum peak size of **$peaksize** bp, and a
+maximum allowed gap of **$peakgap** bp. 
+END
+
+	if ($self->broad) {
+		$string .= <<END;
+
+For broad, or gapped-peak, calling, significant peaks were called using a q-value
+threshold of **$cutoff** (essentially FDR <= $decimal) and maximum gap of
+**$peakgap** bp. Dispersed or nearby peaks were merged with a cutoff of
+**$broadcut** (essentially FDR <= $decimal2). The maximum linking between
+significant peaks was **$broadgap** bp. The minimum peak length was
+**$peaksize** bp.
+END
+	}
+
+	if ($self->independent) {
+		$string .= <<END;
+
+Two sets of peak calls were generated using two separate methods, which are
+comparable but mutually exclusive. 
+
+- Replicate-Merge
+	
+	Peak calls are identified separately for each individual replicate and then 
+	merged into a single call set for each sample condition. This tolerates
+	individual replicate efficiency but requires consensus before merging,
+	avoiding sporadic calls made from individual replicates.
+
+- Replicate-Mean
+
+	Individual replicates are averaged together in a depth-normalized manner
+	and peak calls generated from the mean signal. This is a consensus peak
+	call, as each replicate must contribute signal to the mean and thus can
+	avoid some outlier effects.
+
+Depending on the strength and efficiency of each replicate and how well they
+correlate with each other, these peak call sets may be nearly identical or very
+different. A comparison between the two is shown at the end of the report.
+END
+	}
+	else {
+		$string .= <<END;
+
+If replicates were included in sample conditions, these were averaged together
+in a depth-normalized manner prior to generating peak calls.
+END
+
 	}
 
 	return $string;
@@ -468,26 +542,14 @@ END
 sub add_independent_peak_calls_report {
 	my $self = shift;
 
-	my $peaksize = $self->peaksize;
-	my $peakgap  = $self->peakgap;
-	my $cutoff   = $self->cutoff;
-	my $decimal;
-	{
-		my $number  = int($cutoff) + 1;
-		my $pattern = qq(%.$number) . 'f';
-		$decimal    = sprintf $pattern, ( 1 / ( 10 ** $cutoff ) );
-	}
-
 	my $string = <<END;
 
 --------
 
 ## Independent Replicate Peak Calls
 
-Peaks calls were made independently for each sample replicate, using a q-value 
-threshold of **$cutoff** (essentially FDR <= $decimal), minimum peak size of 
-$peaksize bp, and a maximum gap of $peakgap bp. The following number of peaks
-were identified.
+Peaks calls were made independently for each sample replicate as described
+above. The following number of peaks were identified. 
 
 | Sample | Replicate | File | Number |
 |---|---|---|---|
@@ -529,33 +591,14 @@ END
 sub add_independent_broad_peak_calls_report {
 	my $self = shift;
 
-	my $peaksize = $self->peaksize;
-	my $peakgap  = $self->peakgap;
-	my $cutoff   = $self->cutoff;
-	my $broadcut = $self->broadcut;
-	my $broadgap = $self->broadgap;
-	my ($decimal, $decimal2);
-	{
-		my $number  = int($cutoff) + 1;
-		my $pattern = qq(%.$number) . 'f';
-		$decimal    = sprintf $pattern, ( 1 / ( 10 ** $cutoff ) );
-		$number     = int($broadcut) + 1;
-		$pattern    = "%.$number" . 'f';
-		$decimal2   = sprintf $pattern, ( 1 / ( 10 ** $broadcut ) );
-	}
-
 	my $string = <<END;
 
 --------
 
 ## Independent Gapped Replicate Peak Calls
 
-Broad, gapped peaks were called independently for each sample replicate. Significant
-peaks were called using a q-value threshold of **$cutoff** (essentially FDR <=
-$decimal) and maximum gap of $peakgap bp. Dispersed or nearby peaks were merged
-with a cutoff of **$broadcut** (essentially FDR <= $decimal2). The maximum linking
-between significant peaks was $broadgap bp. The minimum minimum peak length was
-$peaksize bp. The following number of broad peaks were identified.
+Broad, gapped peaks were called independently for each sample replicate as
+described above. The following number of broad peaks were identified.
 
 | Sample | Replicate | File | Number |
 |---|---|---|---|
@@ -610,7 +653,7 @@ sub add_merged_replicates_report {
 
 Independently called replicate peaks were merged for each sample, requiring at least
 $overlap overlaps and a maximum gap of $gap bp. The final number of peaks for each
-sample are below.
+sample are listed below.
 
 | Sample | File | Number |
 |---|---|---|
@@ -894,9 +937,9 @@ sub add_mean_replicates_report {
 
 ## Replicate-mean Peaks
 
-Peaks were called for each sample from the replicate-mean fragment coverage and 
-enrichment tracks using a q-value threshold of **$cutoff** (essentially FDR <= $decimal),
-minimum peak size of $peaksize bp, and a maximum gap of $peakgap bp.
+Peaks were called for each sample from the sample fragment coverage and enrichment
+tracks as described above. If replicates were provided, they were averaged
+together. The number of peaks identified are listed below.
 
 | Sample | File | Number |
 |---|---|---|
@@ -1045,22 +1088,7 @@ END
 
 sub add_mean_replicates_broad_report {
 	my $self = shift;
-	# Mean replicates
-	my $rep_num  = 0;  # total number of replicates
-	my $peaksize = $self->peaksize;
-	my $peakgap  = $self->peakgap;
-	my $cutoff   = $self->cutoff;
-	my $broadcut = $self->broadcut;
-	my $broadgap = $self->broadgap;
-	my ($decimal, $decimal2);
-	{
-		my $number  = int($cutoff) + 1;
-		my $pattern = "%.$number" . 'f';
-		$decimal    = sprintf $pattern, ( 1 / ( 10 ** $cutoff ) );
-		$number     = int($broadcut) + 1;
-		$pattern    = "%.$number" . 'f';
-		$decimal2   = sprintf $pattern, ( 1 / ( 10 ** $broadcut ) );
-	}
+
 	my $string = <<END;
 
 --------
@@ -1068,16 +1096,15 @@ sub add_mean_replicates_broad_report {
 ## Gapped Replicate-mean Peaks
 
 Broad, gapped peaks were called for each sample from the replicate-mean fragment
-coverage and enrichment tracks. Significant peaks were called using a q-value
-threshold of **$cutoff** (essentially FDR <= $decimal) and maximum gap of $peakgap
-bp. Dispersed or nearby peaks were merged with a cutoff of **$broadcut** (essentially
-FDR <= $decimal2). The maximum linking between significant peaks was $broadgap bp.
-The minimum minimum peak length of $peaksize bp.
+coverage and enrichment tracks. Significant peaks were called as described above.
+The number of peaks identified are listed below.
 
 | Sample | File | Number |
 |---|---|---|
 END
 
+	# add gapped peak files
+	my $rep_num  = 0;  # total number of replicates
 	foreach my $Job ( $self->list_jobs ) {
 		next unless $Job->repmean_gappeak;
 		$string .= sprintf "| %s | `%s` | %s |\n", $Job->job_name,
