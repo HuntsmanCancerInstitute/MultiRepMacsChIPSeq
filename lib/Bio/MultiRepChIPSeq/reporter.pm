@@ -4,9 +4,10 @@ use strict;
 use English qw(-no_match_vars);
 use Carp;
 use File::Spec::Functions qw( catfile splitpath );
+use Bio::ToolBox 1.70;
 use Bio::ToolBox::utility qw(format_with_commas);
 
-our $VERSION = 20.0;
+our $VERSION = 20.1;
 
 sub add_header_report {
 	my $self = shift;
@@ -1175,6 +1176,119 @@ peaks due to the variably large size of the broad intervals.
 END
 	return $string;
 }
+
+sub add_mean_merge_comparison {
+	my $self = shift;
+	
+	# get counts
+	my $merged_peak  = ( splitpath( $self->repmerge_merge_base ) )[2] . '.bed';
+	my $merged_count = format_with_commas( $self->count_file_lines(
+		$self->repmerge_merge_base . '.bed' ) );
+	my $mean_peak  = ( splitpath( $self->repmean_merge_base ) )[2] . '.bed';
+	my $mean_count = format_with_commas( $self->count_file_lines( 
+		catfile( $self->dir, $mean_peak ) ) );
+	
+	# get overlap stats
+	my $intersect_file = catfile( $self->dir, 'Analysis' . $self->dir_suffix,
+		'mean_merge.intersection.txt');
+	my $Data = Bio::ToolBox->load_file($intersect_file) or
+		do {
+			carp "cannot read $intersect_file! $OS_ERROR";
+			return;
+		};
+	my $jaccard       = $Data->value(2,3);
+	my $count_number  = format_with_commas( $Data->value(2,4) );
+	my $count_percent = sprintf "%.0f%%", $Data->value(2,5) * 100;
+	my $evaluation;
+	if ($jaccard > 0.9) {
+		$evaluation = 'excellent';
+	}
+	elsif ($jaccard > 0.7) {
+		$evaluation = 'good';
+	}
+	elsif ($jaccard > 0.5) {
+		$evaluation = 'moderate';
+	}
+	else {
+		$evaluation = 'poor';
+	}
+	$jaccard = sprintf "%.0f%%", $jaccard * 100;
+
+	my $string = <<END;
+
+--------
+
+## Comparison between Replicate-Mean and Replicate-Merge Peaks
+
+The two methods of calling peaks from replicates, Replicate-Mean and
+Replicate-Merge, are comparable but mutually exclusive methods.
+_Only one set should be chosen for further analysis._ They should not
+be merged.
+
+In ideal experiments, replicates that are strongly correlated should produce
+nearly identical call sets between the two methods. Less correlative replicates,
+or replicates with dissimilar strengths or efficiencies, may result in one
+method working better than the other. 
+
+Typically, if the replicates have good correlation, the Replicate-Merge peaks
+should be used preferentially. Otherwise, the method generating the most peak
+intervals should be used. 
+END
+
+	if ( $merged_count > $mean_count ) {
+		$string .= <<END;
+In this case, the **Replicate-Merge** method generated more peak intervals, with
+$merged_count versus $mean_count intervals.
+END
+	}
+	elsif ( $merged_count < $mean_count ) {
+		$string .= <<END;
+In this case, the **Replicate-Mean** method generated more peak intervals, with
+$mean_count versus $merged_count intervals.
+END
+	}
+	elsif ( $merged_count == $mean_count ) {
+		$string .= <<END;
+In this case, the two methods generated an identical number of peak intervals,
+$mean_count, so the methods are equivalent.
+END
+	}
+
+	$string .= <<END;
+
+The spatial overlap (Jaccard) between the two methods is $jaccard, which is 
+$evaluation. There were $count_number overlapping intervals ($count_percent).
+END
+	
+	# add plots when available
+	if ($self->plot) {
+		my $plot_dir = 'Replicate-Merge_Plots';
+		my $upset_image = catfile('Replicate-Merge_Plots' . $self->dir_suffix,
+			'mean_merge.intersection_upset.png');
+		my $spatial_image = catfile('Replicate-Merge_Plots' . $self->dir_suffix,
+			'mean_merge.spatial_pie.png');
+		$string .= <<END;
+
+Below are the count intersection UpSet and spatial overlap pie plots for the
+intersection between Replicate-Merge and Replicate-Mean peak intervals.
+
+![mean-merge-upset]($upset_image)
+
+![mean-merge-pie]($spatial_image)
+
+END
+	}
+
+	if ($self->broad) {
+		$string .= <<END;
+
+No comparisons are made for the gapped peak intervals.
+
+END
+	}
+	return $string;
+}
+
 
 sub add_summary_report {
 	my $self = shift;
