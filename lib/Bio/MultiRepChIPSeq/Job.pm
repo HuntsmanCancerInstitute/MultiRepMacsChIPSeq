@@ -3,13 +3,12 @@ package Bio::MultiRepChIPSeq::Job;
 use strict;
 use Carp;
 use IO::File;
-use File::Spec;
-use Data::Dumper;
+use File::Spec::Functions qw( catfile splitpath );
 use List::Util qw(min);
 use base 'Bio::MultiRepChIPSeq::options';
 use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 
-our $VERSION = 20.0;
+our $VERSION = 20.1;
 
 sub new {
 
@@ -60,7 +59,7 @@ sub new {
 	}, $class;
 
 	# base namepath
-	my $namepath = File::Spec->catfile( $self->dir, $job_name );
+	my $namepath = catfile( $self->dir, $job_name );
 
 	## check the ChIP files
 	if ( $chip =~ /\. (?: bw | bigwig )$/xi ) {
@@ -106,10 +105,10 @@ sub new {
 
 		# generate count bw and dedup bam file names
 		foreach my $bam (@bams) {
-			my ( undef, undef, $fname ) = File::Spec->splitpath($bam);
+			my ( undef, undef, $fname ) = splitpath($bam);
 			$fname = simplify_dataset_name($fname);    # strip extension and cleanup
 			$self->chip_rep_names($fname);
-			my $base = File::Spec->catfile( $self->dir, $fname );
+			my $base = catfile( $self->dir, $fname );
 
 			# count bigWig
 			$self->chip_count_bw("$base.count.bw");
@@ -135,7 +134,7 @@ sub new {
 		# this is just a ChIP Job using a common universal reference file
 		# the actual control name is embedded in the name, so extract it
 		# we only need to know the bedgraph file name here
-		$self->lambda_bdg( File::Spec->catfile( $opts->{dir}, $1 . '.bdg' ) );
+		$self->lambda_bdg( catfile( $opts->{dir}, $1 . '.bdg' ) );
 	}
 	elsif ( $control =~ /\.(?: bw | bigwig )$/xi ) {
 
@@ -197,9 +196,9 @@ sub new {
 
 		# generate count bw  and dedup file names
 		foreach my $bam (@bams) {
-			my ( undef, undef, $fname ) = File::Spec->splitpath($bam);
+			my ( undef, undef, $fname ) = splitpath($bam);
 			$fname =~ s/\.bam$//i;    # strip extension
-			my $base = File::Spec->catfile( $self->dir, $fname );
+			my $base = catfile( $self->dir, $fname );
 
 			# count bigWig
 			$self->control_count_bw("$base.count.bw");

@@ -4,8 +4,8 @@ use strict;
 use English qw(-no_match_vars);
 use Carp;
 use IO::File;
-use File::Spec;
 use File::Copy;
+use File::Spec::Functions qw( catfile splitpath );
 use File::Path qw(make_path);
 use Statistics::Descriptive;
 use Parallel::ForkManager;
@@ -15,7 +15,7 @@ use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
 use base 'Bio::MultiRepChIPSeq::reporter';
 
-our $VERSION = 20.0;
+our $VERSION = 20.1;
 
 sub new {
 	my $class   = shift;
@@ -78,12 +78,12 @@ sub add_job {
 	# initialize peak_base values automatically, since they're dependent on user options
 	if ( $self->independent ) {
 		$self->repmean_merge_base(
-			File::Spec->catfile( $self->dir, $self->out . '.rep_mean' ) );
+			catfile( $self->dir, $self->out . '.rep_mean' ) );
 		$self->repmerge_merge_base(
-			File::Spec->catfile( $self->dir, $self->out . '.rep_merge' ) );
+			catfile( $self->dir, $self->out . '.rep_merge' ) );
 	}
 	else {
-		$self->repmean_merge_base( File::Spec->catfile( $self->dir, $self->out ) );
+		$self->repmean_merge_base( catfile( $self->dir, $self->out ) );
 	}
 
 	return $Job;
@@ -107,7 +107,7 @@ sub progress_file {
 	unless ( defined $self->{progress_file} ) {
 
 		# generate progress file path
-		my $pf = File::Spec->catfile( $self->dir, $self->out . '.progress.txt' );
+		my $pf = catfile( $self->dir, $self->out . '.progress.txt' );
 		$self->{progress_file} = $pf;
 
 		# make the progress hash
@@ -245,7 +245,7 @@ sub run_generate_chr_file {
 	print "\n\n======= Generating temporary chromosome file\n";
 	my $chromofile = $self->chromofile;
 	unless ($chromofile) {
-		$chromofile = File::Spec->catfile( $self->dir, "chrom_sizes.temp.txt" );
+		$chromofile = catfile( $self->dir, "chrom_sizes.temp.txt" );
 		$self->chromofile($chromofile);
 	}
 	if ( -e $chromofile ) {
@@ -486,7 +486,7 @@ sub run_input_peak_detection {
 	if ( $self->{progress}{control_peak} ) {
 
 		# check that we actually have the expected file
-		my $exclude_file = File::Spec->catfile(
+		my $exclude_file = catfile(
 			$self->dir,
 			sprintf( "%s.control_peak.bed", $self->out )
 		);
@@ -511,7 +511,7 @@ sub run_input_peak_detection {
 		# we have at least one reference bam file to process
 		# set the name of the exclusion list file
 		$exclude_file =
-			File::Spec->catfile( $self->dir, sprintf( "%s.control_peak", $self->out ) );
+			catfile( $self->dir, sprintf( "%s.control_peak", $self->out ) );
 	}
 	else {
 		# no reference bam files!
@@ -702,7 +702,7 @@ sub run_dedup {
 		$fh->close;
 
 		# name of bam file, extracted from log file
-		my ( undef, undef, $name ) = File::Spec->splitpath( $c->[2] );
+		my ( undef, undef, $name ) = splitpath( $c->[2] );
 		$name =~ s/\.dedup \.out \.txt $//x;
 
 		# store in array
@@ -714,7 +714,7 @@ sub run_dedup {
 	}
 
 	# print duplicate stats file
-	my $dedupfile = File::Spec->catfile( $self->dir, $self->out . '.dedup-stats.txt' );
+	my $dedupfile = catfile( $self->dir, $self->out . '.dedup-stats.txt' );
 	my $fh        = IO::File->new( $dedupfile, 'w' );
 	foreach (@dedupstats) {
 		$fh->print("$_\n");
@@ -790,7 +790,7 @@ sub run_bam_filter {
 
 			# write exclusion file
 			$filter_file =
-				File::Spec->catfile( $self->dir, $self->out . '.bamfilter.bed' );
+				catfile( $self->dir, $self->out . '.bamfilter.bed' );
 			my $fh = IO::File->new( $filter_file, 'w' );
 			if ($fh) {
 				foreach my $e (@exclusions) {
@@ -914,7 +914,7 @@ sub run_mappable_space_report {
 
 	# the output logfile
 	my $logfile =
-		File::Spec->catfile( $self->dir, sprintf( "%s.mappable.out.txt", $self->out ) );
+		catfile( $self->dir, sprintf( "%s.mappable.out.txt", $self->out ) );
 
 	# check if command is finished, otherwise run it
 	if ( $self->{progress}{mappable_size} ) {
@@ -2516,7 +2516,7 @@ sub run_cleanup {
 	}
 
 	# Check for remaining log files, perhaps from previously completed steps
-	my @logs = glob( File::Spec->catfile( $self->dir, '*.out.txt' ) );
+	my @logs = glob( catfile( $self->dir, '*.out.txt' ) );
 	foreach my $log (@logs) {
 		push @output, "=== Log file: $log\n";
 		if ( -z $log ) {
@@ -2535,7 +2535,7 @@ sub run_cleanup {
 	}
 
 	# print everything out
-	my $file = File::Spec->catfile( $self->dir, $self->out . "_job_output_logs.txt" );
+	my $file = catfile( $self->dir, $self->out . "_job_output_logs.txt" );
 	my $fh   = IO::File->new( $file, "w" )
 		or confess "cannot write job output logs to '$file'!!!!";
 	foreach my $line (@output) {
@@ -2571,7 +2571,7 @@ sub run_cleanup {
 			}
 		}
 	}
-	if ( $self->chromofile eq File::Spec->catfile( $self->dir, "chrom_sizes.temp.txt" ) )
+	if ( $self->chromofile eq catfile( $self->dir, "chrom_sizes.temp.txt" ) )
 	{
 		unlink $self->chromofile;
 	}
@@ -2586,13 +2586,13 @@ sub run_organize {
 	print "\n\n======= Moving files into subdirectories\n";
 
 	# directories
-	my $fragdir  = File::Spec->catfile( $self->dir, 'Fragment' );
-	my $log2dir  = File::Spec->catfile( $self->dir, 'Log2FE' );
-	my $countdir = File::Spec->catfile( $self->dir, 'Count' );
-	my $qdir     = File::Spec->catfile( $self->dir, 'QValue' );
-	my $peakdir  = File::Spec->catfile( $self->dir, 'Peaks' . $suffix );
-	my $sumitdir = File::Spec->catfile( $self->dir, 'PeakSummits' . $suffix );
-	my $analdir  = File::Spec->catfile( $self->dir, 'Analysis' . $suffix );
+	my $fragdir  = catfile( $self->dir, 'Fragment' );
+	my $log2dir  = catfile( $self->dir, 'Log2FE' );
+	my $countdir = catfile( $self->dir, 'Count' );
+	my $qdir     = catfile( $self->dir, 'QValue' );
+	my $peakdir  = catfile( $self->dir, 'Peaks' . $suffix );
+	my $sumitdir = catfile( $self->dir, 'PeakSummits' . $suffix );
+	my $analdir  = catfile( $self->dir, 'Analysis' . $suffix );
 
 	foreach ( $fragdir, $log2dir, $countdir, $qdir, $peakdir, $sumitdir, $analdir ) {
 		make_path($_);
@@ -2604,59 +2604,59 @@ sub run_organize {
 	# ChIPJob object plus general run files....
 
 	# log2FE files
-	foreach ( glob( File::Spec->catfile( $self->dir, '*.log2FE.bw' ) ) ) {
+	foreach ( glob( catfile( $self->dir, '*.log2FE.bw' ) ) ) {
 		move( $_, $log2dir );
 	}
 
 	# fragment files
-	foreach ( glob( File::Spec->catfile( $self->dir, '*.fragment.bw' ) ) ) {
+	foreach ( glob( catfile( $self->dir, '*.fragment.bw' ) ) ) {
 		move( $_, $fragdir );
 	}
-	foreach ( glob( File::Spec->catfile( $self->dir, '*.lambda_control.bw' ) ) ) {
+	foreach ( glob( catfile( $self->dir, '*.lambda_control.bw' ) ) ) {
 		move( $_, $fragdir );
 	}
-	foreach ( glob( File::Spec->catfile( $self->dir, '*.control_fragment.bw' ) ) ) {
+	foreach ( glob( catfile( $self->dir, '*.control_fragment.bw' ) ) ) {
 		move( $_, $fragdir );
 	}
-	foreach ( glob( File::Spec->catfile( $self->dir, '*.fragment.global_mean.bw' ) ) ) {
+	foreach ( glob( catfile( $self->dir, '*.fragment.global_mean.bw' ) ) ) {
 		move( $_, $fragdir );
 	}
 
 	# qvalue files
-	foreach ( glob( File::Spec->catfile( $self->dir, '*.qvalue.bw' ) ) ) {
+	foreach ( glob( catfile( $self->dir, '*.qvalue.bw' ) ) ) {
 		move( $_, $qdir );
 	}
 
 	# count files
-	foreach ( glob( File::Spec->catfile( $self->dir, '*.count.bw' ) ) ) {
+	foreach ( glob( catfile( $self->dir, '*.count.bw' ) ) ) {
 		move( $_, $countdir );
 	}
 
 	# peak files
-	foreach ( glob( File::Spec->catfile( $self->dir, '*.narrowPeak' ) ) ) {
+	foreach ( glob( catfile( $self->dir, '*.narrowPeak' ) ) ) {
 		move( $_, $peakdir );
 	}
-	foreach ( glob( File::Spec->catfile( $self->dir, '*summit*.bed' ) ) ) {
+	foreach ( glob( catfile( $self->dir, '*summit*.bed' ) ) ) {
 		move( $_, $sumitdir );
 	}
-	foreach ( glob( File::Spec->catfile( $self->dir, '*.bed' ) ) ) {
+	foreach ( glob( catfile( $self->dir, '*.bed' ) ) ) {
 		move( $_, $peakdir );
 	}
 	if ( $self->broad ) {
-		foreach ( glob( File::Spec->catfile( $self->dir, '*.gappedPeak' ) ) ) {
+		foreach ( glob( catfile( $self->dir, '*.gappedPeak' ) ) ) {
 			move( $_, $peakdir );
 		}
 	}
 
 	# text files
-	foreach ( glob( File::Spec->catfile( $self->dir, '*.txt*' ) ) ) {
+	foreach ( glob( catfile( $self->dir, '*.txt*' ) ) ) {
 		next if $_ =~ /job_output_logs\.txt$/x;
 		move( $_, $analdir );
 	}
 
 	# independent macs2 analysis files
 	if ( $self->independent ) {
-		foreach ( glob( File::Spec->catfile( $self->dir, '*.xls' ) ) ) {
+		foreach ( glob( catfile( $self->dir, '*.xls' ) ) ) {
 			move( $_, $analdir );
 		}
 	}
@@ -2666,7 +2666,7 @@ sub run_organize {
 		if ($self->independent) {
 
 			# replicate-merge plots
-			my $merge_imagedir = File::Spec->catfile( $self->dir, 
+			my $merge_imagedir = catfile( $self->dir, 
 				'Replicate-Merge_Plots' . $suffix );
 			make_path($merge_imagedir);
 			foreach ( glob( sprintf( "%s*.png", $self->repmerge_merge_base ) ) ) {
@@ -2674,7 +2674,7 @@ sub run_organize {
 			}
 
 			# replicate-mean plots
-			my $mean_imagedir = File::Spec->catfile( $self->dir, 
+			my $mean_imagedir = catfile( $self->dir, 
 				'Replicate-Mean_Plots' . $suffix );
 			make_path($mean_imagedir);
 			foreach ( glob( sprintf( "%s*.png", $self->repmean_merge_base ) ) ) {
@@ -2682,26 +2682,26 @@ sub run_organize {
 			}
 			
 			# any general deduplication plots go into replicate-mean
-			foreach ( glob( sprintf( "%s.*.png", File::Spec->catfile( $self->dir,
+			foreach ( glob( sprintf( "%s.*.png", catfile( $self->dir,
 				$self->out ) ) ) 
 			) {
 				move( $_, $mean_imagedir);
 			}
 
 			# anything remaining should be replicate plots
-			my $rep_imagedir = File::Spec->catfile( $self->dir, 
+			my $rep_imagedir = catfile( $self->dir, 
 				'Replicate_Plots' . $suffix );
 			make_path($rep_imagedir);
-			foreach ( glob( File::Spec->catfile( $self->dir, '*.png' ) ) ) {
+			foreach ( glob( catfile( $self->dir, '*.png' ) ) ) {
 				move( $_, $rep_imagedir);
 			}
 		}
 		else {
 
 			# these should all be replicate-mean plots
-			my $imagedir = File::Spec->catfile( $self->dir, 'Plots' . $suffix );
+			my $imagedir = catfile( $self->dir, 'Plots' . $suffix );
 			make_path($imagedir);
-			foreach ( glob( File::Spec->catfile( $self->dir, '*.png' ) ) ) {
+			foreach ( glob( catfile( $self->dir, '*.png' ) ) ) {
 				move( $_, $imagedir );
 			}
 		}
@@ -2709,18 +2709,18 @@ sub run_organize {
 
 	# dedup bam files
 	if ( $self->savebam and $self->dedup ) {
-		my $bamdir = File::Spec->catfile( $self->dir, 'DeDupBam' );
+		my $bamdir = catfile( $self->dir, 'DeDupBam' );
 		make_path($bamdir);
-		foreach ( glob( File::Spec->catfile( $self->dir, '*.dedup.bam*' ) ) ) {
+		foreach ( glob( catfile( $self->dir, '*.dedup.bam*' ) ) ) {
 			move( $_, $bamdir );
 		}
 	}
 
 	# saved bedGraph files
 	if ( $self->savebdg ) {
-		my $bdgdir = File::Spec->catfile( $self->dir, 'BedGraph' );
+		my $bdgdir = catfile( $self->dir, 'BedGraph' );
 		make_path($bdgdir);
-		foreach ( glob( File::Spec->catfile( $self->dir, '*.bdg' ) ) ) {
+		foreach ( glob( catfile( $self->dir, '*.bdg' ) ) ) {
 			move( $_, $bdgdir );
 		}
 	}
@@ -2765,7 +2765,7 @@ sub generate_report {
 	$md .= $self->add_summary_report;
 	
 	# write file
-	my $md_file = File::Spec->catfile( $self->dir, $self->out ) . '.md';
+	my $md_file = catfile( $self->dir, $self->out ) . '.md';
 	my $fh = IO::File->new($md_file, 'w')
 		or confess " cannot write markdown report to '$md_file'! $OS_ERROR";
 	$fh->print($md);
