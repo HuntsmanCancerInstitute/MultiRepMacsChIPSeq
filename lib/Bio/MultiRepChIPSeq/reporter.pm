@@ -151,6 +151,7 @@ sub add_genome_report {
 	if ( $self->genome and exists $self->{all_map_fraction} ) {
 		my $size      = format_with_commas( $self->genome );
 		my $full      = format_with_commas( $self->{full_genome_size} );
+		my $all_map   = format_with_commas( $self->{all_map} );
 		my $all_frac  = sprintf "%s%%", $self->{all_map_fraction};
 		my $uniq      = format_with_commas( $self->{unique_map} );
 		my $uniq_frac = sprintf "%s%%", $self->{unique_map_fraction};
@@ -161,7 +162,7 @@ sub add_genome_report {
 
 The full genome size, minus excluded chromosomes (`$exclusion`), is $full bp.
 
-All provided alignments were empirically determined to cover $size bp,
+All provided alignments were empirically determined to cover $all_map bp,
 or `$all_frac`. Uniquely mapping alignments cover $uniq bp, or $uniq_frac.
 
 For enrichment calculations, $size bp was used.
