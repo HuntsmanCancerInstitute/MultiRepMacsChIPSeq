@@ -22,7 +22,7 @@ use Bio::ToolBox::utility qw(format_with_commas);
 use List::Util qw(min max uniqstr first);
 use Statistics::Descriptive;
 
-our $VERSION = 6.3;
+our $VERSION = 6.4;
 
 # user variables
 my $tool = which('bedtools');
@@ -204,7 +204,7 @@ sub process_input_peak_files {
 
 		# open file
 		my $Data = Bio::ToolBox->load_file( file => $file );
-		unless ($Data->number_rows > 0) {
+		unless ($Data and $Data->number_rows > 0) {
 			print " Unable to process file '$file', skipping\n";
 			next;
 		}
