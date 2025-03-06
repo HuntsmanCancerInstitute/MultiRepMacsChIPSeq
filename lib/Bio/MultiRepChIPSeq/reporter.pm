@@ -13,17 +13,17 @@ sub add_header_report {
 	my $self = shift;
 	my $provided_options = shift;
 
-	my $title = $self->out;
+	my $title = sprintf "%s %s", $self->dir, $self->out;
 	my $v     = $self->version;
 	my $log   = $self->out . "_job_output_logs.txt";
 		
 	# header
 	my $string = <<END;
-# ChIPSeq Pipeline for $title
+# Pipeline for $title
 
 This is a report from the 
 [Multi-Replica Multi-Sample MACS2 ChIPSeq pipeline](https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq),
-Version $v
+Version $v.
 
 Individual application outputs may be found in the combined log output file `$log`.
 END
