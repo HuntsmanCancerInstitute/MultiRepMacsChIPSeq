@@ -313,6 +313,7 @@ $Runner->run_update_peaks();
 $Runner->write_samples_file();
 $Runner->run_rescore();
 $Runner->run_efficiency();
+$Runner->run_mean_merge_compare();
 $Runner->run_plot_peaks();
 $Runner->run_cleanup($argument_string);
 $Runner->run_organize();
