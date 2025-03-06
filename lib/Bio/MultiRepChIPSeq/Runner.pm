@@ -2197,6 +2197,54 @@ sub _merge_efficiency {
 	print "\nWrote combined ChIP efficiency file $s\n";
 }
 
+sub run_mean_merge_compare {
+	my $self = shift;
+	return unless ( $self->independent );
+	print "\n\n======= Comparing rep_mean and rep_merge peaks\n";
+
+	# generate copies of peak files
+	my $rep_mean_file  = $self->repmean_merge_base . '.bed';
+	my $rep_merge_file = $self->repmerge_merge_base . '.bed';
+	my $rep_mean_bed   = catfile( $self->dir, 'rep_mean.bed');
+	my $rep_merge_bed  = catfile( $self->dir, 'rep_merge.bed');
+	my $compare_file   = catfile( $self->dir, 'mean_merge');
+	if (
+		$self->count_file_lines($rep_mean_file) == 0 or
+		$self->count_file_lines($rep_merge_file) == 0
+	) {
+		print " \n One file has zero intervals. Cannot compare.\n";
+		return;
+	}
+	copy( $rep_mean_file, $rep_mean_bed );
+	copy( $rep_merge_file, $rep_merge_bed );
+
+	# intersect
+	my $command = sprintf "%s --genome %s --out %s --bed %s %s %s ",
+		$self->intersect_app || 'intersect_peaks.pl',
+		$self->chromofile,
+		$compare_file, 
+		$self->bedtools_app || 'bedtools',
+		$rep_mean_bed,
+		$rep_merge_bed;
+	my $out = $compare_file . '.intersection.txt';
+	my $log = $compare_file . '.intersection.out.txt';
+	$command .= sprintf "2>&1 > %s ", $log;
+	my $job = [ $command, $out, $log ];
+	$self->execute_commands( [ $job ] );
+	
+	# cleanup
+	# we don't actually want to keep anything here except for the intersection results
+	my @unwanted = map { $compare_file . $_ } qw(
+		.bed
+		.jaccard.txt
+		.lengthStats.txt
+		.matrix.txt
+		.multi.txt.gz
+		.n_intersection.txt
+	);
+	unlink(@unwanted, $rep_mean_bed, $rep_merge_bed);
+}
+
 sub run_plot_peaks {
 	my $self = shift;
 	return unless ( $self->plot );
@@ -2303,14 +2351,24 @@ sub run_plot_peaks {
 		
 		# also include general output, such as from deduplication
 		# this won't include peak analysis
-		my $general = File::Spec->catfile( $self->dir, $self->out );
-		$command = sprintf "%s --verbose %s --input %s ",
+		my $general = catfile( $self->dir, $self->out );
+		$log = $general . '.plot_figures.out.txt';
+		$command = sprintf "%s --verbose %s --input %s > %s 2>&1",
 			$self->rscript_app,
 			$self->plotpeak_app,
 			$general,
-		$log = $general . '.plot_figures.out.txt';
-		$command .= " > $log 2>&1";
+			$log;
 		push @commands, [ $command, q(), $log ];
+		
+		# also plot the mean_merge peak comparison
+		my $peak_compare = catfile( $self->dir, 'mean_merge');
+		$log = $peak_compare . '.plot_figures.out.txt';
+		$command = sprintf "%s --verbose %s --input %s > %s 2>&1",
+			$self->rscript_app,
+			$self->plotpeak_app,
+			$peak_compare,
+			$log;
+		push @commands, [ $command, $peak_compare . '.intersection_upset.png', $log ];
 	}
 
 	# broad peak
@@ -2686,6 +2744,13 @@ sub run_organize {
 				$self->out ) ) ) 
 			) {
 				move( $_, $mean_imagedir);
+			}
+			
+			# comparison plots, put into replicate-merge
+			foreach ( glob( sprintf( "%s.*.png", catfile( $self->dir,
+				'mean_merge' ) ) ) 
+			) {
+				move( $_, $merge_imagedir);
 			}
 
 			# anything remaining should be replicate plots
