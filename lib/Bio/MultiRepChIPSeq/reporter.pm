@@ -13,7 +13,7 @@ sub add_header_report {
 	my $self = shift;
 	my $provided_options = shift;
 
-	my $title = sprintf "%s %s", $self->dir, $self->out;
+	my $title = sprintf "%s %s", ( splitpath($self->dir) )[-1], $self->out;
 	my $v     = $self->version;
 	my $log   = $self->out . "_job_output_logs.txt";
 		
