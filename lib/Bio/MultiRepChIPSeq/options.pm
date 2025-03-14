@@ -12,7 +12,7 @@ sub init_options {
 	my %opts  = (
 		dir         => './MultiRepPeakCall',
 		in          => undef,
-		out         => 'merged',
+		out         => 'all_peaks',
 		name        => [],
 		chip        => [],
 		control     => [],
