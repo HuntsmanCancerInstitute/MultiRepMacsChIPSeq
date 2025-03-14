@@ -649,7 +649,7 @@ END
 sub add_merged_replicates_report {
 	my $self = shift;
 
-	my $overlap = $self->minpeakover || 'n-1';
+	my $overlap = $self->minpeakover || '2';
 	my $gap     = $self->fragsize;
 	my $rep_num = 0;  # total number of replicates
 	my $string  = <<END;
@@ -658,9 +658,9 @@ sub add_merged_replicates_report {
 
 ## Merged-replicate Peaks
 
-Independently called replicate peaks were merged for each sample, requiring at least
-$overlap overlaps and a maximum gap of $gap bp. The final number of peaks for each
-sample are listed below.
+Independently called replicate peaks were merged for each sample, requiring at
+least **$overlap** overlaps and a maximum gap of $gap bp. The final number of peaks
+for each sample are listed below.
 
 | Sample | File | Number |
 |---|---|---|
