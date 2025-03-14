@@ -1259,11 +1259,6 @@ Replicate-Merge, are comparable but mutually exclusive methods.
 _Only one set should be chosen for further analysis._ They should not
 be merged.
 
-In ideal experiments, replicates that are strongly correlated should produce
-nearly identical call sets between the two methods. Less correlative replicates,
-or replicates with dissimilar strengths or efficiencies, may result in one
-method working better than the other. 
-
 Typically, if the replicates have good correlation, the Replicate-Merge peaks
 should be used preferentially. Otherwise, the method generating the most peak
 intervals should be used. 
@@ -1290,8 +1285,8 @@ END
 
 	$string .= <<END;
 
-The spatial overlap (Jaccard) between the two methods is $jaccard, which is 
-$evaluation. There were $count_number overlapping intervals ($count_percent).
+The spatial overlap (Jaccard) between the two methods is $jaccard, which is rated
+"$evaluation". There were $count_number overlapping intervals ($count_percent).
 END
 	
 	# add plots when available
