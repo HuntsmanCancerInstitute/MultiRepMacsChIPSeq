@@ -328,12 +328,18 @@ Unwanted alignments were filtered from the provided bam files. These included ma
 duplicates, secondary, supplemental, QC fail, and unmapped alignments.
 END
 	if ($self->paired) {
-		$string .= "Alignment pairs with one unmapped end were discarded.\n";
+		my $min  = $self->minsize;
+		my $max  = $self->maxsize;
+		$string .= <<END;
+Only properly paired alignment pairs were kept; singletons with an unmapped mate were
+discarded. Further, only pairs with a mapped fragment insertion size between **$min**
+and **$max** bp inclusive were retained. 
+END
 	}
 	if ($self->mapq) {
 		my $m = $self->mapq;
 		$string .=
-			"Alignments with a mapping quality score less than $m were discarded\n";
+"Only alignments with a mapping quality score greater or equal to $m were retained\n";
 	}
 
 	return $string;
