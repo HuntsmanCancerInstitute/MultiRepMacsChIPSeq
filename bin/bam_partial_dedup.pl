@@ -32,7 +32,7 @@ eval {
 	$parallel = 1;
 };
 
-our $VERSION = 5.5;
+our $VERSION = 5.6;
 
 my $DOC = <<END;
 
@@ -1444,18 +1444,24 @@ sub deduplicate_multithread {
 
 		# run external samtools concatenate
 		my $command = sprintf( "%s cat -h %s -o %s ", $sam_app, $samfile, $outfile );
-		if ( $sam_version >= 10 ) {
+		if ( $sam_version >= 10 and $sam_version < 20 ) {
 
 			# enable multi-theading and no program note for 1.10 or greater
 			$command .= sprintf( "--no-PG --threads %s ", $cpu );
 		}
+		elsif ( $sam_version >= 20 ) {
+			# no longer support multi-threading, boo!
+			$command .= '--no-PG ';
+		}
 		$command .= join( q( ), map { $targetfiles{$_} } @tid_list );
 		print " executing $sam_app cat to merge children...\n";
 		if ( system($command) ) {
-			die "something went wrong with command '$command'!\n";
+			print "something went wrong with command '$command'!\n";
 		}
-		unlink $samfile, values(%targetfiles);
-		return \%counts;
+		else {
+			unlink $samfile, values(%targetfiles);
+			return \%counts;
+		}
 	}
 
 	# open final bam new bam file
