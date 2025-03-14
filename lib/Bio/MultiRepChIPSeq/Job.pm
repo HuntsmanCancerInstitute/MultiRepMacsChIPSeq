@@ -536,9 +536,6 @@ sub generate_bam_filter_commands {
 	my $self        = shift;
 	my $name2done   = shift;
 	my $filter_file = shift;
-	unless ( $self->bedtools_app =~ /\w+/ or $self->dryrun ) {
-		croak "no bedtools application in path!\n";
-	}
 	unless ( $self->samtools_app =~ /\w+/ or $self->dryrun ) {
 		croak "no samtools application in path!\n";
 	}
@@ -576,14 +573,22 @@ sub generate_bam_filter_commands {
 
 		# exclude filter: UNMAP,MUNMAP,SECONDARY,QCFAIL,DUP,SUPPLEMENTARY
 		# include filter: PROPER_PAIR
-		$filter = "-f 2 -F 3852 ";
+		$filter = "--require-flags 2 --excl-flags 3852 ";
+
+		# add length filters
+		$filter .= sprintf 
+			"--expr '(tlen >= %s && tlen <= %s) || (tlen <= -%s && tlen >= -%s)' ",
+			$self->minsize, $self->maxsize, $self->minsize, $self->maxsize;
 	}
 	else {
 		# exclude filter: UNMAP,SECONDARY,QCFAIL,DUP,SUPPLEMENTARY
-		$filter = "-F 3844 ";
+		$filter = "--excl-flags 3844 ";
 	}
 	if ( $self->mapq ) {
-		$filter .= sprintf "-q %d ", $self->mapq;
+		$filter .= sprintf "--min-MQ %d ", $self->mapq;
+	}
+	if ( $filter_file ) {
+		$filter .= sprintf "--use-index --target-file %s ", $filter_file;
 	}
 
 	# generate the commands
@@ -609,27 +614,15 @@ sub generate_bam_filter_commands {
 		}
 
 		# generate command
-		my $sam_command = sprintf "%s view $filter --threads %d --bam --output %s",
-			$self->samtools_app,
-			$self->cpu,
-			$out;
-		my $command;
-		if ($filter_file) {
-
-			# bedtools piped to samtools
-			$command = sprintf "%s intersect -v -ubam -a %s -b %s | %s - ",
-				$self->bedtools_app,
-				$in,
-				$filter_file,
-				$sam_command;
-		}
-		else {
-			# samtools alone
-			$command = sprintf "%s %s ", $sam_command, $in;
-		}
 		my $log = $out;
 		$log =~ s/\.bam$/.out.txt/i;
-		$command .= "2>&1 > $log";
+		my $command = sprintf "%s view %s --threads %s --bam --output %s %s 2>&1 > %s",
+			$self->samtools_app,
+			$filter,
+			$self->cpu,
+			$out,
+			$in,
+			$log;
 		push @commands, [ $command, $out, $log ];
 		$name2done->{$in} = $out;    # remember that this has been done
 	}

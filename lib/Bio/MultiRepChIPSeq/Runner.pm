@@ -740,77 +740,91 @@ sub run_bam_filter {
 		return;
 	}
 
-	### Generate appended exclusion list with skipped chromosomes
-	my $filter_file;
-	if ( $self->chrskip ) {
+	# previous method used bedtools intersect to inversely filter out alignments that
+	# overlapped exclusion intervals, but this was surprisingly slow
+	# much faster to use bedtools to generate a compliment bed file of acceptable
+	# regions, i.e. most of the genome, and simply use samtools alone to filter
+	my $filter_file = catfile( $self->dir, $self->out . '.bamfilter.bed' );
+	if (not $self->dryrun) {
 
-		# need to collect skipped chromosomes
-		# but first need to get them
-		# use the first ChIP bam file as an example - this should've passed
-		# print_chromosomes test earlier so all files have identical chromosomes
-		unless ( $self->dryrun ) {
-
-			# only execute this during a real run
-
-			# first add existing exclusion list intervals if present
-			my @exclusions;
-			if ( $self->exclude and $self->exclude ne 'none' ) {
-				my $Data = Bio::ToolBox->load_file( $self->exclude );
-				if ($Data) {
-					$Data->iterate(
-						sub {
-							# generate and store a simple bed3 string
-							my $row = shift;
-							push @exclusions, $row->bed_string( bed => 3 );
-						}
-					);
-				}
-			}
-
-			# then add unwanted chromosomes
-			my $example_bam;
-			foreach my $Job ( $self->list_jobs ) {
-				if ( $Job->chip_bams ) {
-					$example_bam = ( $Job->chip_bams )[0];
-					last;
-				}
-			}
-			my $command = sprintf "%s %s", $self->printchr_app, $example_bam;
-			print "\n Executing '$command'\n";
-			my @chroms = qx($command);
-			my $skip   = $self->chrskip;
-			foreach my $c (@chroms) {
-				chomp $c;
-				my ( $seqid, $length ) = split /\t/, $c;
-				next unless ( $seqid and $length =~ /^\d+$/ );
-				if ( $seqid =~ /$skip/i ) {
-					push @exclusions, join( "\t", $seqid, '0', $length );
-				}
-			}
-
-			# write exclusion file
-			$filter_file =
-				catfile( $self->dir, $self->out . '.bamfilter.bed' );
-			my $fh = IO::File->new( $filter_file, 'w' );
-			if ($fh) {
-				foreach my $e (@exclusions) {
-					$fh->print("$e\n");
-				}
-				$fh->close;
-				print " Wrote $filter_file\n";
-			}
+		unless ( $self->bedtools_app =~ /\w+/ ) {
+			croak "no bedtools application in path!\n";
 		}
-	}
-	else {
-		# no chromosomes to exclude
+
+		# data object to collect all excluded intervals and chromosomes
+		my $Exclusion = Bio::ToolBox->new_data(qw(Chromosome Start Stop));
+
+		# load the intervals from the exclusion file
 		if ( $self->exclude and $self->exclude ne 'none' ) {
+			my $ex_file = $self->exclude;
+			my $Data    = Bio::ToolBox->load_file($ex_file);
+			unless ($Data) {
+				croak "unable to read exclusion file '$ex_file'!";
+			}
+			unless ($Data->feature_type eq 'coordinate') {
+				croak "exclusion file '$ex_file' does not have coordinates!";
+			}
+			$Data->iterate( sub {
+				my $row = shift;
+				$Exclusion->add_row( [$row->seq_id, $row->start, $row->end ] );
+			} );
+		}
 
-			# still use the exclusion file to filter if present
-			$filter_file = $self->exclude;
+		# add the excluded chromosomes
+		my $example_bam;
+		foreach my $Job ( $self->list_jobs ) {
+			if ( $Job->chip_bams ) {
+				$example_bam = ( $Job->chip_bams )[0];
+				last;
+			}
+		}
+		my $command = sprintf "%s %s", $self->printchr_app, $example_bam;
+		print "\n Executing '$command'\n";
+		my @chroms = qx($command);
+		my $skip   = $self->chrskip;
+		foreach my $c (@chroms) {
+			chomp $c;
+			my ( $seqid, $length ) = split /\t/, $c;
+			next unless ( $seqid and $length =~ /^\d+$/ );
+			if ( $seqid =~ /$skip/i ) {
+				$Exclusion->add_row( [ $seqid, 1, $length ] );
+			}
+		}
+
+		# generate genomic complement file from the temporary exclusion file
+		if ( $Exclusion->number_rows > 0 ) {
+			my $temp_file = catfile($self->dir, 'temp_all_exclusion.bed');
+			$Exclusion->gsort_data;
+			$Exclusion->bed(3);
+			$Exclusion->save($temp_file);
+			
+			# extend exclusion intervals by one half of fragment size on either side
+			# this will help exclude alignment fragments that overlap the edges of the
+			# exclusion zone, since samtools is greedy
+			$command = sprintf
+				"%s slop -b %s -g %s -i %s | %s complement -g %s -i - > %s",
+				$self->bedtools_app,
+				int( $self->fragsize / 2 ),
+				$self->chromofile,
+				$temp_file,
+				$self->bedtools_app,
+				$self->chromofile,
+				$filter_file;
+			print "\n Executing '$command'\n";
+			system($command);
+			if (-e $filter_file and -s _ ) {
+				unlink $temp_file;
+			}
+			else {
+				croak " Problem occurred with generating '$filter_file'!";
+			}
+		}
+		else {
+			$filter_file = q();
 		}
 	}
 
-	### Run filter
+	# Run filter
 	my @commands;
 	my %name2done;
 	foreach my $Job ( $self->list_jobs ) {
@@ -819,7 +833,7 @@ sub run_bam_filter {
 	if (@commands) {
 		$self->execute_commands( \@commands );
 	}
-	if ( $filter_file and $filter_file ne $self->exclude and -e $filter_file ) {
+	if ( $filter_file and not $self->dryrun ) {
 		unlink $filter_file;
 	}
 	$self->update_progress_file('bamfilter');
