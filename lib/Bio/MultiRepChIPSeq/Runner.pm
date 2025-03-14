@@ -722,6 +722,27 @@ sub run_dedup {
 	$fh->close;
 	print "\n Wrote deduplication report $dedupfile\n";
 
+	# index the deduplicated bam files
+	# using samtools is faster than letting the HTS adapter do it in bam2wig.pl
+	unless ( $self->samtools_app =~ /\w+/ or $self->dryrun ) {
+		croak "no samtools application in path!\n";
+	}
+	my @commands2;
+	foreach my $c (@commands) {
+		my $bam = $c->[1];
+		next unless -e $bam;
+		my $log = $bam;
+		$log =~ s/\.bam$/.index.out.txt/i;
+		my $command = sprintf "%s index --bai --threads %s %s 2>&1 > $log",
+			$self->samtools_app || 'samtools',
+			$self->cpu,
+			$bam;
+		push @commands2, [ $command, $bam . '.bai', $log ];
+	}
+	if (@commands2) {
+		$self->execute_commands( \@commands2 );
+	}
+
 	$self->update_progress_file('deduplication');
 }
 
@@ -836,6 +857,24 @@ sub run_bam_filter {
 	if ( $filter_file and not $self->dryrun ) {
 		unlink $filter_file;
 	}
+
+	# index the filtered bam files
+	# using samtools is faster than letting the HTS adapter do it later in bam2wig.pl
+	my @commands2;
+	foreach my $c (@commands) {
+		my $bam = $c->[1];
+		my $log = $bam;
+		$log =~ s/\.bam$/.index.out.txt/i;
+		my $command = sprintf "%s index --bai --threads %s %s 2>&1 > $log",
+			$self->samtools_app || 'samtools',
+			$self->cpu,
+			$bam;
+		push @commands2, [ $command, $bam . '.bai', $log ];
+	}
+	if (@commands2) {
+		$self->execute_commands( \@commands2 );
+	}
+
 	$self->update_progress_file('bamfilter');
 }
 
