@@ -2659,15 +2659,15 @@ sub run_cleanup {
 	print "\n\n======= Deleting temporary files\n";
 	unless ( $self->savebam ) {
 		foreach my $Job ( $self->list_jobs ) {
-			foreach my $b ( $Job->chip_dedup_bams, $Job->chip_filter_bams ) {
-				unlink $b if -e $b;
-				$b .= ".bai";
-				unlink $b if -e $b;
-			}
-			foreach my $b ( $Job->control_dedup_bams, $Job->control_filter_bams ) {
-				unlink $b if -e $b;
-				$b .= ".bai";
-				unlink $b if -e $b;
+			foreach my $b (
+				$Job->chip_dedup_bams, $Job->chip_filter_bams,
+				$Job->control_dedup_bams, $Job->control_filter_bams
+			) {
+				if (-e $b) {
+					unlink $b;
+					my $i = $b . '.bai';
+					unlink $i if -e $i;
+				}
 			}
 		}
 	}
