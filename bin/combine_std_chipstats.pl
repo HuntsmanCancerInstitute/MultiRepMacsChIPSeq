@@ -16,7 +16,7 @@ use English qw(-no_match_vars);
 use IO::File;
 use List::Util qw(sum0);
 
-our $VERSION = 1.3;
+our $VERSION = 1.4;
 
 unless (@ARGV) {
 	print <<END;
@@ -65,30 +65,17 @@ while (@ARGV) {
 
 	# look at the given path - it may be a directory or a file
 	my $path = shift @ARGV;
-	$path =~ s/\/$//;    # directory may have a trailing slash - remove if present
 
 	# check for files
 	my @files;
 	if ( -d $path ) {
 
-		# definitely a directory
-		my $stdout = "$path/stdout.txt";
-		if ( -e $stdout ) {
-
-			# a Pysano standard output file
-			push @files, $stdout;
-		}
-		my $stderr = "$path/stderr.txt";
-		if ( -e $stderr ) {
-
-			# a Pysano standard error file
-			push @files, $stderr;
-		}
-		my @slurmouts = glob "$path/*.out $path/*.err";
-		if (@slurmouts) {
+		# definitely a directory, check possible standard output and error files
+		my @outs = glob "$path/*.out $path/*.err $path/stdout*.txt $path/stderr*.txt";
+		if (@outs) {
 
 			# other output files
-			push @files, @slurmouts;
+			push @files, @outs;
 		}
 	}
 	else {
@@ -358,8 +345,19 @@ while (@ARGV) {
 		$workcount = $total_mapped - $optdup;
 	}
 
-	# clean up path in case we had a file
-	$path =~ s/\.txt$//i;
+	# check for GNomEx ID
+	my ($project, $sample);
+	if ( $path =~ / (\d+) X (\d+) /x ) {
+		# the given path contains a GNomEx ID, use that only, even if given a file name
+		$project = $1;
+		$sample  = $2;
+		$path    = sprintf "%sX%s", $project, $sample;
+	}
+	else {
+		# clean up filename
+		$path =~ s/\.txt$//i;
+		$path =~ s/[\.\_]?log//;
+	}
 
 	# store
 	push @output, [
@@ -374,22 +372,22 @@ while (@ARGV) {
 	];
 
 	# sort order
-	if ( $path =~ /^ (\d+) X (\d+) /x ) {
+	if ($project) {
 
 		# GNomEx identifier
-		if ( exists $sorter{num}{$1}{$2} ) {
+		if ( exists $sorter{num}{$project}{$sample} ) {
 
 			# more than one
-			if ( ref( $sorter{num}{$1}{$2} ) eq 'ARRAY' ) {
-				push @{ $sorter{num}{$1}{$2} }, $n;
+			if ( ref( $sorter{num}{$project}{$sample} ) eq 'ARRAY' ) {
+				push @{ $sorter{num}{$project}{$sample} }, $n;
 			}
 			else {
-				my $first = $sorter{num}{$1}{$2};
-				$sorter{num}{$1}{$2} = [ $first, $n ];
+				my $first = $sorter{num}{$project}{$sample};
+				$sorter{num}{$project}{$sample} = [ $first, $n ];
 			}
 		}
 		else {
-			$sorter{num}{$1}{$2} = $n;
+			$sorter{num}{$project}{$sample} = $n;
 		}
 	}
 	else {
