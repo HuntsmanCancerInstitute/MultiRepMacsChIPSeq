@@ -22,7 +22,7 @@ sub add_header_report {
 # Pipeline for $title
 
 This is a report from the 
-[Multi-Replica Multi-Sample MACS2 ChIPSeq pipeline](https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq),
+[Multi-Replica Multi-Sample MACS2 ChIPSeq pipeline](https://huntsmancancerinstitute.github.io/MultiRepMacsChIPSeq),
 Version $v.
 
 Individual application outputs may be found in the combined log output file `$log`.
@@ -46,7 +46,7 @@ END
 - **Fragment**: BigWig files representing depth-normalized (per Million) fragment
   coverage.
 - **Log2FE**: BigWig files representing Log 2 scaled Fold Enrichment (Signal over
-  lambda control reference or Input).
+  lambda control reference).
 END
 		}
 		$string .= <<END;
@@ -267,27 +267,27 @@ END
 	if ( $optdist > 0 ) {
 		$string .= <<END;
 Optical duplicates (sequencing artifacts) were identified with a pixel distance 
-less than $optdist and discarded.
+less than **$optdist** and discarded.
 END
 	}
 
 	# method of deduplication
 	if ( $fraction > 0 and $maxdepth > 0 ) {
 		$string .= <<END;
-Non-optical duplicates were sub-sampled until the duplication rate was $fraction
+Non-optical duplicates were sub-sampled until the duplication rate was **$fraction**
 or less and the maximum depth at any position was $maxdepth or less.
 END
 	}
 	elsif ( $fraction > 0 and $maxdepth == 0 ) {
 		$string .= <<END;
-Non-optical duplicates were sub-sampled until the duplication rate was $fraction
+Non-optical duplicates were sub-sampled until the duplication rate was **$fraction**
 or less.
 END
 	}
 	elsif ( $fraction == 0 and $maxdepth > 0 ) {
 		$string .= <<END;
 Duplicate alignments were removed until the maximum depth at any position was 
-$maxdepth or less.
+**$maxdepth** or less.
 END
 	}
 
@@ -659,8 +659,8 @@ sub add_merged_replicates_report {
 ## Merged-replicate Peaks
 
 Independently called replicate peaks were merged for each sample, requiring at
-least **$overlap** overlaps and a maximum gap of $gap bp. The final number of peaks
-for each sample are listed below.
+least **$overlap** overlaps and a maximum gap of **$gap** bp. The final number of
+peaks for each sample are listed below.
 
 | Sample | File | Number |
 |---|---|---|
