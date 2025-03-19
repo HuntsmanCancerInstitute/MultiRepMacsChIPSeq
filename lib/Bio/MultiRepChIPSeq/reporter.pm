@@ -679,6 +679,10 @@ END
 	my $plot_dir     = 'Replicate-Merge_Plots';
 	my $merged_count = format_with_commas( $self->count_file_lines(
 		$self->repmerge_merge_base . '.bed' ) );
+	unless ($merged_count) {
+		$merged_count = format_with_commas( $self->count_file_lines(
+			catfile( $self->dir, 'Peaks', $merged_peak ) ) );
+	}
 	$string .= <<END;
 
 These merged-sample peaks were merged into a final master replicate-merge peak set
@@ -844,6 +848,10 @@ END
 	my $plot_dir     = 'Replicate-Merge_Plots';
 	my $merged_count = format_with_commas( $self->count_file_lines(
 		$self->repmerge_merge_base . '_broad.bed' ) );
+	unless ($merged_count) {
+		$merged_count = format_with_commas( $self->count_file_lines(
+			catfile( $self->dir, 'Peaks', $merged_peak ) ) );
+	}
 	$string .= <<END;
 
 These merged-sample peaks were then merged into a final master broad replicate-merge
@@ -969,6 +977,10 @@ END
 	my $mean_peak  = $mean_base . '.bed';
 	my $mean_count = format_with_commas( $self->count_file_lines( 
 		catfile( $self->dir, $mean_peak ) ) );
+	unless ($mean_count) {
+		$mean_count = format_with_commas( $self->count_file_lines(
+			catfile( $self->dir, 'Peaks', $mean_peak ) ) );
+	}
 	$string .= <<END;
 
 These peaks were then merged into a final master replicate-mean peak set with
@@ -1130,6 +1142,10 @@ END
 	my $mean_peak  = $mean_base . '.bed';
 	my $mean_count = format_with_commas( $self->count_file_lines( 
 		catfile( $self->dir, $mean_peak ) ) );
+	unless ($mean_count) {
+		$mean_count = format_with_commas( $self->count_file_lines(
+			catfile( $self->dir, 'Peaks', $mean_peak ) ) );
+	}
 	$string .= <<END;
 
 These peaks were then merged into a final master broad replicate-mean peak set with
