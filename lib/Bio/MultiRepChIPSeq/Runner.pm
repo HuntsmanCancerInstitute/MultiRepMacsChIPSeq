@@ -1729,7 +1729,6 @@ sub run_rescore {
 
 	if (@commands) {
 		$self->execute_commands( \@commands );
-		$self->update_progress_file('rescore');
 	}
 	
 	# merge into summary file
@@ -1748,6 +1747,7 @@ sub run_rescore {
 	if (@commands) {
 		$self->execute_commands( \@commands );
 	}
+	$self->update_progress_file('rescore');
 }
 
 sub _rescore_narrow_input {
