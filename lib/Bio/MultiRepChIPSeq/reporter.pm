@@ -753,12 +753,12 @@ END
 		if ($rep_num > 12) {
 			$hm_plot   = catfile( $plot_dir, $merged_base .
 				'_profile_mean_fragment_sorted_hm.png' );
-			$which_plot = 'individual';
+			$which_plot = 'mean';
 		}
 		elsif ($rep_num >= 2 and $rep_num <= 12) {
 			$hm_plot   = catfile( $plot_dir, $merged_base .
 				'_profile_replicate_fragment_sorted_hm.png' );
-			$which_plot = 'mean';
+			$which_plot = 'individual';
 		}
 		my $line_plot = catfile( $plot_dir, $merged_base . 
 			'_profile_mean_fragment_summary.png' );
