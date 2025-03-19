@@ -203,7 +203,7 @@ sub add_exclusion_report {
 	my $string;
 
 	# exclusion list
-	if ( $self->{progress}{control_peak} ) {
+	if ( $self->exclude eq 'input' and $self->{progress}{control_peak} ) {
 		# input generated exclusion list
 		my $file = ( splitpath( $self->exclude ) )[2];
 		my ($control, $count);
@@ -233,7 +233,15 @@ There were **$count** exclusion intervals identified in the file `$control`.
 END
 		
 	}
-	elsif ( $self->exclude ) {
+	elsif ( $self->exclude eq 'none') {
+		$string .= <<END;
+
+### Exclusion List
+
+No exclusion list was indicated.
+END
+	}
+	else {
 		# user supplied
 		my $f = $self->exclude;
 		$string .= <<END;
