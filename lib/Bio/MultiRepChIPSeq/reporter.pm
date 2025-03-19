@@ -566,13 +566,16 @@ END
 		my @names = $Job->chip_rep_names;
 		my @peaks = $Job->rep_peaks;
 		for my $i ( 0 .. $#names ) {
+			my $count = $self->count_file_lines( $peaks[$i] );
+			unless ( $count and $self->organize ) {
+				$count = $self->count_file_lines( catfile( $self->dir,
+					'Peaks' . $self->dir_suffix, (splitpath( $peaks[$i] ))[2] ) );
+			}
 			$string .= sprintf "| %s | %s | `%s` | %s |\n",
 				$Job->job_name,
 				$names[$i],
 				( splitpath( $peaks[$i] ) )[2],
-				format_with_commas( 
-					$self->count_file_lines( $peaks[$i] )
-				);
+				format_with_commas($count);
 		}
 	}
 
@@ -615,13 +618,16 @@ END
 		my @names = $Job->chip_rep_names;
 		my @peaks = $Job->rep_gappeaks;
 		for my $i ( 0 .. $#names ) {
+			my $count = $self->count_file_lines( $peaks[$i] );
+			unless ( $count and $self->organize ) {
+				$count = $self->count_file_lines( catfile( $self->dir,
+					'Peaks' . $self->dir_suffix, (splitpath( $peaks[$i] ))[2] ) );
+			}
 			$string .= sprintf "| %s | %s | `%s` | %s |\n",
 				$Job->job_name,
 				$names[$i],
 				( splitpath( $peaks[$i] ) )[2],
-				format_with_commas( 
-					$self->count_file_lines( $peaks[$i] )
-				);
+				format_with_commas($count);
 		}
 	}
 
@@ -667,9 +673,14 @@ peaks for each sample are listed below.
 END
 	foreach my $Job ($self->list_jobs) {
 		next unless $Job->repmerge_peak;
+		my $count = $self->count_file_lines( $Job->repmerge_peak );
+		unless ( $count and $self->organize ) {
+			$count = $self->count_file_lines( catfile( $self->dir,
+				'Peaks' . $self->dir_suffix, ( splitpath( $Job->repmerge_peak ) )[2] ) );
+		}
 		$string .= sprintf "| %s | `%s` | %s |\n", $Job->job_name,
 			( splitpath( $Job->repmerge_peak ) )[2],
-			format_with_commas( $self->count_file_lines( $Job->repmerge_peak ) );
+			format_with_commas($count);
 		$rep_num += scalar( $Job->chip_rep_names );
 	}
 	
@@ -679,9 +690,9 @@ END
 	my $plot_dir     = 'Replicate-Merge_Plots';
 	my $merged_count = format_with_commas( $self->count_file_lines(
 		$self->repmerge_merge_base . '.bed' ) );
-	unless ($merged_count) {
+	unless ( $merged_count and $self->organize ) {
 		$merged_count = format_with_commas( $self->count_file_lines(
-			catfile( $self->dir, 'Peaks', $merged_peak ) ) );
+			catfile( $self->dir, 'Peaks' . $self->dir_suffix, $merged_peak ) ) );
 	}
 	$string .= <<END;
 
@@ -835,9 +846,15 @@ each sample are below.
 END
 	foreach my $Job ($self->list_jobs) {
 		next unless $Job->repmerge_gappeak;
+		my $count = $self->count_file_lines( $Job->repmerge_gappeak );
+		unless ( $count and $self->organize ) {
+			$count = $self->count_file_lines( catfile( $self->dir,
+				'Peaks' . $self->dir_suffix,
+				( splitpath( $Job->repmerge_gappeak ) )[2] ) );
+		}		
 		$string .= sprintf "| %s | `%s` | %s |\n", $Job->job_name,
 			( splitpath( $Job->repmerge_gappeak ) )[2],
-			format_with_commas( $self->count_file_lines( $Job->repmerge_gappeak ) );
+			format_with_commas($count);
 		$rep_num += scalar( $Job->chip_rep_names );
 	}
 	
@@ -848,9 +865,9 @@ END
 	my $plot_dir     = 'Replicate-Merge_Plots';
 	my $merged_count = format_with_commas( $self->count_file_lines(
 		$self->repmerge_merge_base . '_broad.bed' ) );
-	unless ($merged_count) {
+	unless ( $merged_count and $self->organize ) {
 		$merged_count = format_with_commas( $self->count_file_lines(
-			catfile( $self->dir, 'Peaks', $merged_peak ) ) );
+			catfile( $self->dir, 'Peaks' . $self->dir_suffix, $merged_peak ) ) );
 	}
 	$string .= <<END;
 
@@ -962,9 +979,14 @@ END
 
 	foreach my $Job ( $self->list_jobs ) {
 		next unless $Job->repmean_peak;
+		my $count = $self->count_file_lines ( $Job->repmean_peak );
+		unless ( $count and $self->organize ) {
+			$count = $self->count_file_lines( catfile( $self->dir,
+				'Peaks' . $self->dir_suffix, ( splitpath( $Job->repmean_peak ) )[2] ) );
+		}
 		$string .= sprintf "| %s | `%s` | %s |\n", $Job->job_name,
 			( splitpath( $Job->repmean_peak ) )[2],
-			format_with_commas( $self->count_file_lines ( $Job->repmean_peak ) );
+			format_with_commas($count);
 		$rep_num += scalar( $Job->chip_rep_names );
 	}
 
@@ -977,9 +999,9 @@ END
 	my $mean_peak  = $mean_base . '.bed';
 	my $mean_count = format_with_commas( $self->count_file_lines( 
 		catfile( $self->dir, $mean_peak ) ) );
-	unless ($mean_count) {
+	unless ( $mean_count and $self->organize ) {
 		$mean_count = format_with_commas( $self->count_file_lines(
-			catfile( $self->dir, 'Peaks', $mean_peak ) ) );
+			catfile( $self->dir, 'Peaks' . $self->dir_suffix, $mean_peak ) ) );
 	}
 	$string .= <<END;
 
@@ -1126,9 +1148,14 @@ END
 	my $rep_num  = 0;  # total number of replicates
 	foreach my $Job ( $self->list_jobs ) {
 		next unless $Job->repmean_gappeak;
+		my $count = $self->count_file_lines ( $Job->repmean_gappeak );
+		unless ( $count and $self->organize ) {
+			$count = $self->count_file_lines( catfile( $self->dir,
+				'Peaks' . $self->dir_suffix, (splitpath( $Job->repmean_gappeak ) )[2] ));
+		}
 		$string .= sprintf "| %s | `%s` | %s |\n", $Job->job_name,
 			( splitpath( $Job->repmean_gappeak ) )[2],
-			format_with_commas( $self->count_file_lines ( $Job->repmean_gappeak ) );
+			format_with_commas($count);
 		$rep_num += scalar( $Job->chip_rep_names );
 	}
 
@@ -1142,9 +1169,9 @@ END
 	my $mean_peak  = $mean_base . '.bed';
 	my $mean_count = format_with_commas( $self->count_file_lines( 
 		catfile( $self->dir, $mean_peak ) ) );
-	unless ($mean_count) {
+	unless ( $mean_count and $self->organize ) {
 		$mean_count = format_with_commas( $self->count_file_lines(
-			catfile( $self->dir, 'Peaks', $mean_peak ) ) );
+			catfile( $self->dir, 'Peaks' . $self->dir_suffix, $mean_peak ) ) );
 	}
 	$string .= <<END;
 
@@ -1234,9 +1261,17 @@ sub add_mean_merge_comparison {
 	my $merged_peak  = ( splitpath( $self->repmerge_merge_base ) )[2] . '.bed';
 	my $merged_count = format_with_commas( $self->count_file_lines(
 		$self->repmerge_merge_base . '.bed' ) );
+	unless ( $merged_count and $self->organize ) {
+		$merged_count = format_with_commas( $self->count_file_lines(
+			catfile( $self->dir, 'Peaks' . $self->dir_suffix, $merged_peak ) ) );
+	}
 	my $mean_peak  = ( splitpath( $self->repmean_merge_base ) )[2] . '.bed';
 	my $mean_count = format_with_commas( $self->count_file_lines( 
 		catfile( $self->dir, $mean_peak ) ) );
+	unless ( $mean_count and $self->organize ) {
+		$mean_count = format_with_commas( $self->count_file_lines(
+			catfile( $self->dir, 'Peaks' . $self->dir_suffix, $mean_peak ) ) );
+	}
 	
 	# get overlap stats
 	my $intersect_file = catfile( $self->dir, 'Analysis' . $self->dir_suffix,
