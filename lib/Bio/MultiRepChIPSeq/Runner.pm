@@ -2309,7 +2309,7 @@ sub run_plot_peaks {
 		return;
 	}
 
-	# calculate reasonable fragment cutoff, qval and log2FE should already be calculated
+	# calculate reasonable fragment cutoff
 	unless ( $self->plot_frag ) {
 		my $stat = Statistics::Descriptive::Full->new();
 		my $example1 = $self->repmean_merge_base . '_profile_mean_fragment.txt.gz';
@@ -2328,6 +2328,40 @@ sub run_plot_peaks {
 		if ( $stat->count ) {
 			my $upper = sprintf "%.2f", ( $stat->percentile(95) || $stat->max );
 			$self->plot_frag( $upper );
+		}
+	}
+	unless ( $self->plot_log2 ) {
+		my $stat = Statistics::Descriptive::Full->new();
+		my $example1 = $self->repmean_merge_base . '_meanLog2FE.txt.gz';
+		my $example2 = $self->repmerge_merge_base . '_meanLog2FE.txt.gz';
+		foreach my $example ( $example1, $example2 ) {
+			next unless -e $example;
+			my $Data = Bio::ToolBox->load_file( $example );
+			for my $i ( 3 .. $Data->last_column ) {
+				my $values = $Data->column_values($i);
+				$stat->add_data( @{$values}[ 1 .. $#{$values} ] );
+			}
+		}
+		if ( $stat->count ) {
+			my $upper = sprintf "%.2f", ( $stat->percentile(95) || $stat->max );
+			$self->plot_log2( $upper );
+		}
+	}
+	unless ( $self->plot_qval ) {
+		my $stat = Statistics::Descriptive::Full->new();
+		my $example1 = $self->repmean_merge_base . '_maxQvalue.txt.gz';
+		my $example2 = $self->repmerge_merge_base . '_maxQvalue.txt.gz';
+		foreach my $example ( $example1, $example2 ) {
+			next unless -e $example;
+			my $Data = Bio::ToolBox->load_file( $example );
+			for my $i ( 3 .. $Data->last_column ) {
+				my $values = $Data->column_values($i);
+				$stat->add_data( @{$values}[ 1 .. $#{$values} ] );
+			}
+		}
+		if ( $stat->count ) {
+			my $upper = sprintf "%.2f", ( $stat->percentile(95) || $stat->max );
+			$self->plot_qval( $upper );
 		}
 	}
 	
