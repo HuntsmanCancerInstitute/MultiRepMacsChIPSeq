@@ -2963,82 +2963,205 @@ input files, and executed by the Runner singly or in parallel.
 
 =head1 METHODS
 
+=head2 Initialization
+
+These are methods to set up the Runner object.
+
 =over 4
 
 =item new
 
 This initializes the Runner object, which includes the options hash. 
 The options hash should be exported as a reference and provided to 
-L<Getopt::Long> for processing of a script command line options. 
+L<Getopt::Long> for processing of the executive application's command
+line options. 
 
 =item add_job
 
 Adds a new L<Bio::MultiRepChIPSeq::Job>. Takes the seven parameters 
 required therein and passes them directly to respective new() method.
 
-=item list_jobs - returns array of Job objects
+=back
 
-=item number_of_jobs - number of Job objects
+=head2 Object attributes
 
-=item add_command - add a command to list of finished commands
+These methods set and return specific global attributes of the Runner 
+object, i.e. not specific to individual Jobs. These are not explicitly
+set through the L<Bio::MultiRepChIPSeq::options> module or by executive
+application command line options.
 
-=item progress_file - returns name of progress file
+=over 4
 
-=item check_progress_file - checks and loads contents of progress file if present
+=item list_jobs
 
-=item update_progress_file - updates progress hash and file immediately
+returns array of Job objects
 
-=item sample_file - return the filename of the samples replicate/conditions file
+=item number_of_jobs
 
-=item write_samples_file - write the samples replicate/conditions file
+returns number of Job objects
 
-=item run_generate_chr_file - generates the chromosome file
+=item has_universal_control
 
-=item execute_commands - executes job commands of external applications
+boolean value whether a single reference control is being used
 
-=item _check_command_finished - internal function to check if command finished properly
+=item repmean_merge_base
 
-=item run_input_peak_detection - calls peaks on reference control for exclusion
+basename for final merged intervals file for replicate-mean peak calls
 
-=item run_dedup - run bam deduplication
+=item repmerge_merge_base
 
-=item run_bam_filter - filter bam files for exclusions and bad alignments
+basename for final merged intervals file for replicate-merge peak calls
 
-=item run_bam_check - checks for deduplicated bam files
+=item dir_suffix
 
-=item run_mappable_space_report - calculates mappable space
+suffix number for subdirectories when running recall_peaks executor
+to avoid overwriting existing files
 
-=item run_bam_fragment_conversion - converts ChIP bam to coverage files
+=item version
 
-=item run_bam_count_conversion - generates ChIP count bw files
+=back
 
-=item run_lambda_control - generates lambda control reference file
+=head2 Object methods
 
-=item run_bw_conversion - converts bigWigs to bedGraphs
+These are methods for performing various functions to assist in the
+execution in the pipeline.
 
-=item run_bdgcmp - generates fold enrichment and q-value tracks with MACS2
+=over 4
 
-=item run_call_peaks - calls peaks with MACS2
+=item add_command
 
-=item run_update_peaks - update missing score values in peak files
+add a command to list of finished commands
 
-=item run_bdg_conversion - convert bedGraph files to bigWig
+=item progress_file
 
-=item run_peak_merge - intersect between experiment Job peaks
+returns name of progress file
 
-=item run_rescore - rescore the merged peaks
+=item check_progress_file
 
-=item run_efficiency - calculate fragment of reads in peaks
+checks and loads contents of progress file if present
 
-=item run_plot_peaks - run Rscript to plot QC metrics and analysis figures
+=item update_progress_file
 
-=item print_config - generate a summary of the pipeline configuration
+updates progress hash and file immediately
 
-=item run_cleanup - delete temporary files
+=item sample_file
 
-=item run_organize - move files into subfolders
+return the filename of the samples replicate/conditions file
 
-=item generate_report - generate a markdown report of results including plots
+=item write_samples_file
+
+write the samples replicate/conditions file
+
+=item run_generate_chr_file
+
+generates the chromosome file
+
+=item execute_commands
+
+executes job commands of external applications
+
+=item print_config
+
+generate a summary of the pipeline configuration
+
+=back
+
+=head2 Primary run methods
+
+These are Runner methods for performing the actual work to complete the
+pipeline. In most cases, these require no arguments and would be called
+by the main executive program.
+
+=over 4
+
+=item run_input_peak_detection
+
+Calls peaks on reference control for exclusion
+
+=item run_dedup
+
+Run alignment deduplication on bam files
+
+=item run_bam_filter
+
+Filter bam files for exclusions and bad alignments
+
+=item run_bam_check
+
+Checks for deduplicated bam files
+
+=item run_mappable_space_report
+
+Calculates mappable space
+
+=item run_bam_fragment_conversion
+
+Converts ChIP bam to coverage files
+
+=item run_bam_count_conversion
+
+Generates ChIP count bw files
+
+=item run_lambda_control
+
+Generates lambda control reference file
+
+=item run_bw_conversion
+
+Converts bigWigs to bedGraphs
+
+=item run_bdgcmp
+
+Generates fold enrichment and q-value tracks with MACS2
+
+=item run_call_peaks
+
+Call peaks with MACS2
+
+=item run_update_peaks
+
+Update missing score values in peak files
+
+=item run_bdg_conversion
+
+Convert bedGraph files to bigWig
+
+=item run_peak_merge
+
+Intersect between experiment Job peaks
+
+=item run_rescore
+
+Rescore the merged peaks
+
+=item run_efficiency
+
+Calculate fragment of reads in peaks
+
+=item run_mean_merge_compare
+
+Intersect rep-merge and rep-mean peaks
+
+=item run_plot_peaks
+
+Run Rscript to plot QC metrics and analysis figures
+
+=item run_cleanup
+
+Delete temporary files.
+
+Pass the provided execution arguments as a concatenated string.
+
+=item run_organize
+
+Move files into subfolders
+
+=item generate_report
+
+Generate a markdown report of results including plots, then
+converts to HTML if Pandoc is available.
+
+Pass the provided execution arguments as a concatenated string.
 
 =back
 

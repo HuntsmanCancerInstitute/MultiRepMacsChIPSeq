@@ -11,7 +11,7 @@ our $VERSION = 20.1;
 
 sub add_header_report {
 	my $self = shift;
-	my $provided_options = shift;
+	my $provided_options = shift || q();
 
 	my $title = sprintf "%s %s", ( splitpath($self->dir) )[-1], $self->out;
 	my $v     = $self->version;
@@ -1504,6 +1504,101 @@ Bio::MultiRepChIPSeq::report - Methods for generating markdown report
 Additional methods for the L<Bio::MultiRepChIPSeq::Runner> object for generating
 a Markdown formatted report of the pipeline results. This uses GitHub-Flavored 
 Markdown, primarily for table support.
+
+Each method generates and returns a Markdown formatted string that can be
+concatenated together as the report.
+
+With the exception of the first method, none of the functions require
+arguments.
+
+=over 4
+
+=item add_header_report
+
+Generate the top header to the report, including pipeline options. 
+Must pass a concatenated string of the provided command-line arguments
+to the executive application for inclusion.
+
+=item add_samples_report
+
+List the samples provided
+
+=item add_genome_report
+
+Add information regarding the genome size and mappability
+
+=item add_exclusion_report
+
+Add information regarding the provided or empirically derived
+exclusion intervals.
+
+=item add_deduplication_report
+
+Add information regarding the de-duplication of alignments.
+
+=item add_filter_report
+
+Add information regarding the filtering of alignments.
+
+=item add_peak_call_parameters
+
+Add information regarding the parameters used in calling peaks,
+including replicate independent calls versus replicate mean calls.
+
+=item add_coverage_report
+
+Add information regarding generating fragment coverage used in
+peak calling. List number of accepted fragments.
+
+=item add_independent_peak_calls_report
+
+Add information and plots regarding independent replicate peak calls.
+
+=item add_independent_broad_peak_calls_report
+
+Add information and plots regarding independent replicate gapped
+peak calls.
+
+=item add_merged_replicates_report
+
+Add information and plots regarding the merging of independent replicate
+peak calls, including correlation metrics and enrichment plots for
+the final merged set.
+
+=item add_merged_replicates_broad_report
+
+Add information and plots regarding the merging of independent replicate
+gapped peak calls, including correlation metrics and enrichment plots for
+the final merged set.
+
+=item add_mean_replicates_report
+
+Add information and plots regarding the replicate-mean peak calls for
+each sample, including correlation metrics and enrichment plots for
+the final merged set.
+
+=item add_mean_replicates_broad_report
+
+Add information and plots regarding the replicate-mean gapped peak calls
+for each sample, including correlation metrics and enrichment plots for
+the final merged set.
+
+=item add_mean_merge_comparison
+
+Add intersection metrics comparing the replicate-merge and replicate-mean
+final call sets plus interpretation.
+
+=item add_summary_report
+
+Add information on where to find the final summary tables for the merged
+call sets.
+
+=item pandoc_header
+
+Generate CSS-style HTML template file to provide to Pandoc in generating
+the final HTML report from the markdown file. Returned as a formatted string.
+
+=back
 
 =head1 AUTHOR
 

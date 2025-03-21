@@ -657,11 +657,10 @@ Bio::MultiRepChIPSeq::options - an object to hold the pipeline options
 
 =head1 DESCRIPTION
 
-This is a base module inherited by the others for holding general configuration 
-parameters and options. The values can be exported as a hash reference for use in
-importing command line options with L<Getopt::Long>. The values can be get or set 
-using methods generally named after the hash key (with the exception of application 
-paths). 
+This is a base module inherited by the others for holding general
+configuration parameters and options.  The values can be get or set
+using methods generally named after the hash key (with the exception
+of application paths). 
 
 This is not used directly. 
 
@@ -678,7 +677,8 @@ environment C<PATH>.
 
 =item options
 
-Export the hash as a reference.
+Export the options hash as a reference, primarily for use in
+parsing executive command line options with L<Getopt::Long>.
 
 =back
 
@@ -845,6 +845,26 @@ Export the hash as a reference.
 =item samtools_app
 
 =item pandoc_app
+
+=back
+
+head2 General functions
+
+These are general methods to collect and store information during
+pipeline execution and that need to be accessible to both
+L<Bio::MultiRepChIPSeq::Runner> and L<Bio::MultiRepChIPSeq::Job>
+objects. So to keep things relatively simple, they are stuffed
+here for convenience.
+
+=over 4
+
+=item count_file_lines
+
+Count data lines in result files and store counts
+
+=item seq_depth_for_file
+
+Store and retrieve sequencing depths for samples
 
 =back
 
