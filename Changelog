@@ -1,5 +1,29 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
+v20.1
+	multirep_macs2_pipeline.pl
+	- Now generates a direct comparison between Replicate-Merge and Replicate-Mean
+	  peak calls, including plots in the final report, to provide guidance on
+	  which one to use.
+	- Change the method of pre-filtering bam files prior to independent peak
+	  calling, which can dramatically improve overall execution time.
+	- Add explicit commands for indexing filtered and de-duplicated bam files,
+	  which decreases overall execution time.
+	- Improve reliability when restarting pipeline in the middle, especially
+	  when generating the report.
+	- Minor text changes and bug fixes in the report.
+	
+	bam_partial_dedup.pl
+	- Checks the samtools app version and uses appropriate arguments. Fixes crash
+	  when merging temporary bam files.
+	
+	intersect_peaks.pl
+	- Avoid crashing with empty peak files.
+	
+	combine_std_chipstats.pl
+	- Improve finding and handling log file names.
+	
+
 
 v20.0
 	multirep_macs2_pipeline.pl
