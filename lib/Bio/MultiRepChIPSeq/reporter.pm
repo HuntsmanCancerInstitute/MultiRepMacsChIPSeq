@@ -646,7 +646,7 @@ END
 			next unless scalar( $Job->chip_use_bams ) > 1;
 			my $name = $Job->job_name;
 			my $plot = catfile( 'Replicate_Plots', $Job->job_name .
-				'.rep_merge.intersection_upset.png' );
+				'.rep_merge.broad.intersection_upset.png' );
 			$string .= <<END
 
 #### Replicates for $name Broad Peaks
@@ -836,7 +836,7 @@ END
 sub add_merged_replicates_broad_report {
 	my $self = shift;
 
-	my $overlap = $self->minpeakover || 'n-1';
+	my $overlap = $self->minpeakover || '2';
 	my $gap     = $self->fragsize;
 	my $rep_num = 0;  # total number of replicates
 	my $string  = <<END;
@@ -1394,7 +1394,8 @@ maximum observered Q-Value statistical values over each interval for each sample
 These files are tab-delimited text files and can be directly imported into spreadsheet
 programs.
 END
-	my ( $mean_count, $merge_count, $samples );
+	my ( $mean_count, $merge_count, $samples, $broad_mean_count, $broad_merge_count,
+		$broad_samples );
 	if ( $self->independent ) {
 		my $base       = ( splitpath( $self->repmerge_merge_base ) )[2];
 		my $merge_file = $base . '_summary.tsv';
@@ -1416,6 +1417,29 @@ END
 The replicate-mean peaks are in `$mean_file`.
 END
 	}
+	if ( $self->broad ) {
+		if ( $self->independent ) {
+			my $base            = ( splitpath( $self->repmerge_merge_base ) )[2];
+			my $merge_file      = $base . '_broad_summary.tsv';
+			$broad_merge_count  = $base . '_broad_counts.txt.gz';
+			$base               = ( splitpath( $self->repmean_merge_base ) )[2];
+			my $mean_file       = $base . '_broad_summary.tsv';
+			$broad_mean_count   = $base . '_broad_counts.txt.gz';
+			$broad_samples      = $base . '_broad_samples.txt';
+			$string .= <<END;
+The broad merged-replicate peaks are in `$merge_file`.
+The broad replicate-mean peaks are in `$mean_file`.
+END
+		}
+		else {
+			my $mean_file = $self->out . '_broad_summary.tsv';
+			$broad_mean_count   = $self->out . '_broad_counts.txt.gz';
+			$broad_samples      = $self->out . '_broad_samples.txt';
+			$string .= <<END;
+The broad replicate-mean peaks are in `$mean_file`.
+END
+		}
+	}
 
 	my $analdir = 'Analysis' . $self->dir_suffix;
 	$string .= <<END;
@@ -1432,8 +1456,21 @@ END
 	}
 	$string .= <<END;
 The replicate-mean count table is `$mean_count`. The sample list table is `$samples`.
-
 END
+	if ( $self->broad ) {
+		if ( $self->independent ) {
+			$string .= <<END;
+The broad merged-replicate count table is `$broad_merge_count`.
+END
+		}
+		$string .= <<END;
+The broad replicate-mean count table is `$broad_mean_count`. The broad sample list
+table is `$broad_samples`.
+END
+	}
+	
+	$string .= "\n\n";
+	return $string;
 }
 
 sub pandoc_header {
