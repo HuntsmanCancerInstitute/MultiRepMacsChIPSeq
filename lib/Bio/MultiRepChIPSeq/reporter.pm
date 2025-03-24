@@ -588,7 +588,11 @@ END
 	}
 
 	if ( $self->plot ) {
-		$string .= "\nThe UpSet intersection plots for each sample are shown below.\n";
+		$string .= <<END;
+The UpSet intersection plots for each sample are shown below. Note that due to gap
+tolerances and multiple intersections, the Peak Counts in the UpSet plot may not be 
+exact as the table above.
+END
 		foreach my $Job ( $self->list_jobs ) {
 			next unless scalar( $Job->chip_use_bams ) > 1;
 			my $name = $Job->job_name;
@@ -640,8 +644,11 @@ END
 	}
 
 	if ( $self->plot ) {
-		$string .= 
-			"\nThe UpSet intersection plots for each sample are shown below.\n";
+		$string .= <<END;
+The UpSet intersection plots for each sample are shown below. Note that due to gap
+tolerances and multiple intersections, the Peak Counts in the UpSet plot may not be 
+exact as the table above.
+END
 		foreach my $Job ( $self->list_jobs ) {
 			next unless scalar( $Job->chip_use_bams ) > 1;
 			my $name = $Job->job_name;
