@@ -3,7 +3,7 @@ package Bio::MultiRepChIPSeq::reporter;
 use strict;
 use English qw(-no_match_vars);
 use Carp;
-use File::Spec::Functions qw( catfile splitpath );
+use File::Spec::Functions qw( catfile splitdir splitpath rel2abs );
 use Bio::ToolBox 1.70;
 use Bio::ToolBox::utility qw(format_with_commas);
 
@@ -13,7 +13,7 @@ sub add_header_report {
 	my $self = shift;
 	my $provided_options = shift || q();
 
-	my $title = sprintf "%s %s", ( splitpath($self->dir) )[-1], $self->out;
+	my $title = sprintf "%s %s", ( splitdir( rel2abs($self->dir) ) )[-1], $self->out;
 	my $v     = $self->version;
 	my $log   = $self->out . "_job_output_logs.txt";
 		
