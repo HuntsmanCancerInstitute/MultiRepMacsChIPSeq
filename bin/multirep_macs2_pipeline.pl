@@ -481,23 +481,29 @@ MESSAGE
 		$Runner->targetdepth('median');
 	}
 
-	# check sizes
+	# set special options for ATACSeq cutsite analysis
 	if ( $Runner->cutsite ) {
-		# set special options for ATACSeq cutsite analysis
 		print 
 " Using specific parameters for ATAC Cut Site mode\n These may override manual settings\n";
-		$Runner->deduppair(1);
 		$Runner->paired(0);
+		$Runner->deduppair(1);
 		$Runner->minsize(30);    # minsize and maxsize technically not required
 		$Runner->maxsize(2000);
-		$Runner->fragsize(50);
-		$Runner->shiftsize(-25);
-		$Runner->peaksize(90);
-		$Runner->peakgap(30);
+		$Runner->fragsize(40);
+		$Runner->shiftsize(-20);
+		$Runner->chipbin(5);
+		if ( not defined $Runner->peaksize ) {
+			$Runner->peaksize(70);
+		}
+		if ( not defined $Runner->peakgap ) {
+			$Runner->peakgap(10);
+		}
 		$Runner->slocal(100);    # very rare to use lambda with ATAC but just in case
 		$Runner->llocal(1000);
 		$Runner->broad(0);
 	}
+
+	# check sizes
 	if ( not $Runner->peaksize ) {
 
 		# no minimum peak size defined? might be ok
