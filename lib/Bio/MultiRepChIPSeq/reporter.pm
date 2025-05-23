@@ -262,7 +262,6 @@ sub add_deduplication_report {
 	my $fraction = $self->dupfrac;
 	my $maxdepth = $self->maxdepth || 0;
 	my $optdist  = $self->optdist;
-	my $pair     = $self->deduppair;
 	
 	my $string   = <<END;
 
@@ -281,14 +280,16 @@ END
 
 	# method of deduplication
 	if ( $fraction > 0 and $maxdepth > 0 ) {
+		my $percent  = sprintf "%s%%", $fraction * 100;
 		$string .= <<END;
-Non-optical duplicates were sub-sampled until the duplication rate was **$fraction**
+Non-optical duplicates were sub-sampled until the final duplication rate was **$percent**
 or less and the maximum depth at any position was $maxdepth or less.
 END
 	}
 	elsif ( $fraction > 0 and $maxdepth == 0 ) {
+		my $percent  = sprintf "%s%%", $fraction * 100;
 		$string .= <<END;
-Non-optical duplicates were sub-sampled until the duplication rate was **$fraction**
+Non-optical duplicates were sub-sampled until the final duplication rate was **$percent**
 or less.
 END
 	}
