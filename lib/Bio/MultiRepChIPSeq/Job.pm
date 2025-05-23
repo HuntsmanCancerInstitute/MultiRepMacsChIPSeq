@@ -8,7 +8,7 @@ use List::Util qw(min);
 use base 'Bio::MultiRepChIPSeq::options';
 use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 
-our $VERSION = 20.1;
+our $VERSION = 20.2;
 
 sub new {
 

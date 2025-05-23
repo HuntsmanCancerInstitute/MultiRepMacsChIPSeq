@@ -15,7 +15,7 @@ use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
 use base 'Bio::MultiRepChIPSeq::reporter';
 
-our $VERSION = 20.1;
+our $VERSION = 20.2;
 
 sub new {
 	my $class   = shift;
@@ -763,7 +763,7 @@ sub run_bam_filter {
 
 	# previous method used bedtools intersect to inversely filter out alignments that
 	# overlapped exclusion intervals, but this was surprisingly slow
-	# much faster to use bedtools to generate a compliment bed file of acceptable
+	# much faster to use bedtools to generate a complement bed file of acceptable
 	# regions, i.e. most of the genome, and simply use samtools alone to filter
 	my $filter_file = catfile( $self->dir, $self->out . '.bamfilter.bed' );
 	if (not $self->dryrun) {

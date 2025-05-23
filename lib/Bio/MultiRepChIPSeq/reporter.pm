@@ -7,7 +7,7 @@ use File::Spec::Functions qw( catfile splitdir splitpath rel2abs );
 use Bio::ToolBox 1.70;
 use Bio::ToolBox::utility qw(format_with_commas);
 
-our $VERSION = 20.1;
+our $VERSION = 20.2;
 
 sub add_header_report {
 	my $self = shift;

@@ -59,7 +59,7 @@ condition. Technical replicates could also be included.
 	replicate using [Macs2](https://pypi.org/project/MACS2/). These replicate peaks 
 	are then intersected to generate a consensus peak call set for the sample using 
 	[intersect_peaks](applications/intersect_peaks.md). By default, consensus 
-	peaks must be identified from (n - 1) replicates.
+	peaks must be identified from a minimum of two replicates (when available).
 
 - Generate replicate-mean fragment coverage and enrichment files
 
