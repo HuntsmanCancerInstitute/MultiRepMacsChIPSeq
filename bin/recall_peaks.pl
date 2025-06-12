@@ -217,11 +217,11 @@ sub check_inputs {
 	if ( $Runner->cutsite ) {
 		# just to maintain consistency with main pipeline
 		# only useful parameters is to set peak size and gap
-		unless ( $Runner->peaksize ) {
-			$Runner->peaksize(150);
+		if ( not defined $Runner->peaksize ) {
+			$Runner->peaksize(70);
 		}
-		unless ( $Runner->peakgap ) {
-			$Runner->peakgap(50);
+		if ( not defined $Runner->peakgap ) {
+			$Runner->peakgap(10);
 		}
 	}
 	unless ( $Runner->cutoff and $Runner->peaksize and $Runner->peakgap ) {
