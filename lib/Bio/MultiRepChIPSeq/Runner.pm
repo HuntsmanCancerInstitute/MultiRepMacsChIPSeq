@@ -2447,15 +2447,17 @@ sub run_plot_peaks {
 			$log;
 		push @commands, [ $command, q(), $log ];
 		
-		# also plot the mean_merge peak comparison
-		my $peak_compare = catfile( $self->dir, 'mean_merge');
-		$log = $peak_compare . '.plot_figures.out.txt';
-		$command = sprintf "%s --verbose %s --input %s > %s 2>&1",
-			$self->rscript_app,
-			$self->plotpeak_app,
-			$peak_compare,
-			$log;
-		push @commands, [ $command, $peak_compare . '.intersection_upset.png', $log ];
+		# also plot the mean_merge peak comparison if it was done
+		my $peak_compare = catfile( $self->dir, 'mean_merge' );
+		if ( $self->count_file_lines( $peak_compare . '.intersection.txt' ) ) {
+			$log = $peak_compare . '.plot_figures.out.txt';
+			$command = sprintf "%s --verbose %s --input %s > %s 2>&1",
+				$self->rscript_app,
+				$self->plotpeak_app,
+				$peak_compare,
+				$log;
+			push @commands, [ $command, $peak_compare . '.intersection_upset.png', $log ];
+		}
 	}
 
 	# broad peak

@@ -1288,6 +1288,9 @@ sub add_mean_merge_comparison {
 		$mean_count = format_with_commas( $self->count_file_lines(
 			catfile( $self->dir, 'Peaks' . $self->dir_suffix, $mean_peak ) ) );
 	}
+	if ( $merged_count == 0 or $mean_count == 0 ) {
+		return;
+	}
 	
 	# get overlap stats
 	my $intersect_file = catfile( $self->dir, 'Analysis' . $self->dir_suffix,
