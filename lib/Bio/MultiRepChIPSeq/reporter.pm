@@ -1274,19 +1274,17 @@ sub add_mean_merge_comparison {
 	my $self = shift;
 	
 	# get counts
-	my $merged_peak  = ( splitpath( $self->repmerge_merge_base ) )[2] . '.bed';
-	my $merged_count = format_with_commas( $self->count_file_lines(
-		$self->repmerge_merge_base . '.bed' ) );
+	my $merged_count = $self->count_file_lines( $self->repmerge_merge_base . '.bed' );
 	unless ( $merged_count and $self->organize ) {
-		$merged_count = format_with_commas( $self->count_file_lines(
-			catfile( $self->dir, 'Peaks' . $self->dir_suffix, $merged_peak ) ) );
+		my $merged_peak  = ( splitpath( $self->repmerge_merge_base ) )[2] . '.bed';
+		$merged_count = $self->count_file_lines( catfile( $self->dir,
+			'Peaks' . $self->dir_suffix, $merged_peak ) );
 	}
-	my $mean_peak  = ( splitpath( $self->repmean_merge_base ) )[2] . '.bed';
-	my $mean_count = format_with_commas( $self->count_file_lines( 
-		catfile( $self->dir, $mean_peak ) ) );
+	my $mean_count = $self->count_file_lines( $self->repmean_merge_base . '.bed' );
 	unless ( $mean_count and $self->organize ) {
-		$mean_count = format_with_commas( $self->count_file_lines(
-			catfile( $self->dir, 'Peaks' . $self->dir_suffix, $mean_peak ) ) );
+		my $mean_peak  = ( splitpath( $self->repmean_merge_base ) )[2] . '.bed';
+		$mean_count = $self->count_file_lines( catfile( $self->dir,
+			'Peaks' . $self->dir_suffix, $mean_peak ) );
 	}
 	if ( $merged_count == 0 or $mean_count == 0 ) {
 		return;
@@ -1335,18 +1333,23 @@ intervals should be used.
 END
 
 	if ( $merged_count > $mean_count ) {
+		$merged_count = format_with_commas($merged_count);
+		$mean_count   = format_with_commas($mean_count);
 		$string .= <<END;
 In this case, the **Replicate-Merge** method generated more peak intervals, with
 $merged_count versus $mean_count intervals.
 END
 	}
 	elsif ( $merged_count < $mean_count ) {
+		$merged_count = format_with_commas($merged_count);
+		$mean_count   = format_with_commas($mean_count);
 		$string .= <<END;
 In this case, the **Replicate-Mean** method generated more peak intervals, with
 $mean_count versus $merged_count intervals.
 END
 	}
 	elsif ( $merged_count == $mean_count ) {
+		$mean_count   = format_with_commas($mean_count);
 		$string .= <<END;
 In this case, the two methods generated an identical number of peak intervals,
 $mean_count, so the methods are equivalent.
