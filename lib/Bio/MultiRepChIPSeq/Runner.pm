@@ -1042,7 +1042,7 @@ sub run_mappable_space_report {
 END
 			}
 			else {
-				printf <<END;
+				print <<END;
 
  WARNING!!! Mapped genome fraction is less than 50%!
  This will negatively affect your background estimation and q-value calculations.
@@ -1072,7 +1072,7 @@ END
 END
 			}
 			else {
-				printf <<END;
+				print <<END;
 
  WARNING!!! Mapped genome fraction is less than 50%!
  This will negatively affect your background estimation and q-value calculations.
