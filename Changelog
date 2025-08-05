@@ -1,5 +1,11 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
+v20.2
+	multirep_macs2_pipeline.pl
+	- Update default --cutsite parameters
+	- Multiple fixes, text changes, and updates to report generation
+	- Improve resiliency when one or both peak call methods identify zero peaks
+
 v20.1
 	multirep_macs2_pipeline.pl
 	- Now generates a direct comparison between Replicate-Merge and Replicate-Mean
