@@ -33,9 +33,9 @@ biological duplication (cut sites are restricted by chromatin accessibility, lim
 potential diversity) and PCR amplification from library preparation. If you keep
 duplicates (often recommended due to the biological source), sub-sampling to a
 consistent rate is strongly recommended. The rate can be kept at a higher fraction
-than with ordinary ChIP-Seq (`--dedup 0.1` or `0.2`). Optical duplicates absolutely
-need to be discarded in this scenario (`--optdist`) as appropriate for the sequencing
-platform.
+than with ordinary ChIP-Seq (`--dedup 0.1` or `0.2`) or even higher. Optical
+duplicates absolutely need to be discarded in this scenario (`--optdist`) as
+appropriate for the sequencing platform.
 
 There are two general strategies to look at ATAC-Seq data. I usually do both. There
 is often a high correlation in the peak calls between the two strategies, but in
@@ -79,11 +79,14 @@ yield smaller peaks, e.g. 100-500 bp; actual results will vary.
 		--nopaired \
 		--minsize 30 \
 		--maxsize 2000 \
-		--fragsize 50 \
-		--shiftsize -25 \
-		--peaksize 90 \
-		--peakgap 30 \
-
+		--fragsize 40 \
+		--shiftsize -20 \
+		--peaksize 70 \
+		--peakgap 10 \
+    
+    The `--peaksize` and `peakgap` may also be set manually if desired. The q-value
+    `--cutoff` default is still `2` (0.01 or 1% FDR), but generally a more stringent
+    threshold is preferred, such as `3` (0.001 or 0.1% FDR).
 
 
 ### Variation with Cut-and-Run
