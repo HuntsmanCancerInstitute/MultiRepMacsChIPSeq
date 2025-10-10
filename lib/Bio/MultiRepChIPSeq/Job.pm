@@ -8,7 +8,7 @@ use List::Util qw(min);
 use base 'Bio::MultiRepChIPSeq::options';
 use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 
-our $VERSION = 20.2;
+our $VERSION = 21.0;
 
 sub new {
 
@@ -1061,10 +1061,10 @@ sub generate_bam2wig_count_commands {
 				if ( $self->chr_normfactor ) {
 
 					# chromosome-specific scaling
-					$count_command .= sprintf "--chrnorm %s --chrapply %s ",
+					$command .= sprintf "--chrnorm %s --chrapply %s ",
 						$self->chr_normfactor, $self->chrapply;
 				}
-				$count_command .= "--format 3 ";    # always limit digits
+				$command .= "--format 3 ";    # always limit digits
 			}
 
 			# regenerate command with file names
