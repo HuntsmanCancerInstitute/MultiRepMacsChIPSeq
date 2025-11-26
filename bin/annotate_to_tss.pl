@@ -25,12 +25,14 @@ use Data::Dumper;
 our $VERSION = 0.6;
 
 # user variables
-my $tool = which('bedtools');
+my $bedtool = which('bedtools');
+my $getgene = which('get_gene_regions.pl');
 my $infile;
 my $outfile;
 my $tss_file;
+my $anno_file;
 my $distance         = 10;   # kb
-my $overlap_distance = 250;  # bp
+my $overlap_distance = 100;  # bp
 my $profile_radius;   # kb
 my $help;
 
@@ -39,18 +41,26 @@ my $help;
 ### Documentation
 my $docs = <<DOC;
 
-A script to collate the annotation output from `bedtools window` using
-peaks and gene annotation TSS. This is intended to be used with a
-window parameter to identify all neighborhood genes.
+A script to annotate genomic intervals, such as enrichment peaks, to
+neighboring gene Transcription Start Sites (TSS). 
 
-This will report any gene that overlaps (within $overlap_distance bp),
-single genes to the immediate left and right within the neighborhood distance,
-and all genes within the neighborhood.
+This wraps around the `window` function of `bedtools` and collates the
+output into several lists of overlapping, adjacent, and neighborhood
+genes. This is predicated on the observation that regulatory regions
+frequently interact with not just the closest gene but rather multiple
+neighboring genes, some at considerable distances. The maximum distance
+reported may be defined by the user.
 
 Note that there will be one-to-one, one-to-many, many-to-one, and many-to-many
 relationships between peaks and genes. Expect duplications.
 
-Writes several output files:
+This uses a transcript annotation file to extract the TSS. For best
+results, a custom annotation file based on empirical expression data
+should be used, preferably filtered for positive expression in the
+tested samples.
+
+There are several output files written:
+
 	out.annotation.tsv          Peak table with overlapping, left, right, and
 	                              neighborhood gene annotation
 	out.genes.tsv               Gene table with all overlapping, closest, adjacent,
@@ -65,15 +75,25 @@ Writes several output files:
 
 VERSION: $VERSION
 
-USAGE: script.pl  ...
+USAGE: annotate_to_tss.pl  -i peak.bed -t GRCh38_TSS.txt
 
 OPTIONS:
-  -i --in <file>           Provide the input peak file (bed, narrowPeak)
-  -o --out <file>          Provide the output file basename
-  -t --tss <file>          Provide the TSS data file
-  -d --distance <int>      Neighborhood distance for reporting in Kb (10)
-  --overlap <int>          Gap distance to consider overlapping in bp ($overlap_distance)
-  -b --bedtools <path>     Path to bedtools ($tool)
+
+Input:
+  -i --in <file>           Input peak file (bed, narrowPeak). Required.
+  -o --out <file>          Output file basename (default input basename)
+
+TSS Annotation (pick one only, required):
+  -t --tss <file>          TSS data file from get_gene_regions.pl
+  -a --annotation <file>   Gene annotation file (gtf, gff3, UCSC genePred)
+
+Options:
+  -d --distance <int>      Neighborhood distance for reporting in Kb ($distance Kb)
+  --overlap <int>          Gap distance to consider overlapping in bp ($overlap_distance bp)
+
+General:
+  --bedtools <path>        Path to bedtools ($bedtool)
+  --getgene <path>         Path to get_gene_regions ($getgene)
   -h --help                Print documentation
 DOC
 
@@ -85,9 +105,12 @@ unless (@ARGV) {
 GetOptions(
 	'i|in=s'        => \$infile,
 	'o|out=s'       => \$outfile,
-	'd|distance=i'  => \$distance,
 	't|tss=s'       => \$tss_file,
-	'b|bedtools=s'  => \$tool,
+	'a|annotation=s' => \$anno_file,
+	'd|distance=i'  => \$distance,
+	'overlap=i'     => \$overlap_distance,
+	'bedtools=s'    => \$bedtool,
+	'getgene=s'     => \$getgene,
 	'h|help!'       => \$help,
 ) or die "unrecognized option!\n";
 
@@ -99,13 +122,20 @@ else {
 	$profile_radius = $distance;
 }
 unless ($infile) {
-	die "no input file!";
+	print "FATAL: No input file!\n";
+	exit 1;
 }
-unless ($tss_file) {
-	die "no alternate names file!";
+unless ( $tss_file or $anno_file ) {
+	print "FATAL: no TSS data or gene annotation file!\n";
+	exit 1;
 }
-unless ($tool) {
-	die "no bedtools application path provided or found!";
+unless ($bedtool) {
+	print "FATAL: no bedtools application path provided or found!\n";
+	exit 1;
+}
+if ( $anno_file and not $getgene) {
+	print "FATAL: no get_gene_regions.pl application path provided or found!\n";
+	exit 1;
 }
 
 # prepare output
@@ -119,6 +149,7 @@ my $OutData = Bio::ToolBox->new_data( qw(Coordinate Name
 		Right_GeneID Right_GeneName RightDistance
 		Neighborhood_GeneID Neighborhood_GeneName) 
 );
+my %id2row;
 my %gene2peak;		# a hash of geneIDs to array of peaks
 					# peaks [geneName, overlapping, closest, adjacent, neighborhood]
 my @columns          = qw(GeneID GeneName ClosestDistance Transcripts PeakID PeakName);
@@ -158,10 +189,25 @@ sub load_peak_data {
 	printf " Loaded peak file with %d features\n", $Data->number_rows;
 	my $Peak = Bio::ToolBox->new_bed(4);
 	$Data->iterate( sub {
-		my $row  = shift;
+		my $row = shift;
+
+		# remember chromosome
 		$chroms{ $row->seq_id } += 1;
+
+		# record peak interval
 		my @data = ( $row->seq_id, $row->start - 1, $row->end, $row->name );
 		$Peak->add_row( \@data );
+
+		# add entry to output data
+		my $id = $row->coordinate;
+		if ( exists $id2row{$id} ) {
+			print " ERROR: input regions are not unique! See '$id'\n";
+			exit 1;
+		}
+		else {
+			my $i = $OutData->add_row( [$id, $row->name] );
+			$id2row{$id} = $i;
+		}
 	} );
 	unless ($Peak->number_rows) {
 		print " ERROR: no useable peak features loaded\n";
@@ -172,12 +218,24 @@ sub load_peak_data {
 
 	# generate output file as necessary
 	unless ($outfile) {
-		$outfile = sprintf "%s/%s.annotation", $Data->path . $Data->basename;
+		$outfile = File::Spec->catfile( $Data->path, $Data->basename . '.annotation' );
 	}
 	$profile_name = $Data->basename;
 }
 
 sub load_tss_data {
+	
+	# generate tss file as necessary
+	if ( not $tss_file and $anno_file ) {
+		$tss_file = $outfile . '.TSS.txt.gz';
+		my $cmd = sprintf "%s --in %s --region tss --transcript all --out %s",
+			$getgene, $anno_file, $tss_file;
+		printf " Extracting TSS data from %s...\n", $anno_file;
+		system($cmd) == 0 or
+			die " FATAL: execution '$cmd' failed!\n";
+	}
+
+	# load tss file
 	my $Data  = Bio::ToolBox->load_file ( file => $tss_file ) or
 		die 'unable to load TSS annotation file!';
 	printf " Loaded TSS annotation file with %d features\n", $Data->number_rows;
@@ -187,10 +245,9 @@ sub load_tss_data {
 	my $trxid = $Data->find_column('transcript.?id');
 	my $genid = $Data->find_column('gene.?id');
 	my $gname = $Data->find_column('gene.?name');
-	my $TSS   = Bio::ToolBox->new_data(qw( Chromosome Start0 End Name Score Strand ) );
-	$TSS->bed(6);
-	$TSS->interbase(1);
-	$TSS->headers(0);
+
+	# generate TSS bed file
+	my $TSS   = Bio::ToolBox->new_bed(6);
 	$Data->iterate( sub {
 		my $row = shift;
 		
@@ -240,11 +297,11 @@ sub load_tss_data {
 }
 
 sub run_intersection {
-	my $command = sprintf "%s window -a %s -b %s -w %s > %s", $tool, $peak_bed_file,
+	my $command = sprintf "%s window -a %s -b %s -w %s > %s", $bedtool, $peak_bed_file,
 		$tss_bed_file, $distance, $result_file;
 	print " Intersecting Peaks with TSS...\n";
 	system($command) == 0 or
-		die " execution '$command' failed!\n";
+		die " FATAL: execution '$command' failed!\n";
 }
 
 sub parse_intersection_file {
