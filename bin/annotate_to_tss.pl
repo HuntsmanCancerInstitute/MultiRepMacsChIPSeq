@@ -22,13 +22,13 @@ use List::Util qw(uniqstr uniqint any);
 use Set::IntSpan::Fast;
 use Data::Dumper;
 
-our $VERSION = 0.5;
+our $VERSION = 0.6;
 
 # user variables
 my $tool = which('bedtools');
 my $infile;
 my $outfile;
-my $alt_file;
+my $tss_file;
 my $distance         = 10;   # kb
 my $overlap_distance = 250;  # bp
 my $profile_radius;   # kb
@@ -68,11 +68,12 @@ VERSION: $VERSION
 USAGE: script.pl  ...
 
 OPTIONS:
-  -i --in <file>           Provide the input file
-  -o --out <file>          Provide the output file
-  -a --alt                 Alternate lookup for transcript to name
+  -i --in <file>           Provide the input peak file (bed, narrowPeak)
+  -o --out <file>          Provide the output file basename
+  -t --tss <file>          Provide the TSS data file
   -d --distance <int>      Neighborhood distance for reporting in Kb (10)
   --overlap <int>          Gap distance to consider overlapping in bp ($overlap_distance)
+  -b --bedtools <path>     Path to bedtools ($tool)
   -h --help                Print documentation
 DOC
 
@@ -85,7 +86,8 @@ GetOptions(
 	'i|in=s'        => \$infile,
 	'o|out=s'       => \$outfile,
 	'd|distance=i'  => \$distance,
-	'a|alt=s'       => \$alt_file,
+	't|tss=s'       => \$tss_file,
+	'b|bedtools=s'  => \$tool,
 	'h|help!'       => \$help,
 ) or die "unrecognized option!\n";
 
@@ -102,11 +104,15 @@ unless ($infile) {
 unless ($outfile) {
 	die "no output file!";
 }
-unless ($alt_file) {
+unless ($tss_file) {
 	die "no alternate names file!";
+}
+unless ($tool) {
+	die "no bedtools application path provided or found!";
 }
 
 # prepare output
+my %chroms;
 my %id2alt;
 my $OutData = Bio::ToolBox->new_data( qw(Coordinate Name 
 		Overlapping_GeneID Overlapping_GeneName
@@ -115,6 +121,8 @@ my $OutData = Bio::ToolBox->new_data( qw(Coordinate Name
 		Right_GeneID Right_GeneName RightDistance
 		Neighborhood_GeneID Neighborhood_GeneName) 
 );
+my %gene2peak;		# a hash of geneIDs to array of peaks
+					# peaks [geneName, overlapping, closest, adjacent, neighborhood]
 my @columns = qw(GeneID GeneName ClosestDistance Transcripts PeakID PeakName);
 my $OverlapData      = Bio::ToolBox->new_data( @columns );
 my $ClosestData      = Bio::ToolBox->new_data( @columns );
@@ -122,39 +130,106 @@ my $AdjacentData     = Bio::ToolBox->new_data( @columns );
 my $NeighborhoodData = Bio::ToolBox->new_data( @columns );
 my %profile = map { $_ => 0 }
 	( -1 * downsize($profile_radius) .. downsize( $profile_radius ) );
+my $GeneData = Bio::ToolBox->new_data( qw(GeneID GeneName Overlapping Closest
+		Adjacent Neighborhood) );
+
+# temporary output files
+my $tss_bed_file  = sprintf("tss.%s.bed", $PID);
+my $peak_bed_file = sprintf("peak.%s.bed", $PID);
+my $result_file   = sprintf("result.%s.txt", $PID);
 
 
-# process input
-load_alt_names();
-parse_file();
+# main execution functions
+load_peak_data();
+load_tss_data();
+run_intersection();
+parse_intersection_file();
 write_output_files();
-
+unlink($tss_bed_file, $peak_bed_file, $result_file);
 
 
 
 
 ############ Subroutines 
 
-sub load_alt_names {
-	my $Data = Bio::ToolBox->load_file ( file => $alt_file );
+sub load_peak_data {
+	my $Data = Bio::ToolBox->load_file( file => $infile ) or
+		die 'unable to load input peak file!';
+	printf " Loaded peak file with %d features\n", $Data->number_rows;
+	my $Peak = Bio::ToolBox->new_data( qw( Chromosome Start0 End Name ) );
+	$Data->iterate( sub {
+		my $row  = shift;
+		$chroms{ $row->seq_id } += 1;
+		my @data = ( $row->seq_id, $row->start - 1, $row->end, $row->name );
+		$Peak->add_row( \@data );
+	} );
+	$Peak->gsort_data;
+	$Peak->write_file($peak_bed_file);
+}
+
+sub load_tss_data {
+	my $Data  = Bio::ToolBox->load_file ( file => $tss_file ) or
+		die 'unable to load TSS annotation file!';
+	printf " Loaded TSS annotation file with %d features\n", $Data->number_rows;
+	my $chr   = $Data->chromo_column;
+	my $start = $Data->start_column;
+	my $strnd = $Data->strand_column;
 	my $trxid = $Data->find_column('transcript.?id');
 	my $genid = $Data->find_column('gene.?id');
 	my $gname = $Data->find_column('gene.?name');
+	my $TSS   = Bio::ToolBox->new_data(qw( Chromosome Start0 End Name Score Strand ) );
+	$TSS->bed(6);
+	$TSS->interbase(1);
 	$Data->iterate( sub {
 		my $row = shift;
+		
+		# check the chromosome first
+		# only take those that we are interested in
+		# also check for chr prefix
+		my $chr = $row->seq_id;
+		unless (exists $chroms{$chr} ) {
+			my $alt;
+			if ( $chr =~ /^chr (.+) $/xi ) {
+				$alt = $1;
+			}
+			else {
+				$alt = 'chr' . $chr;
+			}
+			if ( exists $chroms{$alt} ) {
+				$chr = $alt;
+			}
+			else {
+				next;
+			}
+		}
 		$id2alt{ $row->value($trxid) } = [ $row->value($genid), $row->value($gname) ];
+		$TSS->add_row( [
+			$chr,
+			$row->start - 1,
+			$row->start,
+			$row->value($trxid),
+			1,
+			$row->strand
+		] );
 	} );
+	$TSS->gsort_data;
+	$TSS->write_file($tss_bed_file);
 }
 
-sub parse_file {
+sub run_intersection {
+	my $command = sprintf "%s windows -a %s -b %s -w %s > %s", $tool, $peak_bed_file,
+		$tss_bed_file, $distance, $result_file;
+	print " Intersecting Peaks with TSS...\n";
+	system($command) == 0 or
+		die " execution '$command' failed!\n";
+}
+
+sub parse_intersection_file {
 
 	# Load input file
-	my $Data = Bio::ToolBox->load_file( file => $infile, noheader => 1 )
-		or die "unable to load file '$infile'!\n";
-	printf " Loaded '$infile' with %d features\n", $Data->number_rows;
-	unless ($Data->number_columns == 11) {
-		die " file does not have 11 columns!";
-	}
+	my $Data = Bio::ToolBox->load_file( file => $result_file, noheader => 1 )
+		or die "unable to load file '$result_file'!\n";
+	printf " Loaded result file with %d features\n", $Data->number_rows;
 
 	# rename columns to make things easier
 	$Data->name(1, 'Chromosome');
@@ -203,14 +278,14 @@ sub process_items {
 		map  { [
 			$_->value(7),
 			Bio::ToolBox::SeqFeature->new(
-				-seq_id     => $_->value(6),
-				-start      => $_->value(7),
-				-end        => $_->value(8),
-				-name       => $_->value(9),
-				-strand     => $_->value(11),
+				-seq_id     => $_->value(5),
+				-start      => $_->value(6) + 1,
+				-end        => $_->value(7),
+				-name       => $_->value(8),
+				-strand     => $_->value(9),
 				-attributes => {
-					gid   => $id2alt{ $_->value(9) }->[0],
-					gname => $id2alt{ $_->value(9) }->[1],
+					gid   => $id2alt{ $_->value(8) }->[0],
+					gname => $id2alt{ $_->value(8) }->[1],
 				}
 			)
 		] }
@@ -307,6 +382,18 @@ sub process_items {
 		foreach my $item (@info) {
 			push @{$item}, $reference->primary_id, $reference->name;
 			$OverlapData->add_row($item);
+			if (exists $gene2peak{ $item->[0] } ) {
+				push @{ $gene2peak{ $item->[0] }->[1] }, $reference->name;
+			}
+			else {
+				$gene2peak{ $item->[0] } = [
+					$item->[1],
+					[ $reference->name ],
+					[],
+					[],
+					[]
+				];
+			}
 		}
 	}
 
@@ -341,6 +428,18 @@ sub process_items {
 		foreach my $item (@info) {
 			push @{$item}, $reference->primary_id, $reference->name;
 			$ClosestData->add_row($item);
+			if (exists $gene2peak{ $item->[0] } ) {
+				push @{ $gene2peak{ $item->[0] }->[2] }, $reference->name;
+			}
+			else {
+				$gene2peak{ $item->[0] } = [
+					$item->[1],
+					[],
+					[ $reference->name ],
+					[],
+					[]
+				];
+			}
 		}
 	}
 
@@ -361,8 +460,21 @@ sub process_items {
 		foreach my $item (@info) {
 			push @{$item}, $reference->primary_id, $reference->name;
 			$AdjacentData->add_row($item);
+			if (exists $gene2peak{ $item->[0] } ) {
+				push @{ $gene2peak{ $item->[0] }->[3] }, $reference->name;
+			}
+			else {
+				$gene2peak{ $item->[0] } = [
+					$item->[1],
+					[],
+					[],
+					[ $reference->name ],
+					[]
+				];
+			}
 		}
 	}
+
 
 	# neighorhood output - this is essentially everything
 	{
@@ -370,8 +482,21 @@ sub process_items {
 		foreach my $item (@info) {
 			push @{$item}, $reference->primary_id, $reference->name;
 			$NeighborhoodData->add_row($item);
+			if (exists $gene2peak{ $item->[0] } ) {
+				push @{ $gene2peak{ $item->[0] }->[4] }, $reference->name;
+			}
+			else {
+				$gene2peak{ $item->[0] } = [
+					$item->[1],
+					[],
+					[],
+					[],
+					[ $reference->name ]
+				];
+			}
 		}
 	}
+
 
 	# Peak output
 	$OutData->add_row( [
@@ -401,11 +526,13 @@ sub process_items {
 
 sub extract_info {
 
-	# this collapses the gene list into unique genes, recording the closest
-	# distance and all the transcript IDs
+	# this collapses the list of found features into unique genes
+	# returns an array of genes consisting of (GeneID, GeneName, closest relative
+	# distance to a peak, and comma-delimited list of TranscriptIDs)
 	my $list = shift;
+
+	# only one item, very easy, just return it
 	if ( scalar @{$list} == 1 ) {
-		# only one item, very easy, just return it
 		my $f = $list->[0];
 		return [
 			$f->get_tag_values('gid'),
@@ -493,34 +620,37 @@ sub downsize {
 	return sprintf "%.0f", ( $v / 100 );
 }
 
-sub record_intersection {
-	my ($ref_span, $start) = @_;
-	my $s = $start - $profile_radius;
-	my $e = $start + $profile_radius;
-	$s = 1 if $s <= 0;
-	my $set = Set::IntSpan::Fast->new;
-	$set->add_range( $s, $e );
-	my $overlap = $ref_span->intersection($set);
-	if ($overlap) {
-		# subtract the reference point to make it +/- relative
-		# divide into 100 bp bins for recording
-		my @bins = uniqint map { int( ( $_ - $start ) / 100 ) } $overlap->as_array;
-		foreach my $i (@bins) {
-			next unless exists $profile{$i};
-			$profile{$i} += 1;
-		}
-	}
-}
-
 sub write_output_files {
 
-	# output table
+	# output peak table
 	my $w = $OutData->write_file($outfile);
 	unless ($w) {
-		print " Failed to write output annotation file!\n";
+		print " Failed to write output peak annotation file!\n";
 	}
 	undef $w;
 
+	# output gene table
+	foreach my $gid ( sort { $a cmp $b } keys %gene2peak ) {
+		my $peak = $gene2peak{$gid};
+		my @data = ( $gid, $peak->[0] );
+		for my $i (1..4) {
+			if ( scalar @{ $peak->[$i] } ) {
+				push @data, join(',', @{ $peak->[$i] } );
+			}
+			else {
+				push @data, '.';
+			}
+		}
+		$GeneData->add_row( \@data );
+	}
+	$outfile =~ s/\.txt (?:\.gz)? $//x;
+	$outfile .= '.genes.txt';
+	$w = $GeneData->write_file($outfile);
+	unless ($w) {
+		print " Failed to write output gene annotation file!\n";
+	}
+	undef $w;
+	
 	# overlapping genes
 	$OverlapData->delete_column(3);   # do not distance column, all zeroes
 	$OverlapData->sort_data(2, 'i');
@@ -565,6 +695,7 @@ sub write_output_files {
 	}
 	undef $w;
 
+
 	# coverage profile
 	my $outname = $outfile;
 	$outname =~ s/\.neighborhood\.txt//x;
@@ -588,6 +719,7 @@ sub write_output_files {
 		print " Failed to write profile summary file!\n";
 	}
 	undef $w;
+
 }
 
 =cut
