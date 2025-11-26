@@ -21,7 +21,7 @@ use Bio::ToolBox::SeqFeature;
 use List::Util qw(uniqstr uniqint);
 use Set::IntSpan::Fast;
 
-our $VERSION = 0.3;
+our $VERSION = 0.4;
 
 # user variables
 my $tool = which('bedtools');
@@ -58,7 +58,8 @@ Writes several output files:
 	outfile.closest.txt        Text file of the closest genes with peak names
 	outfile.adjacent.txt       Text file of all overlapping, immediate left, and 
 	                             immediate right genes with peak names
-    outfile.neighborhood.txt   Text file of all neighborhood genes with peak names
+    outfile.neighborhood.txt   Text file of all neighborhood TSS features with
+                                 gene names and peak names
     outfile.profile.txt        Text file of of peak coverage around TSS
 
 VERSION: $VERSION
@@ -106,18 +107,18 @@ unless ($alt_file) {
 
 # prepare output
 my %id2alt;
-my %neighborhood;
 my $OutData = Bio::ToolBox->new_data(
-	qw(Coordinate Name Closest_ID Closest_GeneID Closest_GeneName
-		Overlapping_ID Overlapping_GeneID Overlapping_GeneName
-		Left_ID LeftDistance Left_GeneID Left_GeneName
-		Right_ID RightDistance Right_GeneID Right_GeneName
+	qw(Coordinate Name Closest_tssID Closest_GeneID Closest_GeneName
+		Overlapping_tssID Overlapping_GeneID Overlapping_GeneName
+		Left_tssID LeftDistance Left_GeneID Left_GeneName
+		Right_tssID RightDistance Right_GeneID Right_GeneName
 		Neighborhood_GeneID Neighborhood_GeneName) 
 );
-my $OverlapData      = Bio::ToolBox->new_data( qw(GeneID GeneName ID Name) );
-my $ClosestData      = Bio::ToolBox->new_data( qw(GeneID GeneName Distance ID Name) );
-my $AdjacentData     = Bio::ToolBox->new_data( qw(GeneID GeneName Distance ID Name) );
-my $NeighborhoodData = Bio::ToolBox->new_data( qw(GeneID GeneName Distance ID Name) );
+my $OverlapData      = Bio::ToolBox->new_data( qw(GeneID GeneName Distance PeakID PeakName) );
+my $ClosestData      = Bio::ToolBox->new_data( qw(GeneID GeneName Distance PeakID PeakName) );
+my $AdjacentData     = Bio::ToolBox->new_data( qw(GeneID GeneName Distance PeakID PeakName) );
+my $NeighborhoodData = Bio::ToolBox->new_data( qw(tssID GeneID GeneName Distance 
+						PeakID PeakName) );
 my %profile = map { $_ => 0 }
 	( ( -1 * int( $profile_radius / 100 ) ) .. int( $profile_radius / 100 ) );
 
@@ -219,17 +220,24 @@ sub process_items {
 	my ($left, $leftName, $leftDistance, $left_gid, $left_gnm, $left_start);
 	if (@left_items) {
 		$left = pop @left_items; # last one should be closest
-		$leftDistance = $reference->start - $left->end;
-		if ( $leftDistance < $overlap_distance ) {
+		$leftDistance = $left->end - $reference->start;
+		if ( abs($leftDistance) < $overlap_distance ) {
 			# consider this overlapping
 			push @overlap, $left;
 			( $overlapping, $overlapping_gid, $overlapping_gnm, $overlapping_start ) =
 				process_list(\@overlap);
-			$leftDistance = 0;
+			undef $leftDistance;
 			$left = pop @left_items || undef;
 		}
 		if ($left) {
-			$leftDistance = $reference->start - $left->end;
+			if ($left->strand < 0) {
+				# upstream
+				$leftDistance = $left->end - $reference->start;
+			}
+			else {
+				# downstream
+				$leftDistance = $reference->start - $left->start;
+			}
 			( $leftName, $left_gid, $left_gnm, $left_start ) = process_list( [ $left ] );
 		}
 	}
@@ -246,10 +254,17 @@ sub process_items {
 			( $overlapping, $overlapping_gid, $overlapping_gnm, $overlapping_start ) =
 				process_list(\@overlap);
 			$right = shift @right_items || undef;
-			$rightDistance = 0;
+			undef $rightDistance;
 		}
 		if ($right) {
-			$rightDistance = $right->start - $reference->end;
+			if ($right->strand < 0) {
+				# downstream
+				$rightDistance = $right->end - $reference->end;
+			}
+			else {
+				# upstream
+				$rightDistance = $reference->end - $right->start;
+			}
 			( $rightName, $right_gid, $right_gnm, $right_start ) =
 				process_list( [ $right ] );
 		}
@@ -276,7 +291,7 @@ sub process_items {
 		$closest_dist = $rightDistance;
 	}
 	elsif ($rightName and $leftName) {
-		if ($leftDistance < $rightDistance) {
+		if ( abs($leftDistance) < abs($rightDistance) ) {
 			$closest      = $leftName;
 			$closest_gid  = $left_gid;
 			$closest_gnm  = $left_gnm;
@@ -290,66 +305,51 @@ sub process_items {
 		}
 	}
 	if ($closest_gid) {
-		$ClosestData->add_row( [
-			$closest_gid,
-			$closest_gnm,
-			$closest_dist,
-			$reference->id,
-			$reference->name
-		] );
-	}
-
-	# neighborhood
-	my @neighbors;
-	my @neighbor_gid;
-	my @neighbor_gnm;
-	foreach my $f (@features) {
-		# basically take everything that is not overlapping
-		push @neighbors, grep { $_->end < $reference->start } @features;
-		push @neighbors, grep { $_->start > $reference->end } @features;
-	}
-	if (@neighbors) {
-		# collect names
-		my @neighborNms = uniqstr map { $_->name } @neighbors;
-		@neighbor_gid = uniqstr map { $id2alt{$_}->[0] } @neighborNms;
-		@neighbor_gnm = uniqstr map { $id2alt{$_}->[1] } @neighborNms;
-		for my $i (0 .. $#neighbor_gid) {
-			my $n = $neighbor_gid[$i];
-			if ( exists $neighborhood{$n} ) {
-				$neighborhood{$n}->[1]++;
-			}
-			else {
-				$neighborhood{$n} = [ $neighbor_gnm[$i] , 1 ];
+		if ($closest_gid =~ /,/) {
+			# sigh, need to de-list this again
+			# this only happens with overlapping TSSs, never with left or right
+			my @gids = split /,/, $closest_gid;
+			my @gnms = split /,/, $closest_gnm;
+			for my $i (0..$#gids) {
+				$ClosestData->add_row( [
+					$gids[$i] || '.',
+					$gnms[$i] || '.',
+					0,
+					$reference->id,
+					$reference->name
+				] );
 			}
 		}
-		# write output
-		for my $i (0 .. $#neighbor_gid) {
-			$NeighborhoodData->add_row( [
-				$neighbor_gid[$i],
-				$neighbor_gnm[$i],
+		else {
+			$ClosestData->add_row( [
+				$closest_gid || '.',
+				$closest_gnm || '.',
+				$closest_dist,
 				$reference->id,
 				$reference->name
 			] );
-		}		
-		
+		}
 	}
-	
+
 	# overlapping gene output
 	if (@overlap) {
 		my @overlap_gid = uniqstr map { $id2alt{ $_->name }->[0] } @overlap;
 		my @overlap_gnm = uniqstr map { $id2alt{ $_->name }->[1] } @overlap;
 		for my $i (0 .. $#overlap_gid) {
 			$OverlapData->add_row( [
-				$overlap_gid[$i],
-				$overlap_gnm[$i],
+				$overlap_gid[$i] || '.',
+				$overlap_gnm[$i] || '.',
+				0,
 				$reference->id,
 				$reference->name
 			] );
 		}	
+
+		# also add to adjacent output
 		for my $i (0 .. $#overlap_gid) {
 			$AdjacentData->add_row( [
-				$overlap_gid[$i],
-				$overlap_gnm[$i],
+				$overlap_gid[$i] || '.',
+				$overlap_gnm[$i] || '.',
 				0,
 				$reference->id,
 				$reference->name
@@ -360,8 +360,8 @@ sub process_items {
 	# adjacent gene output
 	if ($left_gid) {
 		$AdjacentData->add_row( [
-			$left_gid,
-			$left_gnm,
+			$left_gid || '.',
+			$left_gnm || '.',
 			$leftDistance,
 			$reference->id,
 			$reference->name
@@ -369,16 +369,55 @@ sub process_items {
 	}
 	if ($right_gid) {
 		$AdjacentData->add_row( [
-			$right_gid,
-			$right_gnm,
+			$right_gid || '.',
+			$right_gnm || '.',
 			$rightDistance,
 			$reference->id,
 			$reference->name
 		] );
 	}
 	
+	# neighorhood output - this is essentially everything
+	foreach my $f (@features) {
+		my $dist;
+		# tss left of the peak
+		if ($f->end < $reference->start) {
+			if ($f->strand < 0) {
+				# upstream
+				$dist = $f->end - $reference->start;
+			}
+			else {
+				# downstream
+				$dist = $reference->start - $f->start;
+			}
+		}
+		# tss right of the peak
+		elsif ($f->start > $reference->end) {
+			if ($f->strand < 0) {
+				# downstream
+				$dist = $f->end - $reference->end;
+			}
+			else {
+				# upstream
+				$dist = $reference->end - $f->start;
+			}
+		}
+		# overlapping
+		else {
+			$dist = 0;
+		}
+		$NeighborhoodData->add_row( [
+			$f->name,
+			$id2alt{ $f->name }->[0] || '.',
+			$id2alt{ $f->name }->[1] || '.',
+			$dist,
+			$reference->id,
+			$reference->name
+		] );
+	}
 	
 	# peak output
+	my ( undef, $neighbor_gid, $neighbor_gnm, undef ) = process_list(\@features);
 	$OutData->add_row( [
 		$reference->id,
 		$reference->name,
@@ -396,8 +435,8 @@ sub process_items {
 		$rightDistance   || 0,
 		$right_gid       || q(.),
 		$right_gnm       || q(.),
-		@neighbor_gid ? join( q(,), @neighbor_gid ) : q(.),
-		@neighbor_gnm ? join( q(,), @neighbor_gnm ) : q(.)
+		$neighbor_gid    || q(.),
+		$neighbor_gnm    || q(.)
 	]);
 	
 
@@ -468,7 +507,7 @@ sub write_output_files {
 	undef $w;
 
 	# overlapping genes
-	$OverlapData->sort_data(1, 'i');
+	$OverlapData->sort_data(2, 'i');
 	printf " > identified %d unique overlapping genes\n",
 		scalar( uniqstr( $OverlapData->column_values(1) ) ) - 1;
 	$outfile =~ s/\.txt (?:\.gz)? $//x;
@@ -480,7 +519,7 @@ sub write_output_files {
 	undef $w;
 
 	# closest genes
-	$ClosestData->sort_data(1, 'i');
+	$ClosestData->sort_data(2, 'i');
 	printf " > identified %d unique closest genes\n",
 		scalar( uniqstr( $ClosestData->column_values(1) ) ) - 1;
 	$outfile =~ s/overlapping/closest/x;
@@ -490,7 +529,7 @@ sub write_output_files {
 	}
 	
 	# adjacent genes
-	$AdjacentData->sort_data(1, 'i');
+	$AdjacentData->sort_data(2, 'i');
 	printf " > identified %d unique adjacent genes\n",
 		scalar( uniqstr( $AdjacentData->column_values(1) ) ) - 1;
 	$outfile =~ s/closest/adjacent/x;
@@ -500,9 +539,9 @@ sub write_output_files {
 	}
 	
 	# neighborhood genes
-	$NeighborhoodData->sort_data(1, 'i');
+	$NeighborhoodData->sort_data(3, 'i');
 	printf " > identified %d unique neighborhood genes\n",
-		scalar( uniqstr( $NeighborhoodData->column_values(1) ) ) - 1;
+		scalar( uniqstr( $NeighborhoodData->column_values(2) ) ) - 1;
 	$outfile =~ s/adjacent/neighborhood/x;
 	$w = $NeighborhoodData->write_file($outfile);
 	unless ($w) {
