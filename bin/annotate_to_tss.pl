@@ -33,6 +33,7 @@ my $anno_file;
 my $distance         = 10;     # kb
 my $overlap_distance = 100;    # bp
 my $profile_radius;            # kb
+my $write_lists;
 my $help;
 
 # global variables
@@ -89,6 +90,7 @@ TSS Annotation (pick one only, required):
 Options:
   -d --distance <int>      Neighborhood distance for reporting in Kb ($distance Kb)
   --overlap <int>          Gap distance to consider overlapping in bp ($overlap_distance bp)
+  -w --writelists          Write separate gene table lists
 
 General:
   --bedtools <path>        Path to bedtools ($bedtool)
@@ -108,6 +110,7 @@ GetOptions(
 	'a|annotation=s' => \$anno_file,
 	'd|distance=i'   => \$distance,
 	'overlap=i'      => \$overlap_distance,
+	'w|writelists!'  => \$write_lists,
 	'bedtools=s'     => \$bedtool,
 	'getgene=s'      => \$getgene,
 	'h|help!'        => \$help,
@@ -764,45 +767,52 @@ sub write_output_files {
 	# overlapping genes
 	$OverlapData->delete_column(3);    # do not distance column, all zeroes
 	$OverlapData->sort_data( 2, 'i' );
-	printf " > identified %d unique overlapping genes\n",
-		scalar( uniqstr( $OverlapData->column_values(1) ) ) - 1;
-
-	# 	$w = $OverlapData->write_file($outfile . '.overlapping_genes.tsv');
-	# 	unless ($w) {
-	# 		print " Failed to write overlapping gene list file!\n";
-	# 	}
-	undef $w;
+	printf " > identified %s unique overlapping genes\n",
+		format_with_commas( scalar( uniqstr( $OverlapData->column_values(1) ) ) - 1 );
+	if ($write_lists) {
+		$w = $OverlapData->write_file($outfile . '.overlapping_genes.tsv');
+		unless ($w) {
+			print " Failed to write overlapping gene list file!\n";
+		}
+		undef $w;
+	}
 
 	# closest genes
 	$ClosestData->sort_data( 2, 'i' );
-	printf " > identified %d unique closest genes\n",
-		scalar( uniqstr( $ClosestData->column_values(1) ) ) - 1;
-
-	# 	$w = $ClosestData->write_file($outfile . '.closest_genes.tsv');
-	# 	unless ($w) {
-	# 		print " Failed to write closest gene list file!\n";
-	# 	}
+	printf " > identified %s unique closest genes\n",
+		format_with_commas( scalar( uniqstr( $ClosestData->column_values(1) ) ) - 1 );
+	if ($write_lists) {
+		$w = $ClosestData->write_file($outfile . '.closest_genes.tsv');
+		unless ($w) {
+			print " Failed to write closest gene list file!\n";
+		}
+		undef $w;
+	}
 
 	# adjacent genes
 	$AdjacentData->sort_data( 2, 'i' );
-	printf " > identified %d unique adjacent genes\n",
-		scalar( uniqstr( $AdjacentData->column_values(1) ) ) - 1;
-
-	# 	$w = $AdjacentData->write_file($outfile . '.adjacent_genes.tsv');
-	# 	unless ($w) {
-	# 		print " Failed to write adjacent gene list file!\n";
-	# 	}
+	printf " > identified %s unique adjacent genes\n",
+		format_with_commas( scalar( uniqstr( $AdjacentData->column_values(1) ) ) - 1 );
+	if ($write_lists) {
+		$w = $AdjacentData->write_file($outfile . '.adjacent_genes.tsv');
+		unless ($w) {
+			print " Failed to write adjacent gene list file!\n";
+		}
+		undef $w;
+	}
 
 	# neighborhood genes
 	$NeighborhoodData->sort_data( 2, 'i' );
-	printf " > identified %d unique neighborhood genes\n",
-		scalar( uniqstr( $NeighborhoodData->column_values(2) ) ) - 1;
-
-	# 	$w = $NeighborhoodData->write_file($outfile . '.neighbor_genes.tsv');
-	# 	unless ($w) {
-	# 		print " Failed to write neighborhood gene list file!\n";
-	# 	}
-	undef $w;
+	printf " > identified %s unique neighborhood genes\n",
+		format_with_commas(
+			scalar( uniqstr( $NeighborhoodData->column_values(2) ) ) - 1 );
+	if ($write_lists) {
+		$w = $NeighborhoodData->write_file($outfile . '.neighbor_genes.tsv');
+		unless ($w) {
+			print " Failed to write neighborhood gene list file!\n";
+		}
+		undef $w;
+	}
 
 	# coverage profile
 	my $outname     = $outfile;
@@ -826,6 +836,5 @@ sub write_output_files {
 		print " Failed to write profile summary file!\n";
 	}
 	undef $w;
-
 }
 
