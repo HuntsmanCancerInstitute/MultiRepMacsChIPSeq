@@ -22,7 +22,7 @@ use List::Util qw(uniqstr uniqint any);
 use Set::IntSpan::Fast;
 use Data::Dumper;
 
-our $VERSION = 0.6;
+our $VERSION = 0.7;
 
 # user variables
 my $bedtool = which('bedtools');
@@ -595,26 +595,31 @@ sub process_items {
 		}
 	}
 
-
-	# Peak output
-	$OutData->add_row( [
-		$reference->id,
-		$reference->name,
-		@overlap  ? join(',', map { $_->[0] } @overlap_info ) : '.',
-		@overlap  ? join(',', map { $_->[1] } @overlap_info ) : '.',
-		@closest  ? join(',', map { $_->[0] } @closest_info ) : '.',
-		@closest  ? join(',', map { $_->[1] } @closest_info ) : '.',
-		@closest  ? $closestDistance : '.',
-		$left     ? $left->get_tag_values('gid') : '.',
-		$left     ? $left->get_tag_values('gname') : '.',
-		$left     ? $leftDistance : '.',
-		$right    ? $right->get_tag_values('gid') : '.',
-		$right    ? $right->get_tag_values('gname') : '.',
-		$right    ? $rightDistance : '.',
-		@features ? join(',', map { $_->[0] } @neighbor_info ) : '.',
-		@features ? join(',', map { $_->[1] } @neighbor_info ) : '.',
-	] );
-
+	# write out peak data to the Output Data table
+	my $row_index = $id2row{ $reference->id };
+	if (@overlap) {
+		$OutData->value( $row_index, 3, join( ',', map { $_->[0] } @overlap_info ) );
+		$OutData->value( $row_index, 4, join( ',', map { $_->[1] } @overlap_info ) );
+	}
+	if (@closest) {
+		$OutData->value( $row_index, 5, join( ',', map { $_->[0] } @closest_info ) );
+		$OutData->value( $row_index, 6, join( ',', map { $_->[1] } @closest_info ) );
+		$OutData->value( $row_index, 7, $closestDistance );
+	}
+	if ($left) {
+		$OutData->value( $row_index, 8,  $left->get_tag_values('gid') );
+		$OutData->value( $row_index, 9,  $left->get_tag_values('gname') );
+		$OutData->value( $row_index, 10, $leftDistance );
+	}
+	if ($right) {
+		$OutData->value( $row_index, 11, $right->get_tag_values('gid') );
+		$OutData->value( $row_index, 12, $right->get_tag_values('gname') );
+		$OutData->value( $row_index, 13, $rightDistance );
+	}
+	if (@features) {
+		$OutData->value( $row_index, 14, join( ',', map { $_->[0] } @neighbor_info ) );
+		$OutData->value( $row_index, 15, join( ',', map { $_->[1] } @neighbor_info ) );
+	}
 
 	# process relative coverage
 	if (@closest) {
