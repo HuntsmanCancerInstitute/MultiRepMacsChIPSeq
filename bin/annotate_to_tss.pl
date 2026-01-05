@@ -18,9 +18,8 @@ use File::Which;
 use Bio::ToolBox 2.0;
 use Bio::ToolBox::utility qw(format_with_commas);
 use Bio::ToolBox::SeqFeature;
-use List::Util qw(uniqstr uniqint any);
+use List::Util qw(uniqstr);
 use Set::IntSpan::Fast;
-use Data::Dumper;
 
 our $VERSION = 0.7;
 
@@ -184,7 +183,12 @@ exit 0;
 sub load_peak_data {
 	my $Data = Bio::ToolBox->load_file( file => $infile )
 		or die 'unable to load input peak file!';
-	printf " Loaded peak file with %d features\n", $Data->number_rows;
+	printf " Loaded peak file with %s features\n",
+		format_with_commas( $Data->number_rows );
+	unless ( $Data->feature_type eq 'coordinate' ) {
+		printf " ERROR: no coordinate information in input file '%s'\n", $infile;
+		exit 1;
+	}
 	my $Peak = Bio::ToolBox->new_bed(4);
 	$Data->iterate(
 		sub {
@@ -206,6 +210,8 @@ sub load_peak_data {
 			else {
 				my $i = $OutData->add_row( [ $id, $row->name ] );
 				$id2row{$id} = $i;
+				# workaround for a bug in Bio::ToolBox::Data
+				$OutData->value( $i, 3, '.' );
 			}
 		}
 	);
@@ -228,7 +234,7 @@ sub load_tss_data {
 	# generate tss file as necessary
 	if ( not $tss_file and $anno_file ) {
 		$tss_file = $outfile . '.TSS.txt.gz';
-		my $cmd = sprintf "%s --in %s --region tss --transcript all --out %s",
+		my $cmd = sprintf "%s --in %s --region tss --transcript all --out %s --gz",
 			$getgene, $anno_file, $tss_file;
 		printf " Extracting TSS data from %s...\n", $anno_file;
 		system($cmd) == 0
@@ -238,7 +244,8 @@ sub load_tss_data {
 	# load tss file
 	my $Data = Bio::ToolBox->load_file( file => $tss_file )
 		or die 'unable to load TSS annotation file!';
-	printf " Loaded TSS annotation file with %d features\n", $Data->number_rows;
+	printf " Loaded TSS annotation file with %s features\n",
+		format_with_commas( $Data->number_rows );
 	my $chr   = $Data->chromo_column;
 	my $start = $Data->start_column;
 	my $strnd = $Data->strand_column;
@@ -304,7 +311,7 @@ sub load_tss_data {
 sub run_intersection {
 	my $command = sprintf "%s window -a %s -b %s -w %s > %s", $bedtool, $peak_bed_file,
 		$tss_bed_file, $distance, $result_file;
-	print " Intersecting Peaks with TSS...\n";
+	printf " Intersecting Peaks with TSS within %d bp...\n", $distance;
 	system($command) == 0
 		or die " FATAL: execution '$command' failed!\n";
 }
@@ -312,7 +319,7 @@ sub run_intersection {
 sub parse_intersection_file {
 
 	# Load input file
-	unless ( -e $result_file ) {
+	unless ( -s $result_file ) {
 		print " ERROR: no intersections found! Check annotation files?\n";
 		print "    target file: $peak_bed_file\n";
 		print "    annotation file: $tss_bed_file\n";
@@ -320,7 +327,8 @@ sub parse_intersection_file {
 	}
 	my $Data = Bio::ToolBox->load_file( file => $result_file, noheader => 1 )
 		or die "unable to load file '$result_file'!\n";
-	printf " Loaded result file with %d features\n", $Data->number_rows;
+	printf " Loaded result file with %s features\n",
+		format_with_commas( $Data->number_rows );
 
 	# rename columns to make things easier
 	$Data->name( 1, 'Chromosome' );
