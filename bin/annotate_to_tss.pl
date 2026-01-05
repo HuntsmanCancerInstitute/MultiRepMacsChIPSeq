@@ -30,7 +30,7 @@ my $infile;
 my $outfile;
 my $tss_file;
 my $anno_file;
-my $distance         = 10;     # kb
+my $distance         = 50;     # kb
 my $overlap_distance = 100;    # bp
 my $profile_radius;            # kb
 my $write_lists;
@@ -48,30 +48,41 @@ This wraps around the `window` function of `bedtools` and collates the
 output into several lists of overlapping, adjacent, and neighborhood
 genes. This is predicated on the observation that regulatory regions
 frequently interact with not just the closest gene but rather multiple
-neighboring genes, some at considerable distances. The maximum distance
-reported may be defined by the user.
+neighboring genes, some at considerable distances.
 
 Note that there will be one-to-one, one-to-many, many-to-one, and many-to-many
 relationships between peaks and genes. Expect duplications.
 
+The maximum distance may be defined by the user; all TSS within this radius
+will be reported. For input regions expected to be promoter-proximal, such as
+H3K4me3, set this to a lower value.
+
 This uses a transcript annotation file to extract the TSS. For best
 results, a custom annotation file based on empirical expression data
 should be used, preferably filtered for positive expression in the
-tested samples.
+tested samples. Otherwise, a genome annotation file will suffice.
 
-There are several output files written:
+By default, there are three output files written: one based on the input
+peak files, one based on all found intersecting genes, and a relative coverage
+data file.
 
-	out.annotation.tsv          Peak table with overlapping, left, right, and
-	                              neighborhood gene annotation
-	out.genes.tsv               Gene table with all overlapping, closest, adjacent,
-	                              and neighborhood genes and corresponding peaks 
-	out.overlapping_genes.tsv   Table of all overlapping genes with peak names
-	out.closest_genes.tsv       Table of the closest genes with peak names
-	out.adjacent_genes.tsv      Table of all overlapping, immediate left, and 
-	                              immediate right genes with peak names
+    out.annotation.tsv          Peak table with overlapping, left, right, and
+                                  neighborhood gene annotation if found
+    out.genes.tsv               Gene table with overlapping, closest, adjacent,
+                                  and neighborhood genes and corresponding peaks
+    out.tss_profile.txt         Data table of peak spatial coverage relative to
+                                  closest gene TSS
+
+If requested, additional separate gene lists may be written:
+
+    out.overlapping_genes.tsv   Table of all overlapping genes with peak names
+    out.closest_genes.tsv       Table of the closest genes with peak names
+    out.adjacent_genes.tsv      Table of all overlapping, immediate left, and 
+                                  immediate right genes with peak names
     out.neighbor_genes.tsv      Table of all genes within search radius
-    out.tss_profile.txt         Data table of peak spatial coverage around
-                                  relative to closest gene TSS
+
+If a gene annotation file was provided, the TSS file is also saved for future
+reference.
 
 VERSION: $VERSION
 
