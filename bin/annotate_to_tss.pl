@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/usr/bin/perl
 
 # Timothy J. Parnell, PhD
 # Huntsman Cancer Institute
