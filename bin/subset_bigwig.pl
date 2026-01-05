@@ -14,20 +14,25 @@
 use strict;
 use English qw(-no_match_vars);
 use File::Spec;
-use File::Which;
 use Getopt::Long;
 use Parallel::ForkManager;
 use File::Path qw(make_path);
-use Bio::ToolBox::big_helper qw(generate_chromosome_file);
+use Bio::ToolBox::big_helper qw(
+	get_wig_to_bigwig_app
+	get_bigwig_to_wig_app
+	check_wigToBigWig_version
+	generate_chromosome_file
+	wig_to_bigwig_conversion
+);
 
-our $VERSION = 1.1;
+our $VERSION = 1.2;
 
 # global variables
 my $chrom  = 'chr1';
 my $outdir = './';
 my $job    = 2;
-my $wig2bw = sprintf( "%s", which 'wigToBigWig' );
-my $bw2wig = sprintf( "%s", which 'bigWigToWig' );
+my $bw2wig = get_bigwig_to_wig_app();
+my $wig2bw = get_wig_to_bigwig_app();
 my $help;
 
 ### Documentation
@@ -70,6 +75,9 @@ if ($help) {
 	exit;
 }
 
+# check wigToBigWig support
+my $bw_ok = check_wigToBigWig_version($wig2bw);
+
 #### bigWig files
 my @files = @ARGV;
 unless ( scalar @files ) {
@@ -95,16 +103,40 @@ foreach my $file (@files) {
 		next;
 	}
 	$pm->start and next;
+
+	# in child
 	my ( undef, undef, $base ) = File::Spec->splitpath($file);
 	$base =~ s/$ext//;
 	my $outfile = File::Spec->catfile( $outdir, $base . ".$chrom.bw" );
-	my $command = sprintf "%s -chrom=%s %s stdout | %s stdin %s %s",
-		$bw2wig, $chrom, $file, $wig2bw, $chromofile, $outfile;
-	if ( system($command) ) {
-		die "something went wrong with command '$command'!!!\n";
+	
+	# run based on bigWig version status
+	if ($bw_ok) {
+		my $command = sprintf "%s -chrom=%s %s stdout | %s stdin %s %s",
+			$bw2wig, $chrom, $file, $wig2bw, $chromofile, $outfile;
+		if ( system($command) ) {
+			die "something went wrong with command '$command'!!!\n";
+		}
+		else {
+			print " wrote $outfile\n";
+		}
 	}
 	else {
-		print " wrote $outfile\n";
+		my $temp = File::Spec->catfile( $outdir, $base . ".$chrom.wig" );
+		my $command = sprintf "%s -chrom=%s %s %s",
+			$bw2wig, $chrom, $file, $temp;
+		if ( system($command) ) {
+			die "something went wrong with command '$command'!!!\n";
+		}
+		else {
+			my $success = wig_to_bigwig_conversion(
+				wig       => $temp,
+				chromo    => $chromofile,
+				bwapppath => $wig2bw
+			);
+			unlink $temp;
+			print " wrote $success\n";
+		}
+		
 	}
 	$pm->finish;
 }
