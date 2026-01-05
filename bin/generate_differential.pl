@@ -24,7 +24,7 @@ use Bio::ToolBox::big_helper qw(
 	wig_to_bigwig_conversion
 );
 
-our $VERSION = 2.1;
+our $VERSION = 2.2;
 
 # variables
 my $input1;
@@ -433,8 +433,8 @@ sub call_peaks {
 
 	# generate command
 	my $command = sprintf(
-		"%s bdgpeakcall -i %s -c %s -l %s -g %s -o %s 2>&1", $macs, $infile,
-		$delta, $length, $gap, $outfile
+		"%s bdgpeakcall -i %s -c %s -l %s -g %s -o %s --no-trackline 2>&1", $macs,
+		$infile, $delta, $length, $gap, $outfile
 	);
 	my $raw = qx($command);
 	if ( $raw =~ m/Done/ ) {
