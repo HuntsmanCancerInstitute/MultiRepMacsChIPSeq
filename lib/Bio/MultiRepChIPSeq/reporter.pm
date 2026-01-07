@@ -4,10 +4,10 @@ use strict;
 use English qw(-no_match_vars);
 use Carp;
 use File::Spec::Functions qw( catfile splitdir splitpath rel2abs );
-use Bio::ToolBox 1.70;
+use Bio::ToolBox 2.00;
 use Bio::ToolBox::utility qw(format_with_commas);
 
-our $VERSION = 20.2;
+our $VERSION = 21.0;
 
 sub add_header_report {
 	my $self = shift;
@@ -479,8 +479,29 @@ number of hits (SAM flag `NH`) in the genome.
 END
 	}
 
+	# add lambda
+	if ($self->lambda) {
+		my $small = format_with_commas( $self->slocal );
+		my $large = format_with_commas( $self->llocal );
+		$string .= <<END;
+
+Reference coverage tracks for calculating enrichment, based on global coverage and
+local chromatin bias, were generated from Control bam files using the maximum locally
+observed depth of four coverages: fragment coverage, small lambda ($small bp), large
+lambda ($large bp), and calculated global coverage. 
+END
+	}
+	else {
+		$string .= <<END;
+
+If no control samples were provided, reference coverage tracks for calculating
+enrichment were generated as the global mean of the ChIP samples.
+END
+	}
+
 	# add fragment counts for each bam file
 	$string .= <<END;
+
 Coverage tracks were scaled to a normalized depth of one million fragments (or Reads 
 Per Million or RPM). Multiple sample replicates were averaged after scaling.
 
