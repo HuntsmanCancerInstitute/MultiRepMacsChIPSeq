@@ -4,7 +4,7 @@ use strict;
 use Carp;
 use IO::File;
 use File::Spec::Functions qw( catfile splitpath );
-use List::Util qw(min);
+use List::Util qw(min all);
 use base 'Bio::MultiRepChIPSeq::options';
 use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 
@@ -698,17 +698,23 @@ sub generate_bam2wig_frag_commands {
 	### ChIP bams
 	if ( $self->chip_use_bams ) {
 
-		# we have bam files to convert to bw
-
-		# base fragment command
-		my $frag_base = sprintf
-			"--qual %s --nosecondary --noduplicate --nosupplementary --bin %s --cpu %s ",
-			$self->mapq, $self->chipbin, $self->cpu;
+		# we have bam files to convert to bw, generate options
+		my $frag_base;
 
 		# paired or single options
 		if ( $self->paired ) {
-			$frag_base .= sprintf "--pe --span --minsize %s --maxsize %s ",
-				$self->minsize, $self->maxsize;
+
+			# use fast paired-end mode when possible for slight speed gain
+			if ( ( $self->dedup or $self->independent )
+				and all { /\. (?: dedup | filter ) \. bam $/x } ( $self->chip_use_bams ) )
+			{
+				$frag_base = sprintf "--span --fastpe --minsize %s --maxsize %s ",
+					$self->minsize, $self->maxsize;
+			}
+			else {
+				$frag_base = sprintf "--span --pe --minsize %s --maxsize %s ",
+					$self->minsize, $self->maxsize;
+			}
 		}
 		else {
 			$frag_base .= sprintf "--extend --extval %s ", $self->fragsize;
@@ -743,6 +749,11 @@ sub generate_bam2wig_frag_commands {
 				$self->chr_normfactor, $self->chrapply;
 		}
 
+		# standard options
+		$frag_base .= sprintf
+			"--qual %s --nosecondary --noduplicate --nosupplementary --bin %s --cpu %s ",
+			$self->mapq, $self->chipbin, $self->cpu;
+		
 		# finish fragment command
 		my $frag_command = sprintf
 			"%s --out %s %s --mean --bdg --in %s",
@@ -794,14 +805,22 @@ sub generate_bam2wig_frag_commands {
 	{
 
 		# base fragment command
-		my $frag_command = sprintf
-"--qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --mean --bdg ",
-			$self->mapq, $self->cpu;
+		my $frag_command;
 
 		# general paired options, restrict size for all
 		if ( $self->paired ) {
-			$frag_command .= sprintf "--pe --minsize %s --maxsize %s ",
-				$self->minsize, $self->maxsize;
+
+			# use fast paired-end mode when possible for slight speed gain
+			if ( ( $self->dedup or $self->independent )
+				and all {/\. (?: dedup | filter ) \. bam $/x} ( $self->control_use_bams ) )
+			{
+				$frag_command .= sprintf "--fastpe --minsize %s --maxsize %s ",
+					$self->minsize, $self->maxsize;
+			}
+			else {
+				$frag_command .= sprintf "--pe --minsize %s --maxsize %s ",
+					$self->minsize, $self->maxsize;
+			}
 		}
 
 		# additional filters
@@ -821,17 +840,22 @@ sub generate_bam2wig_frag_commands {
 				$self->chr_normfactor, $self->chrapply;
 		}
 
+		# standard options
+		$frag_command .= sprintf
+"--qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --mean --bdg ",
+			$self->mapq, $self->cpu;
+
 		## now duplicate the base command for each size lambda control
 
 		# d control, use extend or paired span just like ChIP
-		my $command1 = $frag_command;
+		my $command1;
 		if ( $self->paired ) {
-			$command1 .= "--span ";
+			$command1 = sprintf "--span %s", $frag_command;
 		}
 		else {
 		 # treat d just like ChIP, including extend and shift, this may deviate from Macs2
-			$command1 .= sprintf "--extend --extval %s --shiftval %0.0f ",
-				$self->fragsize, $self->shiftsize;
+			$command1 = sprintf "--extend --extval %s --shiftval %0.0f %s ",
+				$self->fragsize, $self->shiftsize, $frag_command;
 		}
 		if ( $self->control_scale ) {
 			$command1 .= sprintf "--scale %s ", join( ',', $self->control_scale );
@@ -938,10 +962,9 @@ sub generate_bam2wig_frag_commands {
 
 		# single or paired options
 		if ( $self->paired ) {
-			$frag_command .= sprintf "--span --pe --minsize %s --maxsize %s --bin %s ",
-				$self->minsize,
-				$self->maxsize,
-				$self->chipbin;
+			$frag_command .= sprintf
+				"--span --pe --minsize %s --maxsize %s --bin %s ",
+				$self->minsize, $self->maxsize, $self->chipbin;
 		}
 		else {
 			$frag_command .= sprintf "--extend --extval %s --shiftval %0.0f --bin %s ",
@@ -1020,8 +1043,9 @@ sub generate_bam2wig_count_commands {
 		elsif ( $self->cutsite ) {
 			# Special options for ATAC cutsite point data.
 			# Recommended options are to shift by unequal amounts based on strand
-			# +5/-4 for F and R reads, but bam2wig isn't set up to do handle that
-			# so we simply shift by 5 bp (strand inherently handled).
+			# +5/-4 for F and R reads.
+			# bam2wig automatically handles strand and offset by 1 for reverse
+			# so just provide a shift of 5 bp.
 			# Also bam2wig has special ends mode to make this a little more efficient
 			# but doesn't currently handle shift, so just simply run as single end.
 			# The bam file should be filtered anyway to remove straggling singletons.
@@ -1049,6 +1073,13 @@ sub generate_bam2wig_count_commands {
 		for my $i ( 0 .. $#bams ) {
 			my $command = $count_command;
 
+			# use fast mode when possible
+			if ( ( $self->paired or $self->independent )
+				and $bams[$i] =~ /\. (?: dedup | filter ) \. bam $/x
+			) {
+				$command =~ s/\-\-pe/--fastpe/;
+			}
+			
 			# add scaling as necessary
 			unless ( $self->rawcounts ) {
 				if ( $self->chip_scale ) {
@@ -1122,6 +1153,13 @@ sub generate_bam2wig_count_commands {
 		for my $i ( 0 .. $#bams ) {
 			my $command = $count_command;
 
+			# use fast mode when possible
+			if ( ( $self->paired or $self->independent )
+				and $bams[$i] =~ /\. (?: dedup | filter ) \. bam $/x
+			) {
+				$command =~ s/\-\-pe/--fastpe/;
+			}
+			
 			# add scaling as necessary
 			unless ( $self->rawcounts ) {
 				if ( $self->control_scale ) {
