@@ -376,12 +376,10 @@ END
 	}
 	elsif ( scalar( $Runner->controls ) == 0 ) {
 
-		# no controls, turn off lambda
+		# no controls, turn off small local lambda
 		$Runner->slocal(0);
-		$Runner->llocal(0);
-		$Runner->lambda(0);
 	}
-	if ( $Runner->slocal == 0 and $Runner->llocal == 0 ) {
+	if ( $Runner->slocal == 0 and $Runner->llocal == 0 and $Runner->lambda ) {
 
 		# user somehow set both to zero, but this throws errors to macs2
 		$Runner->lambda(0);
@@ -498,8 +496,6 @@ MESSAGE
 		if ( not defined $Runner->peakgap ) {
 			$Runner->peakgap(10);
 		}
-		$Runner->slocal(100);    # very rare to use lambda with ATAC but just in case
-		$Runner->llocal(1000);
 		$Runner->broad(0);
 	}
 
