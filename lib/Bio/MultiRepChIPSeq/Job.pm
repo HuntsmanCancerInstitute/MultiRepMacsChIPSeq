@@ -221,7 +221,7 @@ sub crash {
 	my ( $self, $message ) = @_;
 	eval {
 		require Data::Dumper;
-		printf STDERR "ChIP Job object:\n%s\n", Dumper($self);
+		printf STDERR "ChIP Job object:\n%s\n", Data::Dumper->Dump([$self], ['Job']);
 	};
 	confess $message;
 }
