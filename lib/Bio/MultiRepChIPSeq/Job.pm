@@ -208,10 +208,23 @@ sub new {
 			$self->control_filter_bams("$base.filter.bam");
 		}
 	}
+	elsif ( not $control
+		and not $self->controls
+		and $self->lambda
+		and $self->llocal )
+	{
+		# no control bams were ever provided to the pipeline but lambda is enabled
+		# therefore we generate dynamic lambda from the ChIP bam itself
+		# we only need llocal here
+		$self->lambda_bdg( $namepath . '.lambda_control.bdg' );
+		$self->lambda_bw( $namepath . '.lambda_control.bw' );
+		$self->l_control_bdg( $namepath . '.llocal.bdg' );
+		$self->sld_control_file( $namepath . '.sldlocal.txt' );
+	}
 	else {
 		# must be just a chip without corresponding control
-		$self->lambda_bdg("$namepath.fragment.global_mean.bdg");
-		$self->lambda_bw("$namepath.fragment.global_mean.bw");
+		$self->lambda_bdg( $namepath . '.fragment.global_mean.bdg' );
+		$self->lambda_bw( $namepath . '.fragment.global_mean.bw' );
 	}
 
 	return $self;
@@ -787,10 +800,48 @@ sub generate_bam2wig_frag_commands {
 	}
 
 	### Control bams
+
+	# first generate base control fragment command which includes options for all
+	my $control_base;
+	if ( $self->paired ) {
+
+		# use fast paired-end mode when possible for slight speed gain
+		if ( ( $self->dedup or $self->independent )
+			and scalar( $self->control_use_bams )
+			and all {/\. (?: dedup | filter ) \. bam $/x} ( $self->control_use_bams ) )
+		{
+			$control_base = sprintf "--fastpe --minsize %s --maxsize %s ",
+				$self->minsize, $self->maxsize;
+		}
+		else {
+			$control_base = sprintf "--pe --minsize %s --maxsize %s ",
+				$self->minsize, $self->maxsize;
+		}
+	}
+	if ( $self->fraction ) {
+		$control_base .= "--fraction ";
+	}
+	if ( $self->exclude and $self->exclude ne 'none' ) {
+		$control_base .= sprintf "--exclude %s ", $self->exclude;
+	}
+	if ( $self->chrskip ) {
+		$control_base .= sprintf "--chrskip \'%s\' ", $self->chrskip;
+	}
+	if ( $self->chr_normfactor ) {
+		$control_base .= sprintf "--chrnorm %s --chrapply %s ",
+			$self->chr_normfactor, $self->chrapply;
+	}
+	$control_base .= sprintf
+		"--qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --mean --bdg ",
+		$self->mapq, $self->cpu;
+
+	### Check which control files need to be generated
+	# they may have already been done
+	# use the list of bam files as a key
 	my $control_bam_string = join( ',', $self->control_use_bams );
 
 	# first check if we've processed this control yet
-	if ( exists $name2done->{$control_bam_string} ) {
+	if ( $control_bam_string and exists $name2done->{$control_bam_string} ) {
 
 		# we have, so change the lambda bedgraph name to the file that's been used
 		# this will look funny, because it will look like we're using another chip's
@@ -799,108 +850,61 @@ sub generate_bam2wig_frag_commands {
 	}
 
 	# process control bams into a chromatin bias lambda-control track
-	elsif ( scalar( $self->control_use_bams )
+	elsif ( $control_bam_string
 		and $self->lambda
 		and not exists $name2done->{$control_bam_string} )
 	{
 
-		# base fragment command
-		my $frag_command;
-
-		# general paired options, restrict size for all
-		if ( $self->paired ) {
-
-			# use fast paired-end mode when possible for slight speed gain
-			if ( ( $self->dedup or $self->independent )
-				and all {/\. (?: dedup | filter ) \. bam $/x} ( $self->control_use_bams ) )
-			{
-				$frag_command .= sprintf "--fastpe --minsize %s --maxsize %s ",
-					$self->minsize, $self->maxsize;
-			}
-			else {
-				$frag_command .= sprintf "--pe --minsize %s --maxsize %s ",
-					$self->minsize, $self->maxsize;
-			}
-		}
-
-		# additional filters
-		if ( $self->fraction ) {
-			$frag_command .= "--fraction ";
-		}
-		if ( $self->exclude and $self->exclude ne 'none' ) {
-			$frag_command .= sprintf "--exclude %s ", $self->exclude;
-		}
-		if ( $self->chrskip ) {
-			$frag_command .= sprintf "--chrskip \'%s\' ", $self->chrskip;
-		}
-
-		# chromosome-specific scaling
-		if ( $self->chr_normfactor ) {
-			$frag_command .= sprintf "--chrnorm %s --chrapply %s ",
-				$self->chr_normfactor, $self->chrapply;
-		}
-
-		# standard options
-		$frag_command .= sprintf
-"--qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --mean --bdg ",
-			$self->mapq, $self->cpu;
-
 		## now duplicate the base command for each size lambda control
 
 		# d control, use extend or paired span just like ChIP
-		my $command1;
+		my $command1 = sprintf "%s --out %s ",
+			$self->bam2wig_app || 'bam2wig.pl',
+			$self->d_control_bdg;
 		if ( $self->paired ) {
-			$command1 = sprintf "--span %s", $frag_command;
+			$command1 .= sprintf "--span %s", $control_base;
 		}
 		else {
-		 # treat d just like ChIP, including extend and shift, this may deviate from Macs2
-			$command1 = sprintf "--extend --extval %s --shiftval %0.0f %s ",
-				$self->fragsize, $self->shiftsize, $frag_command;
+			$command1 .= sprintf "--extend --extval %s --shiftval %0.0f %s ",
+				$self->fragsize, $self->shiftsize, $control_base;
 		}
 		if ( $self->control_scale ) {
 			$command1 .= sprintf "--scale %s ", join( ',', $self->control_scale );
 		}
 		else {
-			$command1 .= "--rpm ";
+			$command1 .= '--rpm ';
 		}
-
-		# regenerate command 1 with program and input/output files
-		$command1 = sprintf
-			"%s --out %s %s --bin %s --in %s ",
-			$self->bam2wig_app || 'bam2wig.pl',
-			$self->d_control_bdg,
-			$command1,
-			$self->chipbin,
-			$control_bam_string;
 		my $log = $self->d_control_bdg;
 		$log =~ s/bdg$/bam2wig.out.txt/;
-		$command1 .= " 2>&1 > $log";
+		$command1 .= sprintf " --bin %s --in %s 2>&1 > %s",
+			$self->chipbin,
+			$control_bam_string,
+			$log;
 		push @commands, [ $command1, $self->d_control_bdg, $log ];
 
 		# small local lambda, extend both directions, scaled to compensate for length
 		if ( $self->slocal ) {
-			my $command2 = $frag_command;
-			my $scale    = sprintf "%.4f", $self->fragsize / $self->slocal;
+			my $norm  = '--rpm';
+			my $scale = sprintf "%.4f", $self->fragsize / $self->slocal;
 			if ( $self->control_scale ) {
 
 				# user provided scale, multiply this with the lambda size scale
+				# and turn off rpm normalization in preference to user scaling factor
 				my @scales =
 					map { sprintf "%.4f", $_ * $scale } ( $self->control_scale );
 				$scale = join( ',', @scales );    # replace
-			}
-			else {
-				# standard scaling
-				$command2 .= "--rpm ";
+				$norm  = q();
 			}
 
-			# regenerate command 2 with program and input/output files
-			$command2 = sprintf
-				"%s --out %s %s --cspan --extval %s --scale %s --bin %s --in %s ",
+			# generate command 2 with program and input/output files
+			my $command2 = sprintf
+				"%s --out %s %s --cspan --extval %s --scale %s %s --bin %s --in %s ",
 				$self->bam2wig_app || 'bam2wig.pl',
 				$self->s_control_bdg,
-				$command2,
+				$control_base,
 				$self->slocal,
 				$scale,
+				$norm,
 				$self->slocalbin,
 				$control_bam_string;
 			$log = $self->s_control_bdg;
@@ -911,28 +915,27 @@ sub generate_bam2wig_frag_commands {
 
 		# large local lambda, extend both directions, scaled to compensate for length
 		if ( $self->llocal ) {
-			my $command3 = $frag_command;
-			my $scale    = sprintf "%.4f", $self->fragsize / $self->llocal;
+			my $norm  = '--rpm';
+			my $scale = sprintf "%.4f", $self->fragsize / $self->llocal;
 			if ( $self->control_scale ) {
 
 				# user provided scale, multiply this with the lambda size scale
+				# and turn off rpm normalization in preference to user scaling factor
 				my @scales =
 					map { sprintf "%.4f", $_ * $scale } ( $self->control_scale );
 				$scale = join( ',', @scales );    # replace
-			}
-			else {
-				# standard scaling
-				$command3 .= "--rpm ";
+				$norm  = q();
 			}
 
 			# regenerate command 3 with program and input/output files
-			$command3 = sprintf
-				"%s --out %s %s --cspan --extval %s --scale %s --bin %s --in %s ",
+			my $command3 = sprintf
+				"%s --out %s %s --cspan --extval %s --scale %s %s --bin %s --in %s ",
 				$self->bam2wig_app || 'bam2wig.pl',
 				$self->l_control_bdg,
-				$command3,
+				$control_base,
 				$self->llocal,
 				$scale,
+				$norm,
 				$self->llocalbin,
 				$control_bam_string;
 			$log = $self->l_control_bdg;
@@ -941,9 +944,48 @@ sub generate_bam2wig_frag_commands {
 			push @commands, [ $command3, $self->l_control_bdg, $log ];
 		}
 
-	  # record that we've done this bam
-	  # we store the lambda bedgraph name because it might be reused again for another job
+		# record that we've done this bam
+		# store the lambda bedgraph name because it might be reused again for another job
 		$name2done->{$control_bam_string} = $self->lambda_bdg;
+	}
+
+	# generate chromatin bias lambda-control track directly from ChIP
+	# this only happens when no control files were ever provided to the pipeline
+	elsif ( $self->lambda
+			and $self->llocal
+			and scalar( $self->controls ) == 0 )
+	{
+
+		# skip d fragment, since this is the actual ChIP signal
+		# skip slocal as well, as this is what MACS does
+		# large local lambda, extend both directions, scaled to compensate for length
+		my $norm  = '--rpm';
+		my $scale = sprintf "%.4f", $self->fragsize / $self->llocal;
+		if ( $self->control_scale ) {
+
+			# user provided scale, multiply this with the lambda size scale
+			# and turn off rpm normalization in preference to user scaling factor
+			my @scales =
+				map { sprintf "%.4f", $_ * $scale } ( $self->control_scale );
+			$scale = join( ',', @scales );    # replace
+			$norm = q();
+		}
+
+		# generate command 3 with program and input/output files
+		my $command = sprintf
+			"%s --out %s %s --cspan --extval %s --scale %s %s --bin %s --in %s ",
+			$self->bam2wig_app || 'bam2wig.pl',
+			$self->l_control_bdg,
+			$control_base,
+			$self->llocal,
+			$scale,
+			$norm,
+			$self->llocalbin,
+			join( ',', $self->chip_use_bams );
+		my $log = $self->l_control_bdg;
+		$log =~ s/bdg$/bam2wig.out.txt/;
+		$command .= " 2>&1 > $log";
+		push @commands, [ $command, $self->l_control_bdg, $log ];
 	}
 
 	# skipping chromatin-bias lambda control track, use control track as is
@@ -952,59 +994,33 @@ sub generate_bam2wig_frag_commands {
 		and not exists $name2done->{$control_bam_string} )
 	{
 
-		# fragment command
-		my $frag_command = sprintf
-"%s --out %s --qual %s --nosecondary --noduplicate --nosupplementary --cpu %s --mean --bdg ",
+		# this is generated much like the d fragment track
+		my $command = sprintf "%s --out %s ",
 			$self->bam2wig_app || 'bam2wig.pl',
-			$self->lambda_bdg,
-			$self->mapq,
-			$self->cpu;
-
-		# single or paired options
+			$self->lambda_bdg;
 		if ( $self->paired ) {
-			$frag_command .= sprintf
-				"--span --pe --minsize %s --maxsize %s --bin %s ",
-				$self->minsize, $self->maxsize, $self->chipbin;
+			$command .= sprintf "--span %s", $control_base;
 		}
 		else {
-			$frag_command .= sprintf "--extend --extval %s --shiftval %0.0f --bin %s ",
-				$self->fragsize,
-				$self->shiftsize,
-				$self->chipbin;
+			$command .= sprintf "--extend --extval %s --shiftval %0.0f %s ",
+				$self->fragsize, $self->shiftsize, $control_base;
 		}
-
-		# scaling for the fragment command only
 		if ( $self->control_scale ) {
-			$frag_command .= sprintf "--scale %s ", join( ',', ( $self->control_scale ) );
+			$command .= sprintf "--scale %s ", join( ',', $self->control_scale );
 		}
 		else {
-			# standard scaling
-			$frag_command .= "--rpm ";
+			$command .= '--rpm ';
 		}
-
-		# additional filters
-		if ( $self->exclude and $self->exclude ne 'none' ) {
-			$frag_command .= sprintf "--exclude %s ", $self->exclude;
-		}
-		if ( $self->chrskip ) {
-			$frag_command .= sprintf "--chrskip \'%s\' ", $self->chrskip;
-		}
-
-		# chromosome-specific scaling
-		if ( $self->chr_normfactor ) {
-			$frag_command .= sprintf "--chrnorm %s --chrapply %s ",
-				$self->chr_normfactor, $self->chrapply;
-		}
-
-		# finish command
-		$frag_command .= "--in $control_bam_string ";
 		my $log = $self->lambda_bdg;
 		$log =~ s/bdg$/bam2wig.out.txt/;
-		$frag_command .= " 2>&1 > $log";
-		push @commands, [ $frag_command, $self->lambda_bdg, $log ];
+		$command .= sprintf "--bin %s --in %s 2>&1 > %s",
+			$self->chipbin,
+			$control_bam_string,
+			$log;
+		push @commands, [ $command, $self->lambda_bdg, $log ];
 
-	  # record that we've done this bam
-	  # we store the lambda bedgraph name because it might be reused again for another job
+		# record that we've done this bam
+		# we store the lambda bedgraph name because it might be reused again for another job
 		$name2done->{$control_bam_string} = $self->lambda_bdg;
 	}
 
@@ -1241,7 +1257,8 @@ sub generate_lambda_control_commands {
 		return [ $command, $self->lambda_bdg, $log ];
 	}
 
-	# Proceed with generating lambda bedGraph
+	### Proceed with generating lambda bedGraph
+
 	unless ( $self->macs_app =~ /\w+/ or $self->dryrun ) {
 		croak "no MACS2 application in path!\n";
 	}
@@ -1251,13 +1268,15 @@ sub generate_lambda_control_commands {
 	unless ( $self->data2wig_app =~ /\w+/ or $self->dryrun ) {
 		croak "no data2wig.pl application in path!\n";
 	}
+
+	# check that we have lambda source files, ChIP jobs may not have these
 	my $dfile = $self->d_control_bdg;
 	my $sfile = $self->s_control_bdg;
 	my $lfile = $self->l_control_bdg;
-	return unless ($dfile);    # controls with lambda will always have  d_control_bdg
-							   # ChIP jobs and non-lambda controls will not
+	return unless ( $dfile or $sfile or $lfile );    
 	unless ( $self->dryrun ) {
-		$self->crash("no d control bedGraph file '$dfile'!\n") if ( not -e $dfile );
+		$self->crash("no d control bedGraph file '$dfile'!\n")
+			if ( $dfile and not -e $dfile );
 		$self->crash("no small control bedGraph file '$sfile'!\n")
 			if ( $sfile and not -e $sfile );
 		$self->crash("no large control bedGraph file '$lfile'!\n")
@@ -1286,93 +1305,59 @@ sub generate_lambda_control_commands {
 		$outfh->close;
 	}
 
-	my $log = $self->lambda_bdg;
-	$log =~ s/bdg$/out.txt/;
-	my $command;
-
-	# generate commands using bedtools and data2wig, which is faster than running
-	# multiple instances of macs2 bdgcmp and bdgopt
-	if ( $sfile and $lfile ) {
-
-		# first step
-		$command = sprintf
-"%s unionbedg -header -names dlocal slocal llocal background -i %s %s %s %s > %s 2> $log ",
-			$self->bedtools_app || 'bedtools',
-			$dfile,
-			$sfile,
-			$lfile,
-			$background_bdg,
-			$self->sld_control_file;
-
-		# second step
-		$command .= sprintf
-"&& %s --in %s --zero --fast --bdg --notrack --score 4-7 --method max --out %s ",
-			$self->data2wig_app || 'data2wig.pl',
-			$self->sld_control_file,
-			$self->lambda_bdg;
-		$command .= " 2>&1 >> $log ";
-
-		# clean up
-		$command .= sprintf "&& rm %s %s %s %s ",
-			$sfile,
-			$lfile,
-			$background_bdg,
-			$self->sld_control_file;
+	# generate options
+	my ($inputs, $names, $index, $clean);
+	if ( $dfile and $sfile and $lfile ) {
+		$names  = join q( ), qw( dlocal slocal llocal background );
+		$inputs = join q( ), $dfile, $sfile, $lfile, $background_bdg;
+		$index  = '4-7';
+		$clean  = join q( ), $sfile, $lfile, $background_bdg;
 	}
-	elsif ( $sfile and not $lfile ) {
-
-		# first step
-		$command = sprintf
-"%s unionbedg -header -names dlocal slocal background -i %s %s %s > %s 2> $log ",
-			$self->bedtools_app || 'bedtools',
-			$dfile,
-			$sfile,
-			$background_bdg,
-			$self->sld_control_file;
-
-		# second step
-		$command .= sprintf
-"&& %s --in %s --zero --fast --bdg --notrack --score 4-6 --method max --out %s ",
-			$self->data2wig_app || 'data2wig.pl',
-			$self->sld_control_file,
-			$self->lambda_bdg;
-		$command .= " 2>&1 >> $log ";
-
-		# clean up
-		$command .= sprintf "&& rm %s %s %s ",
-			$sfile,
-			$background_bdg,
-			$self->sld_control_file;
+	elsif ( $dfile and $sfile ) {
+		$names  = join q( ), qw( dlocal slocal background );
+		$inputs = join q( ), $dfile, $sfile, $background_bdg;
+		$index  = '4-6';
+		$clean  = join q( ), $sfile, $background_bdg;
 	}
-	elsif ( not $sfile and $lfile ) {
-
-		# first step
-		$command = sprintf
-"%s unionbedg -header -names dlocal llocal background -i %s %s %s > %s 2> $log ",
-			$self->bedtools_app || 'bedtools',
-			$dfile,
-			$lfile,
-			$background_bdg,
-			$self->sld_control_file;
-
-		# second step
-		$command .= sprintf
-"&& %s --in %s --zero --fast --bdg --notrack --score 4-6 --method max --out %s ",
-			$self->data2wig_app || 'data2wig.pl',
-			$self->sld_control_file,
-			$self->lambda_bdg;
-		$command .= " 2>&1 >> $log ";
-
-		# clean up
-		$command .= sprintf "&& rm %s %s %s ",
-			$lfile,
-			$background_bdg,
-			$self->sld_control_file;
+	elsif ( $dfile and $lfile ) {
+		$names  = join q( ), qw( dlocal llocal background );
+		$inputs = join q( ), $dfile, $lfile, $background_bdg;
+		$index  = '4-6';
+		$clean  = join q( ), $lfile, $background_bdg;
+	}
+	elsif ( $lfile ) {
+		$names  = join q( ), qw( llocal background );
+		$inputs = join q( ), $lfile, $background_bdg;
+		$index  = '4-5';
+		$clean  = join q( ), $lfile, $background_bdg;
 	}
 	else {
-		$self->crash(
-			"programming error! how did we get here with no sfile and no lfile????");
+		$self->crash( "missing combination of lambda inputs\n" );
 	}
+
+	# generate command for first step
+	my $log = $self->lambda_bdg;
+	$log =~ s/bdg$/out.txt/;
+	my $command = sprintf "%s unionbedg -header -names %s -i %s > %s 2> %s",
+		$self->bedtools_app || 'bedtools',
+		$names,
+		$inputs,
+		$self->sld_control_file,
+		$log;
+
+	# append second step
+	$command .= sprintf
+"&& %s --in %s --zero --fast --bdg --notrack --score %s --method max --out %s ",
+		$self->data2wig_app || 'data2wig.pl',
+		$self->sld_control_file,
+		$index,
+		$self->lambda_bdg;
+
+	# cleanup
+	$command .= sprintf " 2>&1 >> %s && rm %s %s",
+		$log,
+		$clean,
+		$self->sld_control_file;
 
 	$name2done->{ $self->lambda_bdg } = 1;
 	return [ $command, $self->lambda_bdg, $log ];
