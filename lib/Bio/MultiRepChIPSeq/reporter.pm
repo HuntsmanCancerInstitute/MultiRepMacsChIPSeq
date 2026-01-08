@@ -25,6 +25,47 @@ This is a report from the
 [Multi-Replica Multi-Sample MACS2 ChIPSeq pipeline](https://huntsmancancerinstitute.github.io/MultiRepMacsChIPSeq),
 Version $v.
 
+### Contents
+
+- [Pipeline Options](#pipeline-options)
+- [Fragment Coverage](#fragment-coverage)
+END
+
+	if ($self->independent) {
+		$string .= <<END;
+- [Independent Replicate Peak Calls](#independent-replicate-peak-calls)
+- [Merged-replicate Peaks](#merged-replicate-peaks)
+- [Replicate-mean Peaks](#replicate-mean-peaks)
+END
+	}
+	else {
+		$string .= <<END;
+- [Replicate-mean Peaks](#replicate-mean-peaks)
+END
+	}
+
+	if ( $self->broad and $self->independent) {
+		$string .= <<END;
+- [Independent Gapped Replicate Peak Calls](#independent-gapped-replicate-peak-calls)
+- [Gapped Merged-replicate Peaks](#gapped-merged-replicate-peaks)
+- [Gapped Replicate-mean Peaks](#gapped-replicate-mean-peaks)
+END
+	}
+	elsif ($self->broad) {
+		$string .= <<END;
+- [Gapped Replicate-mean Peaks](#gapped-replicate-mean-peaks)
+END
+	}
+
+	if ($self->independent) {
+		$string .= <<END;
+- [Comparison between Replicate-Mean and Replicate-Merge Peaks](#comparison-between-replicate-mean-and-replicate-merge-peaks)
+END
+	}
+
+	$string .= <<END;
+- [Summary Tables](#summary-tables)
+
 Individual application outputs may be found in the combined log output file `$log`.
 END
 
@@ -133,6 +174,8 @@ END
 	}
 
 	$string .= <<END;
+
+[Top](#contents)
 
 --------
 
@@ -436,6 +479,8 @@ sub add_coverage_report {
 	my $map    = $self->mapq;
 	my $string = <<END;
 
+[Top](#contents)
+
 --------
 
 ## Fragment Coverage
@@ -581,6 +626,8 @@ sub add_independent_peak_calls_report {
 
 	my $string = <<END;
 
+[Top](#contents)
+
 --------
 
 ## Independent Replicate Peak Calls
@@ -636,6 +683,8 @@ sub add_independent_broad_peak_calls_report {
 	my $self = shift;
 
 	my $string = <<END;
+
+[Top](#contents)
 
 --------
 
@@ -696,6 +745,8 @@ sub add_merged_replicates_report {
 	my $gap     = $self->fragsize;
 	my $rep_num = 0;  # total number of replicates
 	my $string  = <<END;
+
+[Top](#contents)
 
 --------
 
@@ -870,6 +921,8 @@ sub add_merged_replicates_broad_report {
 	my $rep_num = 0;  # total number of replicates
 	my $string  = <<END;
 
+[Top](#contents)
+
 --------
 
 ## Gapped Merged-replicate Peaks
@@ -1001,6 +1054,8 @@ sub add_mean_replicates_report {
 		$decimal    = sprintf $pattern, ( 1 / ( 10 ** $cutoff ) );
 	}
 	my $string = <<END;
+
+[Top](#contents)
 
 --------
 
@@ -1168,6 +1223,8 @@ sub add_mean_replicates_broad_report {
 	my $self = shift;
 
 	my $string = <<END;
+
+[Top](#contents)
 
 --------
 
@@ -1339,6 +1396,8 @@ sub add_mean_merge_comparison {
 
 	my $string = <<END;
 
+[Top](#contents)
+
 --------
 
 ## Comparison between Replicate-Mean and Replicate-Merge Peaks
@@ -1417,6 +1476,8 @@ sub add_summary_report {
 	my $self = shift;
 	
 	my $string = <<END;
+
+[Top](#contents)
 
 --------
 
@@ -1560,6 +1621,12 @@ th {
 }
 td {
   padding: 0.125em 0.5em 0.25em 0.5em;
+}
+a:link {
+  color: blue;
+}
+a:visited {
+  color: purple
 }
 </style>
 END
