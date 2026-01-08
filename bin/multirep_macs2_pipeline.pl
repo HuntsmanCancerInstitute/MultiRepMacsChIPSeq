@@ -65,7 +65,7 @@ as a (poor) substitute.
 
 Advanced users may provide one processed bigWig file per ChIP or control sample. 
 
-See https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq for full 
+See https://huntsmancancerinstitute.github.io/MultiRepMacsChIPSeq for full 
 usage and guide.
 
 Version: $VERSION
@@ -185,7 +185,7 @@ This is a wrapper for calling and/or comparing peaks in ChIPSeq or ATACSeq with 
 or multiple replicas using the Macs2 ChIPSeq caller. It uses BioToolBox applications to 
 normalize duplicate levels and read depths between samples and replicates.
 
-See https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq for full 
+See https://huntsmancancerinstitute.github.io/MultiRepMacsChIPSeq for full 
 usage and guide.
 
 Use --help to display options.
@@ -330,18 +330,18 @@ sub check_options {
 	# check chip samples
 	if (@ARGV) {
 		printf(
-"There are unrecognized leftover items on the command line!\n Did you leave spaces in your --chip or --control file lists?\nItems:\n %s\n",
+"ERROR: There are unrecognized leftover items on the command line!\n Did you leave spaces in your --chip or --control file lists?\nItems:\n %s\n",
 			join( "\n ", @ARGV ) );
 		exit 1;
 	}
 	unless ( $Runner->chips ) {
-		print "No ChIP file(s) defined!\n";
+		print "ERROR: No ChIP file(s) defined!\n";
 		exit 1;
 	}
 	if ( scalar( $Runner->chips ) == 1 ) {
 		print <<END;
-This pipeline is intended to work with multiple ChIP samples, but only one was provided.
-If you have replicates, try setting each replicate as a separate sample.
+ERROR: This pipeline is intended to work with multiple ChIP samples, but only one
+was provided. If you have replicates, try setting each replicate as a separate sample.
 Otherwise, try running MACS2 by itself.
 END
 		exit 1;
@@ -351,16 +351,16 @@ END
 	if ( $Runner->names ) {
 		my %check = map { $_ => 1 } ( $Runner->names );
 		if ( scalar( keys %check ) != scalar( $Runner->names ) ) {
-			print "Duplicate sample names are present!\n";
+			print "ERROR: Duplicate sample names are present!\n";
 			exit 1;
 		}
 	}
 	else {
-		print "No name(s) defined!\n";
+		print "ERROR: No name(s) defined!\n";
 		exit 1;
 	}
 	unless ( scalar( $Runner->chips ) == scalar( $Runner->names ) ) {
-		print "Unequal number of ChIP samples and names!\n";
+		print "ERROR: Unequal number of ChIP samples and names!\n";
 		exit 1;
 	}
 
@@ -369,7 +369,7 @@ END
 		and scalar( $Runner->controls ) != scalar( $Runner->chips ) )
 	{
 		print <<END;
-Unequal number of control and ChIP samples! Are you missing one?
+ERROR: Unequal number of control and ChIP samples! Are you missing one?
 You may duplicate control file names and the pipeline will handle these smartly.
 END
 		exit 1;
@@ -402,20 +402,20 @@ MESSAGE
 	if (    scalar( $Runner->chscales )
 		and scalar( $Runner->chscales ) != scalar( $Runner->chips ) )
 	{
-		print "Unequal number of ChIP samples and ChIP scale factors!\n";
+		print "ERROR: Unequal number of ChIP samples and ChIP scale factors!\n";
 		exit 1;
 	}
 	if (    scalar( $Runner->coscales )
 		and scalar( $Runner->coscales ) != scalar( $Runner->controls ) )
 	{
-		print "Unequal number of control samples and control scale factors!\n";
+		print "ERROR: Unequal number of control samples and control scale factors!\n";
 		exit 1;
 	}
 
 	# check chromosome normalization factors
 	if ( scalar( $Runner->chrnorm ) and not $Runner->chrapply ) {
 		print
-"Must specify chromosome apply regex (--chrapply) for chromosome normalization factors!\n";
+"ERROR: Must specify chromosome apply regex (--chrapply) for chromosome normalization factors!\n";
 		exit 1;
 	}
 	if (    scalar( $Runner->chrnorm )
@@ -471,7 +471,7 @@ MESSAGE
 	}
 	elsif ( $Runner->targetdepth ) {
 		if ( $Runner->targetdepth !~ /mean | median | min/x ) {
-			printf("unrecognized targetdepth parameter '%s'!", $Runner->targetdepth);
+			printf("ERROR: unrecognized targetdepth parameter '%s'!", $Runner->targetdepth);
 			exit 1;
 		}
 	}
@@ -512,16 +512,20 @@ MESSAGE
 
 			# paired fragments - make something up
 			if ( not $Runner->peaksize ) {
-				print
-"\nWARNING! Setting minimum peak size to 500 bp, but this should be manually\nset based on mean alignment insert size and nature of experiment.\n\n";
+				print <<END;
+
+WARNING! Setting minimum peak size to 500 bp, but this should be manually
+set based on mean alignment insert size and nature of experiment.
+
+END
 				$Runner->peaksize(500);
 				$Runner->fragsize(250);    # for expected background normalization
 			}
 		}
 		else {
 			print <<END;
- Must set an estimated mean fragment size for single-end alignments!
- Run 'macs2 predictd' or 'bam2wig.pl --shift --model'
+ERROR: Must set an estimated mean fragment size for single-end alignments!
+Run 'macs2 predictd' or 'bam2wig.pl --shift --model'
 END
 			exit 1;
 		}
