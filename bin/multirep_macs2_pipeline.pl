@@ -109,6 +109,7 @@ Options:
   --cutsite                     Set multiple options specific for ATACSeq cutsite analysis
   --size        integer         Predicted fragment size. REQUIRED for single-end
   --shift       integer         Shift the fragment in special situations
+  --normsize                    Normalize all PE fragments to same size
   --fraction                    Record multiple-hit alignments as fraction of hits
   --slocal      integer         Small local lambda size ($opts->{slocal} bp)
   --llocal      integer         Large local lambda size ($opts->{llocal} bp)
@@ -221,6 +222,7 @@ GetOptions(
 	'deduppair!',
 	'fragsize|size=i',
 	'shiftsize|shift=i',
+	'normsize!',
 	'cutsite|atac!',
 	'slocal=i',
 	'llocal=i',
@@ -485,6 +487,7 @@ MESSAGE
 " Using specific parameters for ATAC Cut Site mode\n These may override manual settings\n";
 		$Runner->paired(0);
 		$Runner->deduppair(1);
+		$Runner->normsize(0);
 		$Runner->minsize(30);    # minsize and maxsize technically not required
 		$Runner->maxsize(2000);
 		$Runner->fragsize(40);
@@ -500,6 +503,21 @@ MESSAGE
 	}
 
 	# check sizes
+	if ( $Runner->paired and $Runner->normsize ) {
+		if ( not $Runner->fragsize ) {
+			print "\n ERROR! No fragment size set for normalizing paired-end size\n";
+			exit 1;
+		}
+
+		# reset allowable insert sizes if these are still the defaults
+		# hardcoding the original default sizes
+		if ( $Runner->maxsize == 500 and $argument_string !~ /maxsize/ ) {
+			$Runner->maxsize(2000);
+		}
+		if ( $Runner->minsize == 50 and $argument_string !~ /minsize/) {
+			$Runner->minsize(40);
+		} 
+	}
 	if ( not $Runner->peaksize ) {
 
 		# no minimum peak size defined? might be ok
