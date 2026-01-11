@@ -36,6 +36,7 @@ sub init_options {
 		cutsite     => 0,
 		fragsize    => 250,
 		shiftsize   => 0,
+		normsize    => 0,
 		slocal      => 1000,
 		llocal      => 10000,
 		cutoff      => 2,
@@ -260,6 +261,12 @@ sub shiftsize {
 	my $self = shift;
 	$self->{opts}{shiftsize} = shift if @_;
 	return $self->{opts}{shiftsize};
+}
+
+sub normsize {
+	my $self = shift;
+	$self->{opts}{normsize} = shift if @_;
+	return $self->{opts}{normsize};
 }
 
 sub slocal {

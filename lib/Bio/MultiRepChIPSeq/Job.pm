@@ -717,15 +717,20 @@ sub generate_bam2wig_frag_commands {
 		# paired or single options
 		if ( $self->paired ) {
 
+			$frag_base = '--span ';
+			if ( $self->normsize ) {
+				$frag_base = sprintf "--cspan --extval %s ", $self->fragsize;
+			}
+
 			# use fast paired-end mode when possible for slight speed gain
 			if ( ( $self->dedup or $self->independent )
 				and all { /\. (?: dedup | filter ) \. bam $/x } ( $self->chip_use_bams ) )
 			{
-				$frag_base = sprintf "--span --fastpe --minsize %s --maxsize %s ",
+				$frag_base .= sprintf "--fastpe --minsize %s --maxsize %s ",
 					$self->minsize, $self->maxsize;
 			}
 			else {
-				$frag_base = sprintf "--span --pe --minsize %s --maxsize %s ",
+				$frag_base .= sprintf "--pe --minsize %s --maxsize %s ",
 					$self->minsize, $self->maxsize;
 			}
 		}
@@ -862,7 +867,13 @@ sub generate_bam2wig_frag_commands {
 			$self->bam2wig_app || 'bam2wig.pl',
 			$self->d_control_bdg;
 		if ( $self->paired ) {
-			$command1 .= sprintf "--span %s", $control_base;
+			if ( $self->normsize ) {
+				$command1 .= sprintf "--cspan --extval %s %s ", $self->fragsize,
+					$control_base;
+			}
+			else {
+				$command1 .= sprintf "--span %s", $control_base;
+			}
 		}
 		else {
 			$command1 .= sprintf "--extend --extval %s --shiftval %0.0f %s ",
@@ -999,7 +1010,13 @@ sub generate_bam2wig_frag_commands {
 			$self->bam2wig_app || 'bam2wig.pl',
 			$self->lambda_bdg;
 		if ( $self->paired ) {
-			$command .= sprintf "--span %s", $control_base;
+			if ( $self->normsize ) {
+				$command .= sprintf "--cspan --extval %s %s ", $self->fragsize,
+					$control_base;
+			}
+			else {
+				$command .= sprintf "--span %s", $control_base;
+			}
 		}
 		else {
 			$command .= sprintf "--extend --extval %s --shiftval %0.0f %s ",

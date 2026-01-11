@@ -492,7 +492,17 @@ chromosomes were skipped.
 END
 
 	# fragment generation based on single or paired end
-	if ($self->paired) {
+	if ($self->paired and $self->normsize) {
+		my $min  = $self->minsize;
+		my $max  = $self->maxsize;
+		my $size = $self->fragsize;
+		$string .= <<END;
+Fragment coverage was generated from properly paired alignments with an insertion
+size between **$min** and **$max** bp and normalizing to a length of **$size** bp
+centered over the fragment midpoint.
+END
+	}
+	elsif ($self->paired) {
 		my $min  = $self->minsize;
 		my $max  = $self->maxsize;
 		$string .= <<END;
