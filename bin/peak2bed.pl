@@ -16,7 +16,7 @@ use English qw(-no_match_vars);
 use File::Spec;
 use Getopt::Long;
 use List::Util qw(max);
-use Bio::ToolBox 1.70;
+use Bio::ToolBox 2.03;
 
 our $VERSION = 2.1;
 

@@ -13,7 +13,7 @@
 
 use strict;
 use Getopt::Long;
-use Bio::ToolBox 1.70;
+use Bio::ToolBox 2.03;
 use List::Util qw(max sum0);
 use Statistics::Lite qw(median);
 

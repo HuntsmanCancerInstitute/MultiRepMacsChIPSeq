@@ -16,7 +16,7 @@ use English qw(-no_match_vars);
 use Getopt::Long;
 use File::Which;
 use List::Util qw(sum min max);
-use Bio::ToolBox 1.50;
+use Bio::ToolBox 2.03;
 use Bio::ToolBox::db_helper qw(
 	open_db_connection
 	low_level_bam_fetch

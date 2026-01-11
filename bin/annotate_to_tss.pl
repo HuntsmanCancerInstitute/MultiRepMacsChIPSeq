@@ -15,7 +15,7 @@ use English qw(-no_match_vars);
 use Getopt::Long;
 use File::Spec;
 use File::Which;
-use Bio::ToolBox 2.0;
+use Bio::ToolBox 2.03;
 use Bio::ToolBox::utility qw(format_with_commas);
 use Bio::ToolBox::SeqFeature;
 use List::Util qw(uniqstr);

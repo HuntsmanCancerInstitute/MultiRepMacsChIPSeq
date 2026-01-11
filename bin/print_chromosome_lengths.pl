@@ -16,7 +16,7 @@ use English qw(-no_match_vars);
 use File::Spec;
 use IO::File;
 use Getopt::Long;
-use Bio::ToolBox::db_helper 1.69 qw(get_chromosome_list);
+use Bio::ToolBox::db_helper 2.03 qw(get_chromosome_list);
 
 our $VERSION = 1.1;
 

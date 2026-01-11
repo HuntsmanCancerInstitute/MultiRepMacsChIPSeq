@@ -9,13 +9,13 @@ use File::Spec::Functions qw( catfile splitpath );
 use File::Path qw(make_path);
 use Statistics::Descriptive;
 use Parallel::ForkManager;
-use Bio::ToolBox 1.70;
+use Bio::ToolBox 2.03;
 use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
 use base 'Bio::MultiRepChIPSeq::reporter';
 
-our $VERSION = 20.2;
+our $VERSION = 21.0;
 
 sub new {
 	my $class   = shift;

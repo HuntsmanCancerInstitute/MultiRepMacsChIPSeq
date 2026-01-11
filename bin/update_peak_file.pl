@@ -15,7 +15,7 @@ use warnings;
 use strict;
 use Getopt::Long;
 use List::Util qw(max);
-use Bio::ToolBox 1.70;
+use Bio::ToolBox 2.03
 
 our $VERSION = 1.1;
 
@@ -121,8 +121,7 @@ my $max_score = collect_max_score();
 print_summary();
 my $Summit;
 if ($export_summit) {
-	$Summit = Bio::ToolBox->new_data(qw(Chromosome Start0 End Name));
-	$Summit->bed(4);
+	$Summit = Bio::ToolBox->new_bed(4);
 }
 if ( $Data->format eq 'narrowPeak' ) {
 	$Data->iterate( \&narrowpeak_callback );

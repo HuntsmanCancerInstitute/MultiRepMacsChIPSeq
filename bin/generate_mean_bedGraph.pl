@@ -14,7 +14,7 @@
 use strict;
 use Getopt::Long;
 use File::Basename qw(fileparse);
-use Bio::ToolBox 1.65;
+use Bio::ToolBox 2.03;
 use Bio::ToolBox::utility qw(format_with_commas);
 
 our $VERSION = 3.3;

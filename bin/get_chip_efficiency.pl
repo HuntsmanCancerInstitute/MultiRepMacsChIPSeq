@@ -14,7 +14,7 @@
 use strict;
 use Getopt::Long;
 use Parallel::ForkManager;
-use Bio::ToolBox 1.70;
+use Bio::ToolBox 2.03;
 use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 use Set::IntervalTree;
 

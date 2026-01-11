@@ -4,7 +4,7 @@ use strict;
 use English qw(-no_match_vars);
 use Carp;
 use File::Spec::Functions qw( catfile splitdir splitpath rel2abs );
-use Bio::ToolBox 2.00;
+use Bio::ToolBox 2.03;
 use Bio::ToolBox::utility qw(format_with_commas);
 
 our $VERSION = 21.0;

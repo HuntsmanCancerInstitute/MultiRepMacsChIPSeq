@@ -16,7 +16,7 @@ use Getopt::Long;
 use List::Util qw(sum);
 use Set::IntSpan::Fast;
 use Parallel::ForkManager;
-use Bio::ToolBox::db_helper 1.50 qw(
+use Bio::ToolBox::db_helper 2.03 qw(
 	open_db_connection
 	low_level_bam_fetch
 	$BAM_ADAPTER
