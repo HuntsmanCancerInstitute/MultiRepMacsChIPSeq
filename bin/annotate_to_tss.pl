@@ -127,6 +127,11 @@ GetOptions(
 	'h|help!'        => \$help,
 ) or die "unrecognized option!\n";
 
+if ($help) {
+	print $docs;
+	exit;
+}
+
 $distance *= 1000;
 if ($profile_radius) {
 	$profile_radius *= 1000;
@@ -224,6 +229,7 @@ sub load_peak_data {
 			else {
 				my $i = $OutData->add_row( [ $id, $row->name ] );
 				$id2row{$id} = $i;
+
 				# workaround for a bug in Bio::ToolBox::Data
 				$OutData->value( $i, 3, '.' );
 			}
@@ -781,7 +787,7 @@ sub write_output_files {
 	printf " > identified %s unique overlapping genes\n",
 		format_with_commas( scalar( uniqstr( $OverlapData->column_values(1) ) ) - 1 );
 	if ($write_lists) {
-		$w = $OverlapData->write_file($outfile . '.overlapping_genes.tsv');
+		$w = $OverlapData->write_file( $outfile . '.overlapping_genes.tsv' );
 		unless ($w) {
 			print " Failed to write overlapping gene list file!\n";
 		}
@@ -793,7 +799,7 @@ sub write_output_files {
 	printf " > identified %s unique closest genes\n",
 		format_with_commas( scalar( uniqstr( $ClosestData->column_values(1) ) ) - 1 );
 	if ($write_lists) {
-		$w = $ClosestData->write_file($outfile . '.closest_genes.tsv');
+		$w = $ClosestData->write_file( $outfile . '.closest_genes.tsv' );
 		unless ($w) {
 			print " Failed to write closest gene list file!\n";
 		}
@@ -805,7 +811,7 @@ sub write_output_files {
 	printf " > identified %s unique adjacent genes\n",
 		format_with_commas( scalar( uniqstr( $AdjacentData->column_values(1) ) ) - 1 );
 	if ($write_lists) {
-		$w = $AdjacentData->write_file($outfile . '.adjacent_genes.tsv');
+		$w = $AdjacentData->write_file( $outfile . '.adjacent_genes.tsv' );
 		unless ($w) {
 			print " Failed to write adjacent gene list file!\n";
 		}
@@ -818,7 +824,7 @@ sub write_output_files {
 		format_with_commas(
 			scalar( uniqstr( $NeighborhoodData->column_values(2) ) ) - 1 );
 	if ($write_lists) {
-		$w = $NeighborhoodData->write_file($outfile . '.neighbor_genes.tsv');
+		$w = $NeighborhoodData->write_file( $outfile . '.neighbor_genes.tsv' );
 		unless ($w) {
 			print " Failed to write neighborhood gene list file!\n";
 		}
