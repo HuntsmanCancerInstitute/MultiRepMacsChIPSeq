@@ -242,9 +242,9 @@ sub load_peak_data {
 	$Peak->gsort_data;
 	$Peak->write_file($peak_bed_file);
 
-	# generate output file as necessary
+	# use input basename as output base, additional suffixes added below
 	unless ($outfile) {
-		$outfile = File::Spec->catfile( $Data->path, $Data->basename . '.annotation' );
+		$outfile = File::Spec->catfile( $Data->path, $Data->basename );
 	}
 	$profile_name = $Data->basename;
 }
