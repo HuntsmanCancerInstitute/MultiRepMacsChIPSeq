@@ -270,9 +270,16 @@ makePearCorr <- function(rdata, cdata, outfile) {
   nms <- as.vector(unique(cdata[,1]))
   anclrs <- brewer.pal(length(nms), opt$palette)
   names(anclrs) <- nms
+  minV <- round(min(sampleMatrix), digits = 1)
+  if (min(sampleMatrix) < minV) {
+  	 minV <- minV - 0.1
+  }
+  if (minV < 0) {
+    minV <- 0
+  }
   pheatmap(sampleMatrix, color = hmclrs, annotation_row = cdata, 
            annotation_colors = list("Dataset" = anclrs),
-           breaks = seq(0,1,length=255),
+           breaks = seq(minV,1,length=255),
            cluster_cols = TRUE, cluster_rows = TRUE,
            main = "Pearson Correlation of Sample Counts",
            filename = outfile, width = 10, height = 8)
@@ -285,9 +292,16 @@ makeSpearCorr <- function(rdata, cdata, outfile) {
   nms <- as.vector(unique(cdata[,1]))
   anclrs <- brewer.pal(length(nms), opt$palette)
   names(anclrs) <- nms
+  minV <- round(min(sampleMatrix), digits = 1)
+  if (min(sampleMatrix) < minV) {
+  	 minV <- minV - 0.1
+  }
+  if (minV < 0) {
+    minV <- 0
+  }
   pheatmap(sampleMatrix, color = hmclrs, annotation_row = cdata,
            annotation_colors = list("Dataset" = anclrs),
-           breaks = seq(0,1,length=255),
+           breaks = seq(minV,1,length=255),
            cluster_cols = TRUE, cluster_rows = TRUE,
            main = "Spearman Correlation of Sample Counts",
            filename = outfile, width = 10, height = 8)
