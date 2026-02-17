@@ -312,7 +312,7 @@ sub score_repeats {
 	# collect read counts as FPKM value over each element
 	# normalize to all counts in the genome
 	my $command1 = sprintf
-		"%s --in %s --noparse --method ncount --fpkm genome --cpu %s --gz --out %s %s",
+		"%s --in %s --noparse --method count --fpkm genome --cpu %s --gz --out %s %s",
 		$getdata,
 		$in_file || $rmsk_bed_file,
 		$cpu,
