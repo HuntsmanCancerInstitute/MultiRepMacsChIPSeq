@@ -7,6 +7,7 @@ use strict;
 use English qw(-no_match_vars);
 use Getopt::Long qw(:config no_ignore_case bundling);
 use Pod::Usage;
+use File::Copy;
 use List::Util qw(sum0);
 use Scalar::Util qw(looks_like_number);
 use Bio::ToolBox 2.03;
@@ -39,7 +40,7 @@ generate a relative difference table as a convenience.
 
 Multiple output files are written:
 
-	- A sorted data table with a basename suffix of '.sorted'
+	- The sorted data table
 	- A '.row_groups.txt' annotation file with the row groups
 	- A summary data file for each group for plotting mean profiles
 
@@ -52,6 +53,7 @@ REQUIRED:
   -k --key <file>         The matrix file of keys and groups
 
 OPTIONS: 
+  -o --output <file>      The output basename, default overwrites input
   -g --group <index>      The group column(s) in the key file
                             default is all columns except the first ID column
   -v --values <index>     Specific data column indexes to sort by
@@ -66,6 +68,7 @@ DOC
 
 my $data_file;
 my $matrix_file;
+my $outbase;
 my $grouplist;
 my $valuelist;
 my $normlist;
@@ -81,6 +84,7 @@ unless (@ARGV) {
 GetOptions(
 	'i|input=s'  => \$data_file,
 	'k|key=s'    => \$matrix_file,
+	'o|output=s' => \$outbase,
 	'g|group=s'  => \$grouplist,
 	'v|value=s'  => \$valuelist,
 	'n|norm=s'   => \$normlist,
@@ -104,6 +108,10 @@ unless ($matrix_file) {
 }
 if (defined $format) {
 	$format = '%.' . $format . 'f';
+}
+unless ( $sort eq 'count' or $sort eq 'name' ) {
+	print " ERROR! Sort order must be 'count' or 'name'!\n";
+	exit 1;
 }
 
 
@@ -198,6 +206,7 @@ while ( my $row = $InputStream->next_row ) {
 	}
 	$group2data{$category}->add_row($row);
 }
+$InputStream->close_fh;
 
 # Identify data columns
 unless (@val_indexes) {
@@ -268,8 +277,16 @@ elsif ($sort eq 'name') {
 }
 
 # Prepare sorted output data table as a stream
-my $out_data_file = sprintf "%s%s.sorted%s", $InputStream->path, $InputStream->basename,
+my $out_data_file;
+if ($outbase) {
+	$out_data_file = $outbase . $InputStream->extension;
+}
+else {
+	# cannot write a new stream with the input data file name
+	# so write to a temporary file instead
+	$out_data_file = sprintf "%stemp.%s%s", $InputStream->path, $PID,
 		$InputStream->extension;
+}
 my $OutStream = $InputStream->duplicate($out_data_file);
 $OutStream->add_comment("Sorted based on matrix key $matrix_file");
 if ($normlist) {
@@ -314,8 +331,14 @@ foreach my $group (@order) {
 	} );
 
 	# then write a new summary file for this group
-	my $sum_file = sprintf("%s%s.sorted_%s", $InputStream->path, $InputStream->basename,
-		$group);
+	my $sum_file;
+	if ($outbase) {
+		$sum_file = sprintf("%s.%s", $outbase, $group);
+	}
+	else {
+		$sum_file = sprintf("%s%s.%s", $InputStream->path, $InputStream->basename,
+			$group);
+	}
 	my $sum_file2 = $group2data{$group}->summary_file(
 		filename => $sum_file,
 		method   => 'trimmean'
@@ -325,12 +348,26 @@ foreach my $group (@order) {
 	}
 }
 $OutStream->close_fh;
-printf " Wrote sorted data file %s\n", $out_data_file;
+if ($outbase) {
+	printf " Wrote sorted data file %s\n", $out_data_file;
+}
+else {
+	# replace input file
+	unlink $data_file;
+	move($out_data_file, $data_file);
+	printf " Rewrote sorted data file %s\n", $data_file;
+}
 
 
 # Write the final row key matrix for the sorted data table
-my $out_rows_file = sprintf "%s%s.sorted.row_groups.txt", $InputStream->path, 
-		$InputStream->basename;
+my $out_rows_file;
+if ($outbase) {
+	$out_rows_file = sprintf "%s.row_groups.txt", $outbase;
+}
+else {
+	$out_rows_file = sprintf "%s%s.row_groups.txt", $InputStream->path, 
+			$InputStream->basename;
+}
 my $success = $OutMatrix->write_file($out_rows_file);
 if ($success) {
 	print " Wrote new row matrix annotation file $success\n";
