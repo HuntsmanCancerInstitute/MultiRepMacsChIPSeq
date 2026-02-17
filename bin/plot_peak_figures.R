@@ -125,6 +125,14 @@ plot_mean_k_hm <-function(rdata, hm_min, hm_max, k, hm_color, rowColor, figmain,
   n <- ncol(rdata)
   kdata <- makekmeans(rdata, k)
   
+  if (nrow(kdata$data) >= 100000) {
+    x <- kdata$data[seq(1, nrow(kdata$data), 10),]
+    kdata$data <- x
+  }
+  if (nrow(kdata$data) >= 20000) {
+    x <- kdata$data[seq(1, nrow(kdata$data), 5),]
+    kdata$data <- x
+  } 
   pheatmap(kdata$data[,1:n],  
            border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
            cluster_rows = FALSE, cluster_cols = TRUE, 
@@ -148,6 +156,14 @@ plot_profile_k_hm <-function(rdata, hm_min, hm_max, k, hm_color, rowColor, colAn
     clrs <- brewer.pal(length(nms), opt$palette)
   }
   names(clrs) <- nms
+  if (nrow(kdata$data) >= 100000) {
+    x <- kdata$data[seq(1, nrow(kdata$data), 10),]
+    kdata$data <- x
+  }
+  if (nrow(kdata$data) >= 20000) {
+    x <- kdata$data[seq(1, nrow(kdata$data), 5),]
+    kdata$data <- x
+  } 
   pheatmap(kdata$data[,1:n], 
            border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
            cluster_rows = FALSE, cluster_cols = FALSE, 
@@ -171,6 +187,12 @@ plot_profile_hm <-function(rdata, hm_min, hm_max, hm_color, colAnno, figmain, ou
     clrs <- brewer.pal(length(nms), opt$palette)
   }
   names(clrs) <- nms
+  if (nrow(rdata) > 100000) {
+    rdata <- rdata[seq(1, nrow(rdata), 10),]
+  }
+  if (nrow(rdata) > 20000) {
+    rdata <- rdata[seq(1, nrow(rdata), 5),]
+  } 
   pheatmap(rdata, 
            border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
            cluster_rows = FALSE, cluster_cols = FALSE, 
@@ -194,6 +216,12 @@ plot_sorted_profile_hm <-function(rdata, hm_min, hm_max, hm_color, rowAnno, colA
     n <- colnames(rowAnno)[i]
     annoColors[[n]] <- c(Y = "red", N = "blue")
   }
+  if (nrow(rdata) > 100000) {
+    rdata <- rdata[seq(1, nrow(rdata), 10),]
+  }
+  if (nrow(rdata) > 20000) {
+    rdata <- rdata[seq(1, nrow(rdata), 5),]
+  } 
   pheatmap(rdata, 
            border_color = NA, breaks = seq(hm_min,hm_max,length=255), 
            cluster_rows = FALSE, cluster_cols = FALSE, 
@@ -209,6 +237,12 @@ plot_sorted_profile_hm <-function(rdata, hm_min, hm_max, hm_color, rowAnno, colA
 plot_mean_hm <-function(rdata, hm_min, hm_max, hm_color, figmain, outbase) {
   o <- apply(rdata, 1, mean)
   rdata <- rdata[order(o, decreasing = TRUE),]
+  if (nrow(rdata) > 100000) {
+    rdata <- rdata[seq(1, nrow(rdata), 10),]
+  }
+  if (nrow(rdata) > 20000) {
+    rdata <- rdata[seq(1, nrow(rdata), 5),]
+  } 
   pheatmap(rdata, cluster_cols = TRUE, color = hm_color, 
            border_color = NA, breaks = seq(hm_min,hm_max,length=256), 
            cluster_rows = FALSE, show_rownames = FALSE, show_colnames = TRUE, main = figmain,
