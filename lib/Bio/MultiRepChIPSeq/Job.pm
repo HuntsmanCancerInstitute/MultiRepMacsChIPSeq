@@ -1355,7 +1355,7 @@ sub generate_lambda_control_commands {
 	# generate command for first step
 	my $log = $self->lambda_bdg;
 	$log =~ s/bdg$/out.txt/;
-	my $command = sprintf "%s unionbedg -header -names %s -i %s > %s 2> %s",
+	my $command = sprintf "%s unionbedg -header -names %s -i %s > %s 2> %s ",
 		$self->bedtools_app || 'bedtools',
 		$names,
 		$inputs,
