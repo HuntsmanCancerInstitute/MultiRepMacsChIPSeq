@@ -1778,10 +1778,11 @@ sub _rescore_narrow_input {
 		$self->cpu;
 	push @command_lengths, length($command2);
 	my $command3 = sprintf
-		"%s --method sum --in %s --out %s --format 0 --cpu %s ",
+		"%s --method sum --in %s --out %s --extend %.0f --format 0 --cpu %s ",
 		$self->getdata_app || 'get_datasets.pl',
 		$input,
 		$output3,
+		$self->fragsize / 2,
 		$self->cpu;
 	push @command_lengths, length($command3);
 	my $command4 = sprintf
@@ -1910,10 +1911,11 @@ sub _rescore_broad_input {
 		$self->cpu;
 	push @command_lengths, length($command2);
 	my $command3 = sprintf
-		"%s --method sum --in %s --out %s --format 0 --cpu %s ",
+		"%s --method sum --in %s --out %s --extend %s --format 0 --cpu %s ",
 		$self->getdata_app || 'get_datasets.pl',
 		$input,
 		$output3,
+		$self->fragsize,
 		$self->cpu;
 	push @command_lengths, length($command2);
 
