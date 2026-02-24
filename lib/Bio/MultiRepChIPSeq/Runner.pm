@@ -2092,7 +2092,7 @@ sub _sort_profile_data_file {
 			$matrix,
 			$file;
 		my $out = $file;
-		$out =~ s/ \.txt \.gz$ /.sorted.txt.gz/x;
+		$out =~ s/ txt \.gz$ /row_groups.txt/x;
 		push @commands, [ $command, $out, $log ];
 	}
 	

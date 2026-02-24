@@ -842,12 +842,12 @@ END
 		my ( $hm_plot, $which_plot );
 		if ($rep_num > 12) {
 			$hm_plot   = catfile( $plot_dir, $merged_base .
-				'_profile_mean_fragment_sorted_hm.png' );
+				'_profile_mean_fragment_hm_sorted.png' );
 			$which_plot = 'mean';
 		}
 		elsif ($rep_num >= 2 and $rep_num <= 12) {
 			$hm_plot   = catfile( $plot_dir, $merged_base .
-				'_profile_replicate_fragment_sorted_hm.png' );
+				'_profile_replicate_fragment_hm_sorted.png' );
 			$which_plot = 'individual';
 		}
 		my $line_plot = catfile( $plot_dir, $merged_base . 
@@ -1153,7 +1153,7 @@ END
 		my $size     = ( 25 * $self->binsize ) / 1000;
 		my $tot_size = $size * 2;
 		my $hm_plot   = catfile( $plot_dir, $mean_base .
-			'_profile_mean_fragment_sorted_hm.png' );
+			'_profile_mean_fragment_hm_sorted.png' );
 		my $line_plot = catfile( $plot_dir, $mean_base .
 			'_profile_mean_fragment_summary.png' );
 		$string .= <<END;
