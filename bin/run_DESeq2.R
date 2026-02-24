@@ -24,35 +24,48 @@ opts <-  list(
   make_option(c("-o", "--output"), default="NA",
               help="Output file basename, default 'first_second' names"),
   make_option(c("-f","--first"), default="NA",
-              help="Name of first ChIP condition"),
+              help="Name of first ChIP condition, numerator"),
   make_option(c("-s","--second"), default="NA",
-              help="Name of second ChIP condition or Input reference"),
-  make_option(c("-t","--threshold"), default=0.01,
-              help="Threshold adjusted p-value for filtering, default 0.01"),
-  make_option(c("-m","--min"), default=50,
-              help="Minimum base count sum, default 50"),
+              help="Name of second ChIP condition or Input reference, denominator"),
+  make_option(c("-b","--batch"), action="store_true", default=FALSE,
+              help="Use third column in customized sample table as batch factor"),
+  make_option(c("-t","--threshold"), default=0.1,
+              help="Threshold adjusted p-value (alpha) for significance (FDR), default 0.1"),
   make_option("--norm", action="store_true", default=FALSE,
-              help="Input counts are normalized, set SizeFactors to 1"),
+              help="Input counts are already normalized"),
   make_option("--all", action="store_true", default=FALSE,
-              help="Report all windows, not just significant")
+              help="Report all windows, not just significant"),
+  make_option("--shrink", action="store_true", default=FALSE,
+              help="Shrink Log2FC values for low count peaks")
 )
 
 parser <- OptionParser(option_list=opts, description = "
   This script will run a basic DESeq2 differential analysis 
   between two conditions to identify differential (or enriched 
-  in the case of ChIP and Input) ChIPseq regions. It requires 
-  an input text file with chromosome, start,and stop columns 
-  (or a coordinate name string), along with columns of alignment 
-  counts for both ChIP1 and ChIP2 (or Input reference) sample 
-  replicates. DESeq2 requires ideally 3 or more replicates per 
-  condition to estimate variance for normalization and significance 
-  testing. A sample condition file is required, consisting of two 
-  columns, sample identifiers and groups (conditions).
+  in the case of ChIP and Input) ChIPseq regions. 
   
-  Result intervals are filtered for the given adjusted  
-  threshold as well as a minimum base count (mean of ChIP1 and 
-  ChIP2 replicate counts). Merged significant intervals of 
-  enrichment are written as a bed file.
+  It requires an input text file with chromosome, start, and stop 
+  columns (or a coordinate name string), along with columns of fragment 
+  counts for both ChIP1 and ChIP2 (or Input reference) sample replicates.
+  DESeq2 requires at least 2 (ideally more) replicates per condition 
+  to estimate variance for normalization and significance testing.
+  
+  Count data may be already normalized to a uniform genomic depth, in
+  which case it should indicated as such and SizeFactors will be set to 1.
+  Otherwise counts will be normalized by DESeq2. WARNING: Default 
+  normalization by DESeq2 may potentially erase any enrichment signal.
+  
+  A sample condition file is required, consisting of two columns, 
+  unique sample identifiers and group names (conditions). If desired,
+  a third column could be added as an additional batch factor. Only
+  two groups are used in the contrast, defined with the --first and 
+  --second options; any additional groups and samples are ignored.
+  
+  Results are filtered at the indicated threshold or alpha level 
+  (False Discovery Rate). Significant regions are written to a text file
+  and respective bed files. Log2 Fold Changes may be shrunken to reduce the
+  effect of low count peaks. If additional filtering on Log2FC will be 
+  performed, the values should be shrunk.
   
 ")
 
@@ -67,10 +80,16 @@ suppressPackageStartupMessages(library(DESeq2))
 
 
 # input sample file
+# only first 2 or 3 columns are used
 samples <- read.delim(opt$sample, header = TRUE, row.names=1, 
                       check.names = F, sep = "\t", comment.char = "#")
 idx <- which(samples[,1] == opt$first | samples[,1] == opt$second)
 cond <- data.frame(row.names = rownames(samples)[idx], condition = samples[idx,1])
+
+# use 3rd column as batch control
+if (opt$batch == TRUE) {
+  cond$batch <- samples[idx,2]
+}
 
 # input count file
 counts <- read.delim(opt$count, header = TRUE, sep = "\t", 
@@ -83,7 +102,8 @@ if (opt$output == "NA"){
 }
 
 
-# build genomic ranges for later
+# load count table
+# build genomic ranges for convenient use later - though probably not necessary
 chromcol <- grep("^Chromo",colnames(counts))
 startcol <- grep("^Start",colnames(counts))
 stopcol  <- grep("^Stop|End", colnames(counts))
@@ -107,20 +127,38 @@ if (length(chromcol) & length(startcol) & length(stopcol)) {
                      ranges=IRanges(as.integer(coord[,2]),as.integer(coord[,3])),
                      strand=NULL)
 }
+message("Loaded ", nrow(counts), " peaks for analysis between ", opt$first, " and ", opt$second)
 
+# set design formula
+if (opt$batch == TRUE) {
+  des <- formula( ~ batch + condition)
+} else {
+  des <- formula( ~ condition)
+}
 
-# Run DESeq2
+# Run DESeq2 using only the indicated samples from the count table
 dds <- DESeqDataSetFromMatrix(countData=counts[,rownames(cond)], 
                               colData=cond, 
-                              design =~ condition)
+                              design = des)
+
+# default DESeq2 normalization can destroy biological significance
+# since peak counts represent a tiny fraction of actual sequencing depth
+# best to normalize to sequencing depth during counting step elsewhere
 if (opt$norm == TRUE) {
   sizeFactors(dds) <- rep(1, nrow(cond))
 }
+
+# generate results using local fitting since it seems to work better
 dds <- DESeq(dds, fitType = 'local')
 ddsResults1 <- results(dds, alpha = opt$threshold, contrast = c('condition', opt$first, opt$second))
+message(summary(ddsResults1))
 
-# shrink log fold changes - is this necessary?
-# ddsResults1 <- lfcShrink(dds=dds, res=ddsResults1, contrast= c('condition', opt$first, opt$second))
+# shrink log fold changes
+# using the original normal method as the default apeglm is too aggressive here
+if (opt$shrink == TRUE) {
+  ddsResults1 <- lfcShrink(dds=dds, res=ddsResults1, type="normal", quiet=TRUE,
+                           contrast= c('condition', opt$first, opt$second))
+}
 
 
 # write all results
@@ -142,6 +180,7 @@ if (opt$all == TRUE) {
     # write results
     write.table(allresults,file=paste0(opt$output,".all.txt"),
                 sep = "\t", row.names = F, quote = F, col.names = T)
+    message("wrote all results to file ", opt$output, ".all.txt")
 }
 
 
@@ -155,7 +194,7 @@ if (opt$all == TRUE) {
 
 
 # select significant results
-idx <- which(ddsResults1$padj <= opt$threshold & ddsResults1$baseMean >= opt$min)
+idx <- which(ddsResults1$padj <= opt$threshold)
 sig.gr <- targets[idx]
 results <- data.frame(
   Chromosome = seqnames(sig.gr),
@@ -178,24 +217,58 @@ results <- cbind(results, counts(dds,normalized=TRUE)[idx,])
 # write results
 write.table(results,file=paste0(opt$output,".txt"),
             sep = "\t", row.names = F, quote = F, col.names = T)
+message("wrote ", nrow(results), " significant results to file ", opt$output, ".txt")
+
 
 # write first ChIP enriched merged bed file
-idx <- which(results$Log2FoldChange > 0)
-sig2.gr <- reduce(sig.gr[idx])
-if (length(sig2.gr)) {
-  write.table(data.frame(seqnames(sig2.gr),start(sig2.gr),end(sig2.gr)), 
-              file=paste0(opt$output, '_', opt$first, 'Only.bed'),
+bed1 <- results[results$Log2FoldChange > 0,]
+if (nrow(bed1)) {
+  if (length(namecol)) {
+    bed1 <- bed1[,c(1:4,7)]
+  } else {
+    bed1 <- bed1[,c(1:3,6)]
+    bed1$Name <- rep(opt$first, times = nrow(bed1))
+    bed1 <- bed1[,c(1:3,5,4)]
+  }
+  bed1$Padj <- round(-log10(bed1$Padj), digits = 2)
+  write.table(bed1, file=paste0(opt$output, "_", opt$first, "Only.bed"),
               sep = "\t", row.names = F, quote = F, col.names = F)
+  message("wrote ", nrow(bed1), " ", opt$first, " enriched regions to ", opt$output, "_",
+          opt$first, "Only.bed")
 }
 
 
 # write second ChIP enriched merged bed file
-idx <- which(results$Log2FoldChange < 0)
-sig3.gr <- reduce(sig.gr[idx])
-if (length(sig3.gr)) {
-  write.table(data.frame(seqnames(sig3.gr),start(sig3.gr),end(sig3.gr)), 
-              file=paste0(opt$output, '_', opt$second, 'Only.bed'),
+bed2 <- results[results$Log2FoldChange < 0,]
+if (nrow(bed2)) {
+  if (length(namecol)) {
+    bed2 <- bed2[,c(1:4,7)]
+  } else {
+    bed2 <- bed2[,c(1:3,6)]
+    bed2$Name <- rep(opt$second, times = nrow(bed2))
+    bed2 <- bed2[,c(1:3,5,4)]
+  }
+  bed2$Padj <- round(-log10(bed2$Padj), digits = 2)
+  write.table(bed2, file=paste0(opt$output, "_", opt$second, "Only.bed"),
               sep = "\t", row.names = F, quote = F, col.names = F)
+  message("wrote ", nrow(bed2), " ", opt$second, " enriched regions to ", opt$output, "_",
+          opt$second, "Only.bed")
 }
 
-
+# plot volcano
+library(ggplot2)
+vdata <- data.frame(log2fc = ddsResults1$log2FoldChange, padj = ddsResults1$padj)
+vdata <- na.omit(vdata)
+fc <- max(abs(vdata$log2fc), na.rm=TRUE)
+p1 <- ggplot(data = vdata, aes(x=log2fc, y=-log10(padj))) +
+  geom_point(aes(fill = log2fc), color="gray20", shape = 21, size=1) +
+  xlim(-fc, fc) + 
+  theme_light() +
+  xlab("Log2 Fold Change") +
+  ylab("-Log10 Adjusted P-value") +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0, 
+                       limits = c(-fc, fc), guide = "none") +
+  ggtitle(paste0(opt$first, " vs ", opt$second))
+ggsave(plot = p1, filename = paste0(opt$output, ".png"), 
+       height = 6, width = 6)
+message("wrote volcano plot to file ", opt$output, ".png")
