@@ -643,6 +643,8 @@ sub run_dedup {
 	}
 	else {
 		$self->update_progress_file('deduplication');
+		$self->dedup(0);    # set to false
+		print "\nNo deduplication required\n";
 		return;
 	}
 
@@ -2185,6 +2187,7 @@ sub run_efficiency {
 
 sub _setup_efficiency_job {
 	my ( $self, $Job, $input, $output, $universal ) = @_;
+	return unless scalar( $Job->chip_count_bw );
 
 	my $command = sprintf
 		"%s --in %s --group %s --out %s --cpu %d ",
@@ -2758,18 +2761,24 @@ sub run_organize {
 	}
 
 	# fragment files
+	my $count = 0;
 	foreach ( glob( catfile( $self->dir, '*.fragment.bw' ) ) ) {
 		move( $_, $fragdir );
+		$count++;
 	}
 	foreach ( glob( catfile( $self->dir, '*.lambda_control.bw' ) ) ) {
 		move( $_, $fragdir );
+		$count++;
 	}
 	foreach ( glob( catfile( $self->dir, '*.control_fragment.bw' ) ) ) {
 		move( $_, $fragdir );
+		$count++;
 	}
 	foreach ( glob( catfile( $self->dir, '*.fragment.global_mean.bw' ) ) ) {
 		move( $_, $fragdir );
+		$count++;
 	}
+	rmdir $fragdir unless $count;
 
 	# qvalue files
 	foreach ( glob( catfile( $self->dir, '*.qvalue.bw' ) ) ) {
@@ -2777,9 +2786,12 @@ sub run_organize {
 	}
 
 	# count files
+	$count = 0;
 	foreach ( glob( catfile( $self->dir, '*.count.bw' ) ) ) {
 		move( $_, $countdir );
+		$count++;
 	}
+	rmdir $countdir unless $count;
 
 	# peak files
 	foreach ( glob( catfile( $self->dir, '*.narrowPeak' ) ) ) {
