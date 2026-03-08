@@ -18,7 +18,7 @@ echo
 echo "====================== Tup1 individual replicates ======================"
 echo
 
-multirep_macs2_pipeline.pl \
+multirepchipseq.pl \
 --chip data/Tup1_Ch1.bam \
 --name Tup1_Ch1 \
 --chip data/Tup1_Ch2.bam \

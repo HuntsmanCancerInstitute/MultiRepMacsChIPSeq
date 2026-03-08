@@ -18,7 +18,7 @@ echo
 echo "================== Independent Paired-end without duplication =================="
 echo
 
-multirep_macs2_pipeline.pl \
+multirepchipseq.pl \
 --chip data/Rpd3_Ch1.bam,data/Rpd3_Ch2.bam,data/Rpd3_Ch3.bam \
 --control data/Rpd3_Input.bam \
 --name Rpd3 \

@@ -18,10 +18,10 @@ export PERL5LIB=${BLIB}/lib:$PERL5LIB
 rm -rf pe_nogenome
 
 echo
-echo "====================== paired-end ======================"
+echo "====================== paired-end no genome ======================"
 echo
 
-multirep_macs2_pipeline.pl \
+multirepchipseq.pl \
 --chip data/Rpd3_Ch1.bam,data/Rpd3_Ch2.bam,data/Rpd3_Ch3.bam \
 --control data/Rpd3_Input.bam \
 --name Rpd3 \

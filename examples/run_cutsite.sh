@@ -19,7 +19,7 @@ echo
 echo "====================== ATAC-Seq cut site ======================"
 echo
 
-multirep_macs2_pipeline.pl \
+multirepchipseq.pl \
 --chip data/Rpd3_Ch1.bam,data/Rpd3_Ch2.bam,data/Rpd3_Ch3.bam \
 --name Rpd3 \
 --chip data/Tup1_Ch1.bam,data/Tup1_Ch2.bam,data/Tup1_Ch3.bam \
