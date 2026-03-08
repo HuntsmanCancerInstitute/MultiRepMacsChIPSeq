@@ -534,23 +534,37 @@ number of hits (SAM flag `NH`) in the genome.
 END
 	}
 
-	# add lambda
-	if ($self->lambda) {
-		my $small = format_with_commas( $self->slocal );
-		my $large = format_with_commas( $self->llocal );
+	# add lambda reference
+	my $cntrl = scalar( $self->controls );
+	my $small = format_with_commas( $self->slocal );
+	my $large = format_with_commas( $self->llocal );
+	if ( $cntrl and $self->lambda ) {
 		$string .= <<END;
 
-Reference coverage tracks for calculating enrichment, based on global coverage and
-local chromatin bias, were generated from Control bam files using the maximum locally
-observed depth of four coverages: fragment coverage, small lambda ($small bp), large
-lambda ($large bp), and calculated global coverage. 
+Reference lambda control tracks, representing the observed and expected
+background coverage as well as local chromatin bias, were generated from Control
+bam files using the maximum locally observed depth of four coverages: fragment
+coverage, small lambda ($small bp), large lambda ($large bp), and calculated
+global coverage. These were then used to calculate logarithmic and statistical
+enrichment.
+END
+	}
+	elsif ( not $cntrl and $self->lambda and $large ) {
+		$string .= <<END;
+
+Reference lambda control tracks, representing expected background coverage as
+well as neighborhood chromatin bias, were generated from ChIP bam files using
+the observed maximum depth from either large lambda coverage ($large bp) and
+calculated global coverage. These were then used to calculate logarithmic and
+statistical enrichment.
 END
 	}
 	else {
 		$string .= <<END;
 
-If no control samples were provided, reference coverage tracks for calculating
-enrichment were generated as the global mean of the ChIP samples.
+Reference lambda control tracks were generated as the global mean of the ChIP
+samples. These were then used to calculate logarithmic and statistical
+enrichment.
 END
 	}
 
