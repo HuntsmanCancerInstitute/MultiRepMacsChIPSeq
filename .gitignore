@@ -31,6 +31,9 @@ examples/pe_gapped
 examples/pe_indep
 examples/pe_nocon
 examples/pe_nodup
+examples/pe_normsize
+examples/pe_nobam
+examples/pe_nogenome
 examples/se
 examples/tup1_indiv
 examples/rpd3
