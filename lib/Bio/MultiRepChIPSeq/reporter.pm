@@ -149,19 +149,42 @@ sub add_samples_report {
 ### Samples
 
 The following samples (conditions) and replicate files were provided as input to
-pipeline.
+the pipeline.
 
 END
 
-	# samples
+	# generate list of sample file names
+	# need to accomodate universal control or lack of control samples
+	my $j = 0;
+	my $n = $self->number_of_jobs;
 	my $i = 1;
-	foreach my $Job ( $self->list_jobs ) {
-		$string .= sprintf( "%d. %s ChIP: %s\n", $i, $Job->job_name,
-			join( ', ', map { sprintf "`%s`", $_ } ( $Job->chip_bams ) ) );
+	my $uni_ctrl;
+	if ( $self->has_universal_control ) {
+		# first job is always the universal control, but that doesn't reflect the
+		# the original list of file names
+		$n -= 1;
+		my $ctrl_job = ( $self->list_jobs )[0];
+		$uni_ctrl = join( ', ', map { sprintf "`%s`", $_ } ( $ctrl_job->control_bams ) );
+	}
+	while ( $j < $n ) {
+		my $chip = ( $self->chips )[$j];
+		my $cntl = ( $self->controls )[$j] || q();
+		my $name = ( $self->names )[$j];
+		$string .= sprintf( "%d. %s ChIP: %s\n", $i, $name,
+			join( ', ', map { sprintf "`%s`", $_ } split( /,/, $chip ) ) );
 		$i++;
-		$string .= sprintf( "%d. %s Control: %s\n", $i, $Job->job_name,
-			join( ', ', map { sprintf "`%s`", $_ } ( $Job->control_bams ) ) );
+		if ( $uni_ctrl ) {
+			$string .= sprintf "%d. %s Control: %s\n", $i, $name, $uni_ctrl;
+		}
+		elsif ( $cntl ) {
+			$string .= sprintf( "%d. %s Control: %s\n", $i, $name,
+				join( ', ', map { sprintf "`%s`", $_ } split( /,/, $cntl ) ) );
+		}
+		else {
+			$string .= sprintf "%d. %s Control:\n", $i, $name;
+		}
 		$i++;
+		$j++;
 	}
 
 	# universal control
