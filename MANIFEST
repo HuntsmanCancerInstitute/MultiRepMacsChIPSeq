@@ -1,3 +1,4 @@
+bin/annotate_to_tss.pl
 bin/bam_partial_dedup.pl
 bin/combine_std_chipstats.pl
 bin/combine_replicate_data.pl
@@ -6,7 +7,7 @@ bin/generate_differential.pl
 bin/get_chip_efficiency.pl
 bin/install_R_packages.R
 bin/intersect_peaks.pl
-bin/multirep_macs2_pipeline.pl
+bin/multirepchipseq.pl
 bin/peak2bed.pl
 bin/plot_shift_models.R
 bin/plot_peak_figures.R
@@ -14,6 +15,7 @@ bin/print_chromosome_lengths.pl
 bin/recall_peaks.pl
 bin/render.pl
 bin/report_mappable_space.pl
+bin/rmsk2exclusion.pl
 bin/run_DESeq2.R
 bin/run_normR_difference.R
 bin/run_normR_enrichment.R
