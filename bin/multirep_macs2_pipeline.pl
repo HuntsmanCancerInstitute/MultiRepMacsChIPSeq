@@ -26,55 +26,48 @@ our $VERSION = $Runner->version;
 
 my $documentation = <<DOC;
 
-======= ChIP Wrapper ==========
+======= MultiRepMacsChIPSeq ==========
 
-This is a wrapper for calling and/or comparing peaks in ChIPSeq or ATACSeq with single 
-or multiple replicas using the Macs2 ChIPSeq caller. It uses BioToolBox applications to 
-normalize duplicate levels and read depths between samples and replicates.
+This is a multi-threaded pipeline for processing multiple-condition,
+multiple-replicate samples from ChIP-Seq, ATAC-Seq, Cut&Run, Cut&Tag, or any
+other chromatin-based assays for calling peaks, particularly for differential
+and/or comparative purposes. 
 
-Multiple ChIP samples (experiments) may be provided by repeating the chip option as 
-necessary for every experiment, factor, or antibody sample. Provide a separate name 
-for each sample, in the same order.
+At least two samples (conditions) are required. Single-sample, single-replicate
+analysis is not supported. If multiple replicates are available for only a
+single condition, then the replicates may be treated as separate samples for
+purposes of comparison.
 
-ChIP sample replicas should be comma-delimited values to the chip option. Each 
-sample could have one or more replicas. Replicas will be averaged together in a 
-depth-controlled manner. If for some reason you don't want to merge replicas, then 
-treat them as individual samples.
+Replicates are handled by two methods:
 
-One control may be used for all samples, or sample-matched controls may be 
-provided by repeating the option, keeping the same order. Control replicas may 
-be provided as comma-delimited lists. If multiple, but not all, ChIP samples share 
-controls, then they should still be listed individually for each ChIP; duplicate 
-controls will be properly handled. If no control is available (for example, ATACSeq 
-often has no genomic input), then a global mean coverage will be calculated from 
-the ChIP samples and used as the control. 
+ 1. Averaging the depth-normalized genomic coverage of the replicates into a 
+    mean coverage track and calling peaks on that. This smooths the signal and
+    may rescue under-performing replicates. This is always enabled.
 
-Fragment size should be empirically determined by the user, especially when multiple
-samples and/or replicates are being used. The same fragment size is used across all
-samples and replicates to ensure equal comparisons. NOTE: even in paired-end mode, 
-fragment size is used for control lambda. 
+ 2. Optionally call peaks on each replicate individually, then merge the
+    replicate peak calls, requiring a minimum of two overlaps to accept as a
+    sample peak. This is enabled with the --indedepent option.
 
-By default, this employs Macs2 local lambda chromatin-bias modeling as the reference 
-track derived from the provided input. This uses three sources to model chromatin bias: 
-fragment (or d in Macs2 parlance), small lambda (default $opts->{slocal} bp), and 
-large lambda (default $opts->{llocal} bp) fragment coverage. If desired, either small or 
-local lambda may be turned off by setting to 0. To completely turn off lambda, set the 
-nolambda option, whereupon only the control fragment is directly used as reference. 
-If no control file is provided, then the global mean from the ChIP file is used 
-as a (poor) substitute. 
+All sample peak calls are merged into a final call set, which are re-scored and
+quantitated for comparison purposes. Multiple quality-control, comparitive, and
+analytical plots are generated. An HTML report including a subset of these plots
+is generated.
 
-Advanced users may provide one processed bigWig file per ChIP or control sample. 
+Multiple options are available for filtering and handling alignments, scoring,
+and thresholding of peak calls. Details on these options and when to choose
+them, along with numerous examples, are provided in online documentation. See
+the URL below for full usage and guide.
 
-See https://huntsmancancerinstitute.github.io/MultiRepMacsChIPSeq for full 
-usage and guide.
+  https://huntsmancancerinstitute.github.io/MultiRepMacsChIPSeq
+
 
 Version: $VERSION
 
 Options:
- Input files
-  --chip        file1,file2...  Repeat for each sample set
-  --name        text            Repeat for each sample
-  --control     file1,file2...  Repeat if matching multiple samples
+ Input files - repeat these options for each sample (condition)
+  --chip        file1,file2...  Comma-delimited paths to experiment files
+  --name        text            Name for the sample (condition)
+  --control     file1,file2...  Optional reference control (Input), comma-delimited
  
  Output
   --dir         directory       Directory for writing all files ($opts->{dir})
@@ -139,7 +132,7 @@ Options:
   
  Peak scoring
   --binsize     integer         Size of bins in 25 flanking peak bins for profile ($opts->{binsize})
-  --targetdepth text            Set method for sequence depth scaling for all count data:
+  --targetdepth text            Set target depth in Millions or method for setting:
                                   median (default), mean, min
   --rawcounts                   Use unscaled raw counts for re-scoring peaks
   --noplot                      Do not plot figures of results
@@ -180,16 +173,17 @@ DOC
 unless (@ARGV) {
 	print <<HELP;
 
-======= ChIP Wrapper ==========
+======= MultiRepMacsChIPSeq ==========
 
-This is a wrapper for calling and/or comparing peaks in ChIPSeq or ATACSeq with single 
-or multiple replicas using the Macs2 ChIPSeq caller. It uses BioToolBox applications to 
-normalize duplicate levels and read depths between samples and replicates.
+This is a multi-threaded pipeline for processing multiple-condition,
+multiple-replicate samples from ChIP-Seq, ATAC-Seq, Cut&Run, Cut&Tag, or any
+other chromatin-based assays for calling peaks, particularly for differential
+and/or comparative purposes. 
 
 See https://huntsmancancerinstitute.github.io/MultiRepMacsChIPSeq for full 
 usage and guide.
 
-Use --help to display options.
+Use --help to display brief options.
 
 Version: $VERSION
 
