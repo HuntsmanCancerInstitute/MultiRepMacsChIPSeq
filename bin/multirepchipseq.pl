@@ -26,7 +26,7 @@ our $VERSION = $Runner->version;
 
 my $documentation = <<DOC;
 
-======= MultiRepMacsChIPSeq ==========
+======= MultiRepChIPSeq ==========
 
 This is a multi-threaded pipeline for processing multiple-condition,
 multiple-replicate samples from ChIP-Seq, ATAC-Seq, Cut&Run, Cut&Tag, or any
@@ -173,7 +173,7 @@ DOC
 unless (@ARGV) {
 	print <<HELP;
 
-======= MultiRepMacsChIPSeq ==========
+======= MultiRepChIPSeq ==========
 
 This is a multi-threaded pipeline for processing multiple-condition,
 multiple-replicate samples from ChIP-Seq, ATAC-Seq, Cut&Run, Cut&Tag, or any
@@ -279,7 +279,7 @@ if ( $opts->{help} ) {
 }
 
 ### Begin main pipeline
-print "======== ChIPSeq multi-replicate pipeline ==========\n";
+print "======== MultiRepChIPSeq pipeline ==========\n";
 print "\nversion $VERSION\n";
 my $start = time;
 check_options();
@@ -317,7 +317,7 @@ $Runner->generate_report($argument_string);
 
 # final statement
 printf "\n\nFinished in %.1f minutes\n", ( time - $start ) / 60;
-print "======== Finished ChIPSeq multi-replicate pipeline ==========\n";
+print "======== Finished MultiRepChIPSeq pipeline ==========\n";
 
 ############### Subroutines ########################################################
 

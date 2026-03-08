@@ -22,7 +22,7 @@ sub add_header_report {
 # Pipeline for $title
 
 This is a report from the 
-[Multi-Replica Multi-Sample MACS2 ChIPSeq pipeline](https://huntsmancancerinstitute.github.io/MultiRepMacsChIPSeq),
+[Multi-Replica Multi-Sample ChIPSeq pipeline](https://huntsmancancerinstitute.github.io/MultiRepMacsChIPSeq),
 Version $v.
 
 ### Contents
