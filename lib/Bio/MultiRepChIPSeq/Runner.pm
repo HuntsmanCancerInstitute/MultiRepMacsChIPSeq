@@ -19,8 +19,16 @@ our $VERSION = 21.0;
 
 sub new {
 	my $class   = shift;
-	my $options = $class->init_options();
+	
+	# shouldn't have to do this but there's no simple way to replace outdated scripts
+	if ( $PROGRAM_NAME =~ s/multirep_macs2_pipeline/multirepchipseq/x ) {
+		
+		printf "\n  WARNING: Please execute the replaced executable %s\n\n",
+			$PROGRAM_NAME;
+		exit 1;
+	}
 
+	my $options = $class->init_options();
 	my $self = {
 		opts                => $options,
 		Jobs                => [],
