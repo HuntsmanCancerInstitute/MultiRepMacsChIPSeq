@@ -29,14 +29,14 @@ generate a relative difference table as a convenience.
 
 Multiple output files are written:
 
-- A sorted data table with a basename suffix of `.sorted`
+- The sorted data table
 
 - A `.row_groups.txt` annotation file with the row groups
 
 - A summary data file for each group for plotting mean profiles
 
 
-VERSION: 0.2
+VERSION: 0.3
 
 USAGE:
 
@@ -49,14 +49,15 @@ REQUIRED:
 
 OPTIONS:
 
-	-g --group <index>     The group column(s) in the key file
-						   default is all columns except the first ID column
-	-v --values <index>    Specific data column indexes to sort by
-						   default is all identifiable data columns
-	-n --norm <index>      Specify the reference data columns for normalization
-	-f --format <int>      Specify the decimal positions when normalizing
-	-s --sort [count|name] Specify how to sort the groups: by decreasing 
-						   count or by name. Default is count.
-	-h --help              Show this help                           
+	-o --output <file>      The output basename, default overwrites input
+	-g --group <index>      The group column(s) in the key file
+						    default is all columns except the first ID column
+	-v --values <index>     Specific data column indexes to sort by
+						      default is all identifiable data columns
+	-n --norm <index>       Specify the reference data columns for normalization
+	-f --format <int>       Specify the decimal positions when normalizing
+	-s --sort [count|name]  Specify how to sort the groups: by decreasing 
+						      count or by name. Default is count.
+	-h --help               Show this help                           
 
 

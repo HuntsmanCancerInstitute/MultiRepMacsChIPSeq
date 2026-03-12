@@ -6,6 +6,13 @@
 
 Documentation for the applications included in this package.
 
+- [annotate\_to\_tss.pl](applications/annotate_to_tss.md)
+
+	An application to annotate peaks to nearby Transcription Start Sites (TSS,
+	or gene promoters). Unlike most annotation applications, which only report
+	the nearest gene, this reports nearest, left and right proximal, and all
+	neighborhood genes within the given radius.
+
 - [bam\_partial\_dedup.pl](applications/bam_partial_dedup.md)
 
 	An application for removing duplicate alignments in a bam file. Unlike
@@ -40,7 +47,7 @@ Documentation for the applications included in this package.
 	An application to properly intersect two or more peak files and
 	generate a merged peak file along with multiple general statistics.
 
-- [multirep\_macs2\_pipeline.pl](applications/multirep_macs2_pipeline.md)
+- [multirep\_macs2\_pipeline.pl](applications/multirepchipseq.md)
 
 	The main MultiRepMacsChIPSeq pipeline application.
 
@@ -78,6 +85,14 @@ Documentation for the applications included in this package.
 
 	An application to report the fraction of a genome that is covered by unique
 	and non-unique alignments from one or more bam alignment files.
+
+- [rmsk2exclusion.pl](applications/rmsk2exclusion.md)
+
+	An application to generate empirical exclusion intervals from experimental
+	ChIP, ATAC, or Cut&Run datasets by identifying known repetitive element
+	(RepeatMasker) features with extraordinarily high alignment coverage. This
+	is an alternative approach to identifying empirical exclusion regions when
+	reference or Input data is unavailable.
 
 - [run_DESeq2.R](applications/run_deseq2.md)
 
