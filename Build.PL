@@ -5,9 +5,7 @@ use warnings;
 use Module::Build;
 
 my $build = Module::Build->new(
-	dist_name         => 'Bio::MultiRepChIPSeq',
-	dist_version_from => 'lib/Bio/MultiRepChIPSeq.pm',
-	dist_abstract     => 'Multiple-replica multiple-condition ChIPSeq pipeline',
+	module_name       => 'Bio::MultiRepChIPSeq',
 	dist_author       => 'Timothy Parnell <timothy.parnell@hci.utah.edu>',
 	license           => 'artistic_2',
 	meta_merge        => {
