@@ -69,6 +69,9 @@ In general, all sample and replicate bam files in an experiment should be
 provided. The average is taken across the samples to ensure that only those
 elements with consistently high coverage are used for exclusion.
 
+Simple differences in chromosome naming scheme (chr1 vs 1) are transparently
+handled without issue; other contigs may be skipped.
+
 VERSION: $VERSION
 
 USAGE: rmsk2exclusion.pl -r rmsk.txt -o exclusion.bed  File1.bam  File2.bam ...
@@ -79,7 +82,7 @@ Input:
   -r --rmsk <file>         Input RepeatMasker file. Required. These can often
                             be obtained for your genome from
                             https://genome.ucsc.edu
-  -i --input <file>        Bed file of custom repetitive elements to score.
+  -i --input <file>        Coordinate file e.g. BED of repetitive elements to score.
                             This can be used as an alternative --rmsk.
   -o --out <file>          Output file basename. Required.
   -d --data <file>         Specify one or more bam files to score. This option
