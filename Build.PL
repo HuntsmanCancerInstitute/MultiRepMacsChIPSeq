@@ -5,10 +5,9 @@ use warnings;
 use Module::Build;
 
 my $build = Module::Build->new(
-	dist_name         => 'MultiRepMacsChIPSeq',
-	module_name       => 'MultiRepMacsChIPSeq',
-	dist_version_from => 'lib/Bio/MultiRepChIPSeq/Runner.pm',
-	dist_abstract     => 'Multiple-replica multiple-condition ChIPSeq wrapper',
+	dist_name         => 'Bio::MultiRepChIPSeq',
+	dist_version_from => 'lib/Bio/MultiRepChIPSeq.pm',
+	dist_abstract     => 'Multiple-replica multiple-condition ChIPSeq pipeline',
 	dist_author       => 'Timothy Parnell <timothy.parnell@hci.utah.edu>',
 	license           => 'artistic_2',
 	meta_merge        => {

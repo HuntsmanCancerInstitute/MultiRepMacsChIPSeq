@@ -22,6 +22,7 @@ bin/run_normR_enrichment.R
 bin/sort_data_by_key.pl
 bin/subset_bigwig.pl
 bin/update_peak_file.pl
+lib/Bio/MultiRepChIPSeq.pm
 lib/Bio/MultiRepChIPSeq/Job.pm
 lib/Bio/MultiRepChIPSeq/options.pm
 lib/Bio/MultiRepChIPSeq/reporter.pm

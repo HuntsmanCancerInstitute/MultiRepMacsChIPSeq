@@ -1,5 +1,3 @@
-
-#!start included /Library/Perl/5.18/ExtUtils/MANIFEST.SKIP
 # Avoid version control files.
 \bRCS\b
 \bCVS\b
@@ -15,23 +13,6 @@
 \bDescrip.MMS$
 \bDESCRIP.MMS$
 \bdescrip.mms$
-
-# Avoid Makemaker generated and utility files.
-\bMANIFEST\.bak
-\bMakefile$
-\bblib/
-\bMakeMaker-\d
-\bpm_to_blib\.ts$
-\bpm_to_blib$
-\bblibdirs\.ts$         # 6.18 through 6.25 generated this
-
-# Avoid Module::Build generated and utility files.
-\bBuild$
-\b_build/
-\bBuild.bat$
-\bBuild.COM$
-\bBUILD.COM$
-\bbuild.com$
 
 # Avoid temp and backup files.
 ~$
@@ -59,10 +40,6 @@
 
 # Avoid MYMETA files
 ^MYMETA\.
-#!end included /Library/Perl/5.18/ExtUtils/MANIFEST.SKIP
-
-# Avoid configuration metadata file
-^MYMETA\.
 
 # Avoid Module::Build generated and utility files.
 \bBuild$
@@ -71,14 +48,23 @@
 \bBuild.COM$
 \bBUILD.COM$
 \bbuild.com$
+\bblib
 ^MANIFEST\.SKIP
 
 # Avoid archives of this distribution
 \bMultiRepMacsChIPSeq-[\d\.\_]+
+\bMultiRepChIPSeq-[\d\.\_]+
 
 # Examples and Data
 \bexamples
 
 # Personal playground
 \bplayground
+
+# Github documentation
+\bdocs
+
+# Old Build files
+\bBuilds
+
 
