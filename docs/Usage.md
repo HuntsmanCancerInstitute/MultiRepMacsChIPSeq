@@ -165,7 +165,7 @@ plots are generated to assist in evaluation.
 These are descriptions and guidance to the variety of options to the main 
 [multirepchipseq](applications/multirepchipseq.md) script. In most 
 cases, you will want to write the command in a shell script for execution due to the 
-complexity. See the [examples](examples/Readme.md) folder for example scripts.
+complexity. See the [Examples](Examples.md) page for details.
 
 - Sample files
 
@@ -574,7 +574,7 @@ expressed in the same cell or tissue type as the ChIP assay.
 When two or more conditions are used for ChIP, then a differential analysis can be
 applied across the final merged set of peaks to identify those that significantly
 differential. The R package [DESeq2](https://bioconductor.org/packages/DESeq2/) is
-one recommended package, among several. The [run_DESeq2](applications/run_deseq2.md)
+one recommended package, among several. The [run_DESeq2](applications/run_DESeq2.md)
 script is a convenient, simple, wrapper script for running such analysis. 
 
 	run_DESeq2.R --count output_counts.txt.gz --sample output_samples.txt \

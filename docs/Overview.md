@@ -120,7 +120,8 @@ condition. Technical replicates could also be included.
 	The merged peaks may then be evaluated for differential occupancy between two or
 	more samples using rigorous statistical analysis. For example,
 	[DESeq2](https://bioconductor.org/packages/DESeq2/) may be used to identify
-	significantly different peaks. Some basic R scripts are included to perform such
+	significantly different peaks. An included script,
+	[run_DESeq2.R](applications/run_DESeq2.md) is included to perform such
 	analysis on an ad hoc basis.
 
 

@@ -37,7 +37,7 @@ Documentation for the applications included in this package.
 	An application to generate a differential track (bedGraph or bigWig
 	format) from two track files.
 
-- [generate\_mean\_bedGraph.pl](applications/generate_mean_bedgraph.md)
+- [generate\_mean\_bedGraph.pl](applications/generate_mean_bedGraph.md)
 
 	An application to generate chromosomal mean coverage bedGraph from
 	fragment coverage track file.
@@ -47,7 +47,7 @@ Documentation for the applications included in this package.
 	An application to properly intersect two or more peak files and
 	generate a merged peak file along with multiple general statistics.
 
-- [multirep\_macs2\_pipeline.pl](applications/multirepchipseq.md)
+- [multirepchipseq.pl](applications/multirepchipseq.md)
 
 	The main MultiRepMacsChIPSeq pipeline application.
 
@@ -94,7 +94,7 @@ Documentation for the applications included in this package.
 	is an alternative approach to identifying empirical exclusion regions when
 	reference or Input data is unavailable.
 
-- [run_DESeq2.R](applications/run_deseq2.md)
+- [run_DESeq2.R](applications/run_DESeq2.md)
 
 	A simple R script to run `DESeq2` on collected peak counts, particularly
 	for differential peak analysis.

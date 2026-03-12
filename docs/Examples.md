@@ -265,9 +265,9 @@ situations if edited appropriately.
 	[run\_pe\_nogenome Script](https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq/blob/master/examples/run_pe_nogenome.sh).
 	The provided bam files here are heavily subsampled with poor genomic
 	coverage, hence a separate `--genome` size must be provided. This is not
-	normally needed with good coverage traditional ChIP and Input files. This
-	script will intentionally fail because the genomic coverage is not
-	sufficient.
+	normally needed with good coverage traditional ChIP and Input files. _This
+	script will intentionally fail with the provided samples because the genomic
+	coverage is not sufficient_.
 
 
 ### Bam files
