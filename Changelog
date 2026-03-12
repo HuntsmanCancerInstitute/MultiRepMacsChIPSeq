@@ -1,5 +1,77 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
+v21.0
+	multirep_macs2_pipeline.pl
+	- This has been replaced with multirepchipseq.pl. This version will no
+	  longer work and will give an appropriate error message.
+	- All examples have been updated.
+	- To avoid confusion, this executable may be safely deleted.
+	
+	multirepchipseq.pl
+	- Replacement for multirep_macs2_pipeline.pl and primary executable. All
+	  Github history retained.
+	- Use large local lambda derived from ChIP experimental samples for lambda
+	  control when no reference control sample files are provided. This should
+	  reduce weak or false positive peak calling, particularly with noisy or
+	  high background datasets, but less helpful with very clean or sparse
+	  datasets. This is a departure from previous versions but follows the
+	  precedence of MACS behavior. To turn this off, simple specify `--nolambda`.
+	- Add a new option `--normsize` to normalize paired-end fragment lengths to
+	  the same given length, rather than use actual (variable) lengths. This
+	  may help normalize comparing samples with different chromatin fragmentation
+	  profiles. In a sense, this is no different than processing single-end
+	  alignments where all fragments are extended to the same given length.
+	- Extend the peak interval slightly by the fragment size when generating
+	  the peak count table to accomodate fragments whose centers do not overlap
+	  the peak interval. This will increase count sums by a modest amount.
+	- Add a Table of Contents and back-to-top links to the HTML report file.
+	- Add section on lambda reference control in HTML report file.
+	- Use fastpe mode in bam2wig when possible.
+	- Rewrite help documentation.
+	- Add a main distribution module file. Update Build.PL to reflect changes.
+	- Bug fixes
+	
+	sort_data_by_key.pl
+	- Significantly reduced memory usage from previous iterations, in some cases
+	  by 2/3rds, which may help with extremely large peak call sets.
+	- Default behavior is to now overwrite the input file unless given an output
+	  file name.
+	
+	subset_bigwig.pl
+	- Support newer UCSC bigWig utilities that do not accept standard input pipes
+	  by implementing changes in Bio::ToolBox v2.03 and writing an intermediate file. 
+	
+	annotate_to_tss.pl
+	- New application to annotate peaks to nearby and neighborhood gene promoters.
+	  Most annotation programs only report the closest gene; this instead reports
+	  the closest, left and right proximal, and all gene promoters within a given
+	  radius (neighborhood).
+	
+	rmsk2exclusion.pl
+	- New application to identify known repetitive element (RepeatMasker) features
+	  with exceptional unfiltered alignment coverage to use as exclusion intervals.
+	
+	generate_differential.pl
+	- Prevent writing track line in output file.
+	
+	plot_peak_figures.R
+	- Subsample rows of very large data tables when generating heat maps so that
+	  pHeatmap can generate plots faster and without distracting white lines. This
+	  does not impact the interpretation of the data since subsampling occurs
+	  after all sorting is complete.
+	- Set a more reasonable dynamic range for the correlation heat maps.
+	- Handle name change of presorted profile data tables.
+	
+	run_DESeq2.R
+	- Add a new option for adding a single batch correction factor when setting
+	  the model. This requires using a custom sample table.
+	- Add option to shrink the Log2 Fold Change values, which reduces the effect
+	  of low-count features. This should be done when using Log2FC for subsequent
+	  filtering of peaks.
+	- Remove the outdated minimum count threshold option.
+	- Change default threshold to 0.1.
+	
+
 v20.2
 	multirep_macs2_pipeline.pl
 	- Update default --cutsite parameters
