@@ -11,7 +11,7 @@ There are associated shell scripts for each scenario described below, found in t
 
 There are sample Bam files in the `data` subdirectory. These are heavily sub-sampled
 and used here only as working files to test that the pipeline is installed correctly
-and works as expected, i.e. DO NOT expect to interpret the results. Each script
+and works as expected, i.e. _DO NOT expect to interpret the results_. Each example
 should take about 1-3 minutes to complete. 
 
 **NOTE**: The shell scripts included here will not run until the project is built
@@ -45,7 +45,7 @@ situations if edited appropriately.
 	the two samples, Rpd3 and Tup1, are merged into a final peak set and
 	rescored. Comparative plots are generated.
 	
-		multirep_macs2_pipeline.pl \
+		multirepchipseq.pl \
 		--chip Rpd3_Ch1.bam,Rpd3_Ch2.bam,Rpd3_Ch3.bam \
 		--control Rpd3_Input.bam \
 		--name Rpd3 \
@@ -68,7 +68,7 @@ situations if edited appropriately.
 	singletons and non-paired alignments are silently skipped. The fragment size is
 	not necessary (unless the `--peaksize` option was not defined).
 	
-		multirep_macs2_pipeline.pl \
+		multirepchipseq.pl \
 		--chip Rpd3_Ch1.bam,Rpd3_Ch2.bam,Rpd3_Ch3.bam \
 		--control Rpd3_Input.bam \
 		--name Rpd3 \
@@ -90,7 +90,7 @@ situations if edited appropriately.
 	separately, which will allow peaks to be called individually, merged, and
 	comparative plots generated.
 
-		multirep_macs2_pipeline.pl \
+		multirepchipseq.pl \
 		--chip Tup1_Ch1.bam \
 		--name Tup1_Ch1 \
 		--chip Tup1_Ch2.bam \
@@ -114,7 +114,7 @@ situations if edited appropriately.
 	replicate-merged peaks, mean-replicate peaks will also be called by default.
 	Plots generated for each analysis are placed into separate folders. 
 
-		multirep_macs2_pipeline.pl \
+		multirepchipseq.pl \
 		--chip Rpd3_Ch1.bam,Rpd3_Ch3.bam \
 		--control Rpd3_Input.bam \
 		--name Rpd3 \
@@ -139,7 +139,7 @@ situations if edited appropriately.
 	leaves behind duplicates of biological origin. Even without de-duplication, Bam
 	files are automatically filtered prior to independent peak calling. 
 
-		multirep_macs2_pipeline.pl \
+		multirepchipseq.pl \
 		--chip Rpd3_Ch1.bam,Rpd3_Ch2.bam,Rpd3_Ch3.bam \
 		--control Rpd3_Input.bam \
 		--name Rpd3 \
@@ -158,10 +158,15 @@ situations if edited appropriately.
 
 	[run\_pe\_nocontrol Script](https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq/blob/master/examples/run_pe_nocontrol.sh).
 	This example is with two paired-end samples, each with three replicates, but
-	without reference controls. A global mean coverage is generated as the _lambda_
-	control from the ChIP samples.
+	without reference controls. By default (as of version 21), this generates
+	dynamic large _lambda_ reference control from the experimental bam files.
+	This should reduce weak or false-positive peak calling, particularly with
+	noisy or high background datasets, e.g. some ATAC-Seq, but less helpful with
+	very clean or sparse datasets, e.g. Cut&Run. To turn off _lambda_ control
+	and revert to using a global mean average as reference, add the `--nolambda`
+	option to the command.
 
-		multirep_macs2_pipeline.pl \
+		multirepchipseq.pl \
 		--chip Rpd3_Ch1.bam,Rpd3_Ch2.bam,Rpd3_Ch3.bam \
 		--name Rpd3 \
 		--chip Tup1_Ch1.bam,Tup1_Ch2.bam,Tup1_Ch3.bam \
@@ -179,7 +184,7 @@ situations if edited appropriately.
 	The tolerated gap is set to 1000 bp and the minimum q-value tolerated is 1, or
 	0.1. Narrow peak calling is always performed. 
 
-		multirep_macs2_pipeline.pl \
+		multirepchipseq.pl \
 		--chip Rpd3_Ch1.bam,Rpd3_Ch2.bam,Rpd3_Ch3.bam \
 		--control Rpd3_Input.bam \
 		--name Rpd3 \
@@ -208,7 +213,7 @@ situations if edited appropriately.
 	factors. Peak size parameters are adjusted for narrow peaks.
 	
 
-		multirep_macs2_pipeline.pl \
+		multirepchipseq.pl \
 		--chip Rpd3_Ch1.bam,Rpd3_Ch2.bam,Rpd3_Ch3.bam \
 		--name Rpd3 \
 		--chip Tup1_Ch1.bam,Tup1_Ch2.bam,Tup1_Ch3.bam \
@@ -219,6 +224,7 @@ situations if edited appropriately.
 		--cutoff 2
 
 - Single-end and paired-end combination analysis
+
 	[run\_se\_pe\_merge\_recall Script](https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq/blob/master/examples/run_se_pe_merge_recall.sh).
 	This script example runs two pipelines sequentially, one sample as paired-end and
 	the other sample as single-end. The resulting files are then merged into a third
@@ -227,7 +233,41 @@ situations if edited appropriately.
 	generate a merged peak comparison analysis. While this may not be an ideal
 	situation, it is an illustration of what could be achieved in weird situations.
 
+- Paired-end with normalized insertion size
 
+	[run\_pe\_normsize Script](https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq/blob/master/examples/run_pe_normsize.sh).
+	This example is with two paired-end samples, each with three replicates, but
+	the insertion sizes are all normalized to the same length of 150 bp using
+	the `--normsize` parameter. This may be useful when comparing samples that
+	have different insertion size profiles that could lead to differences in
+	peak calling efficiency simply due to differences in fragment coverage. In
+	some respects, this is not much different than a single-end experiment where
+	all alignments are extended to the same fragment length.
+
+- Paired-end with no bam files
+
+	[run\_pe\_nobam Script](https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq/blob/master/examples/run_pe_nobam.sh).
+	The pipeline is primarily designed to be used with Bam files. However, it
+	may be executed with genome coverage bigWig files. Perhaps these are all
+	that you have, or you're using a customized method of generating
+	whole-genome coverage files. In any case, single bigWig files are provided
+	for each sample and, if available, reference control. Independent replicates
+	are not supported. Count files are not accepted nor are count tables
+	generated – hence no correlation metrics are generated. The target
+	sequencing depth, `--targetdepth`, must be supplied in millions of reads;
+	set this to 1 otherwise if no scaling is necessary. If the `run_pe.sh` has
+	not already been run yet, it will run this first. No guarantees are made
+	that appropriate peak calls will be made or that the pipeline executes
+	successfully.
+
+- No genome size provided
+
+	[run\_pe\_nogenome Script](https://github.com/HuntsmanCancerInstitute/MultiRepMacsChIPSeq/blob/master/examples/run_pe_nogenome.sh).
+	The provided bam files here are heavily subsampled with poor genomic
+	coverage, hence a separate `--genome` size must be provided. This is not
+	normally needed with good coverage traditional ChIP and Input files. This
+	script will intentionally fail because the genomic coverage is not
+	sufficient.
 
 
 ### Bam files

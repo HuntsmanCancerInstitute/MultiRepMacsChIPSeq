@@ -305,7 +305,7 @@ You should now have a functional environment for MultiRepMacsChIPSeq.
 To test whether all helper applications are available and found by the pipeline,
 run the following command
 
-	multirep_macs2_pipeline.pl --help
+	multirepchipseq.pl --help
 
 In the output under the section `Application Paths`, the full path is printed
 for each helper application found in your environment `PATH`. If the path is
