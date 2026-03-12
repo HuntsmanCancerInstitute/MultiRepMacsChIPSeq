@@ -95,7 +95,7 @@ artifacts and should not be considered. For Novaseq, set the pixel distance to a
 ## Running the pipeline
 
 The pipeline is executed by passing all parameters to the
-[multirep_macs2_pipeline](applications/multirep_macs2_pipeline.md) script. Because
+[multirepchipseq](applications/multirepchipseq.md) script. Because
 of the number and complexity of the options, it's generally recommended to place the
 command in a shell script and execute that. Before running, it's highly recommended
 to run the command with the `--dryrun` option to check that all inputs are valid. 
@@ -112,12 +112,12 @@ restarting an incomplete run.
 ## Simple Peak call
 
 To call peaks on a single-condition ChIP-Seq sample with multiple replicates, call
-the [multirep_macs2_pipeline](applications/multirep_macs2_pipeline.md) script,
+the [multirepchipseq](applications/multirepchipseq.md) script,
 treating each replicate as a separate sample. This allows the replicates to be
 compared directly. If each replicate has a separate reference, then a separate
 `--control` option can be repeated for each sample in the same order.
 
-	multirep_macs2_pipeline.pl \
+	multirepchipseq.pl \
 	--chip file1.bam \
 	--chip file2.bam \
 	--chip file3.bam \
@@ -131,7 +131,7 @@ single master set of peaks for subsequent analysis and comparison.
 
 When multiple conditions are being tested and compared for differential binding, then
 simply add additional `--chip` and `--name` arguments to the
-[multirep_macs2_pipeline](applications/multirep_macs2_pipeline.md) script. In this 
+[multirepchipseq](applications/multirepchipseq.md) script. In this 
 case, replicates for each condition are averaged together prior to peak calling, with 
 the assumption that a greater diversity and variance will be observed between the 
 conditions than between the replicates within each condition. Independent replicate 
@@ -142,7 +142,7 @@ and must be provided in the same order. If there are multiple controls, and some
 shared between more than one ChIP but not all, then that's ok; list each control for 
 each ChIP and duplicate entries will be smartly handled.
 
-	multirep_macs2_pipeline.pl \
+	multirepchipseq.pl \
 	--chip file1.bam,file2.bam,file3.bam \
 	--chip file4.bam,file5.bam,file6.bam \
 	--chip file7.bam,file8.bam \
@@ -163,7 +163,7 @@ plots are generated to assist in evaluation.
 ## Pipeline options
 
 These are descriptions and guidance to the variety of options to the main 
-[multirep_macs2_pipeline](applications/multirep_macs2_pipeline.md) script. In most 
+[multirepchipseq](applications/multirepchipseq.md) script. In most 
 cases, you will want to write the command in a shell script for execution due to the 
 complexity. See the [examples](examples/Readme.md) folder for example scripts.
 
@@ -199,6 +199,17 @@ complexity. See the [examples](examples/Readme.md) folder for example scripts.
 	provided reference control (Input) Bam files, if they are present. Usually,
 	empirically derived lists are superior to externally provided lists, as they
 	account for duplicate and repetitive regions in the actual cells of interest. 
+	
+	If no Input or reference Bam files are available, then generating empirical
+	exclusion intervals directly from the experimental Bam files is recommended
+	using [rmsk2exclusion](applications/rmsk2exclusion.md). This is especially
+	relevant for ATAC-Seq and MNase-Seq samples. Nearly all aberrant or false
+	positive peaks are associated with repetitive elements. This application
+	scores known genomic repetitive elements, e.g. from RepeatMasker, and marks
+	those with exceptionally high alignment coverage for use as an empirical
+	exclusion list. The [UCSC Genome Browser](https://genome.ucsc.edu) Table
+	Browser and Genome Data repository provides RepeatMasker (`rmsk`) files that
+	may be used here.
 	
 	To use a pre-determined exclusion region file, specify a BED, GFF, or
 	any other file format with recognizable chromosomal coordinates.
@@ -337,6 +348,15 @@ complexity. See the [examples](examples/Readme.md) folder for example scripts.
 	silently discarded. If desired, the fragment size can be explicitly restricted to
 	a size range with `--min` and `--max` options; sequencing depth is adjusted 
 	accordingly.
+	
+	When working with multiple samples that have disparate paired-end insertion
+	size profiles, it may be advantageous to normalize the insertion sizes using
+	the `--normsize` option. This sets all fragment sizes to the same length as
+	set with the `--size` option. This avoids the situation where samples with
+	larger insertion sizes can actually generate more "signal" in the fragment
+	pileup than samples with smaller insertion sizes. This is essentially no
+	different than setting the fragment length to the same size with single-end
+	alignment experiments.
 	
 	To expedite coverage track generation, fragment coverage tracks are binned (10 bp
 	by default for ChIP). This greatly reduces computation time while minimally
@@ -530,6 +550,24 @@ re-scored as before. New plots will be generated. New subfolders will be generat
 with an incrementing digit suffix; original files will not be overwritten. The 
 [intersect_peaks](applications/intersect_peaks.md) script can be used to compare 
 the old and new peak calls, if desired.
+
+
+## Annotation of peaks
+
+There are numerous packages out there for annotating the peaks to nearest genes,
+for example [Homer](http://homer.ucsd.edu/homer/) and
+[ChIPseeker](https://www.bioconductor.org/packages/release/bioc/html/ChIPseeker.html).
+Most packages simply annotate to the nearest gene, which may be fine in
+some cases. However, many regulatory regions and enhancers are known to regulate
+more than promoter. The [annotate_to_tss](applications/annotate_to_tss.md)
+application included here (as of version 21) was written explicitly to report
+not just the closest gene, but rather all genes within a given radius.
+Importantly, it considers all transcript start sites (TSS) of genes (arguably
+the business end of genes) and reports the closest, left proximal, right
+proximal, and neighborhood genes and distance. To reduce noise, it may be
+worthwhile to use a customized annotation file that is restricted to those genes
+expressed in the same cell or tissue type as the ChIP assay.
+
 
 ## Differential peak analysis
 

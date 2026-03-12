@@ -17,9 +17,22 @@ promoters and enhancer elements. The release of a chromatin fragment occurs when
 independent transposition events occur in proximity. ATAC-Seq libraries are generally
 sequenced as paired-end libraries so that fragment size can be determined. 
 
-There is no "Input" sequence, although naked DNA prepared with Tn5 could in theory be
-used. Enrichment is determined by using a genomic (chromosomal) mean coverage derived
-from the experimental ATAC-Seq fragment coverage.
+There is no "Input" sequence, although naked DNA prepared with Tn5 could in
+theory be used. Enrichment is determined by using a genomic mean coverage
+derived from the experimental ATAC-Seq fragment coverage. As of version 21,
+large local lambda may be used to model large-scale chromatin accessibility, but
+this may be turned off with `--nolambda`.
+
+To avoid false-positive peaks, many of which are derived from alignments to
+repetitive DNA elements, an exclusion interval list may be supplied. Depending
+on the quirks of sequence alignment, reference genome sequence, and actual
+genome content, high coverage at certain elements may still be seen, even with a
+high mapping quality (`--mapq` option) threshold. To generate empirical
+exclusion interval lists, use the
+[rmsk2exclusion](applications/rmsk2exclusion.md) application with all available
+samples and replicates. RepeatMasker files may be obtained from the [UCSC Genome
+Browser](https://genome.ucsc.edu) Table Browser and Genome Data repository for
+most genomes. Provide the resulting BED file with the `--exclude` option.
 
 Mitochondrial DNA contamination is often high with ATAC-Seq data, so mtDNA should
 definitely be excluded with the `--chrskip` option.
@@ -125,6 +138,10 @@ samples. This will necessitate running the pipeline twice, once on IgG samples, 
 again on experimental samples, where you will set the `--exclude` parameter to the
 combined output bed file from the IgG samples.
 
+Exclusion peaks may be generated empirically using known repetitive elements
+(RepeatMasker tables) using [rmsk2exclusion](applications/rmsk2exclusion.md), but
+since genome coverage is often sparse, this may be of limited usefulness. 
+
 External spike-in genome normalization, usually bacterial or yeast, are generally not
 helpful with peak calling as it can distort the statistics of peak calling. If
 they're included in the bam file, be sure to exclude these with the `--chrskip`
@@ -170,6 +187,10 @@ convenient tool to do this.
 Duplication is also a concern, and similar to ATAC-Seq, MNase-derived nucleosome 
 fragments exhibit extremely high biological duplication. The same cautions should be 
 applied with MNase-Seq as with ATAC-Seq (see above).
+
+Similar to ATAC-Seq above, generating empirical exclusion interval lists from the
+sample data using the [rmsk2exclusion](applications/rmsk2exclusion.md) may help to
+avoid regions with excessive coverage and should be considered.
 
 
 ### Reference genome scaling
