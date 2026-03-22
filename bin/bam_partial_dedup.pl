@@ -1211,7 +1211,7 @@ sub deduplicate {
 
 	# set callbacks and subroutines
 	$callback = $paired ? \&write_pe_callback : \&write_se_callback;
-	if ( defined $chance ) {
+	if ( $chance > 0 ) {
 		$write_out_alignments =
 			$paired
 			? \&write_out_random_pe_alignments
