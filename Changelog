@@ -1,5 +1,22 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
+v21.1
+	bam_partial_dedup.pl
+	- Fix critical bug that could result in no duplicates being retained if
+	  maximum depth was set to > 1. Could also be triggered when duplication
+	  rate was below desired target.
+	- Fix bug that allowed dovetail paired-end alignments, where the alignment
+	  extends pass the mate start position. These were leading to the non-zero
+	  "unpaired count" in the report and broken pairs in the output bam file.
+	  These are now considered discordant and are silently skipped. These
+	  are most commonly found with very small-insert libraries, for example
+	  from ATAC-Seq.
+	- Include the mate mapping quality score in the test for mapping quality,
+	  and only pairs where both mates have passing scores are retained. This
+	  had also contributed to the non-zero "unpaired count".
+	- Use the entire paired-end fragment when testing against exclusion intervals.
+	  Previous versions only tested each alignment mate separately.
+
 v21.0
 	multirep_macs2_pipeline.pl
 	- This has been replaced with multirepchipseq.pl. This version will no
