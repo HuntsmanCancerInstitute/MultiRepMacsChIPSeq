@@ -3,7 +3,7 @@ package Bio::MultiRepChIPSeq;
 use strict;
 use Bio::MultiRepChIPSeq::Runner;
 
-our $VERSION = 21.0;
+our $VERSION = 21.1;
 
 sub new {
 	return Bio::MultiRepChIPSeq::Runner->new();

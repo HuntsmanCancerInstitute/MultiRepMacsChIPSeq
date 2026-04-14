@@ -32,7 +32,7 @@ eval {
 	$parallel = 1;
 };
 
-our $VERSION = 5.6;
+our $VERSION = 5.7;
 
 my $DOC = <<END;
 
@@ -885,18 +885,36 @@ sub count_pe_callback {
 
 	# filter reads
 	return unless $a->proper_pair;       # consider only proper pair alignments
-	return unless $a->tid == $a->mtid;
-	return if $a->reversed;              # count only forward alignments
-	return unless $a->mreversed;
-	return if $a->isize < 0;    # wierd RF pair, a F alignment should only have + isize
-	return if ( $min_mapq and $a->qual < $min_mapq );    # mapping quality
+	return unless $a->tid == $a->mtid;   # just in case
+	
+	# check orientation
+	# only count forward alignments and skip dovetail alignments
+	if ($a->reversed) {
+		return;
+	}
+	else {
+		return if $a->mpos < $a->pos;    # dovetail paired alignment marked as proper
+		return unless $a->mreversed;     # odd scenario
+	}
+	
+	# check mapping quality
+	if ($min_mapq) {
+		my $mateq = $a->aux_get('MQ');
+		if ( !defined $mateq ) {
+			$mateq = 255; # set to unknown value, since zero is important here
+		}
+		return if ($a->qual < $min_mapq or $mateq < $min_mapq);
+	}
+	
+	# check exclusion region using full insertion fragment size
 	if ( defined $data->{exclusion} ) {
 
-		# filter excluded regions
-		my $results = $data->{exclusion}->fetch( $a->pos, $a->calend );
+		# at this point we should only have forward mates
+		my $results = $data->{exclusion}->fetch( $a->pos, ( $a->pos + $a->isize ) );
 		return if @{$results};
 	}
 
+	# pass filters so count
 	$data->{totalCount}++;
 
 	# check position
@@ -1542,28 +1560,47 @@ sub write_se_callback {
 ### paired-end alignment callback for writing
 sub write_pe_callback {
 	my ( $a, $data ) = @_;
+
+	# filter reads
 	return unless $a->proper_pair;       # consider only proper pair alignments
-	return unless $a->tid == $a->mtid;
-	return if ( $min_mapq and $a->qual < $min_mapq );    # mapping quality
-	if ( defined $data->{exclusion} ) {
 
-		# filter excluded regions
-		my $results = $data->{exclusion}->fetch( $a->pos, $a->calend );
-		return if @{$results};
+	# check mapping quality
+	if ($min_mapq) {
+		
+		my $mateq = $a->aux_get('MQ');
+		if ( !defined $mateq ) {
+			$mateq = 255; # set to unknown value, since zero is important here
+		}
+		return if ($a->qual < $min_mapq or $mateq < $min_mapq);
 	}
-
+	
 	# check pair orientation
 	if ( $a->reversed ) {
-		return if $a->isize > 0;
-		return if $a->mreversed;
+		return if $a->mpos > $a->pos;   # treat dovetail as discordant and skip
+		return if $a->mreversed;        # just in case
 	}
 	else {
-		return if $a->isize < 0;
-		return unless $a->mreversed;
+		return if $a->mpos < $a->pos;   # treat dovetail as discordant and skip
+		return unless $a->mreversed;    # just in case
 	}
 
-	# process forward reads
-	$data->{total}++ unless $a->reversed;    # only count forward alignments
+	# check exclusion region using full insertion fragment size
+	if ( defined $data->{exclusion} ) {
+		my $results;
+		if ($a->reversed) {
+			$results = $data->{exclusion}->fetch( $a->mpos, ( $a->mpos + abs($a->isize) ) );
+		}
+		else {
+			$results = $data->{exclusion}->fetch( $a->pos, ( $a->pos + $a->isize ) );
+		}
+		if ( @{$results} ) {
+			$data->{skip}++;
+			return;
+		}
+	}
+
+	# pass filters so count forward mate only
+	$data->{total}++ unless $a->reversed;
 
 	# check position
 	my $pos = $a->pos;
