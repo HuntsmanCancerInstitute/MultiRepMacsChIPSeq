@@ -79,10 +79,9 @@ USAGE: rmsk2exclusion.pl -r rmsk.txt -o exclusion.bed  File1.bam  File2.bam ...
 OPTIONS:
 
 Input:
-  -r --rmsk <file>         Input RepeatMasker file. Required. These can often
-                            be obtained for your genome from
-                            https://genome.ucsc.edu
-  -i --input <file>        Coordinate file e.g. BED of repetitive elements to score.
+  -r --rmsk <file>         A UCSC RepeatMasker file. Required. These may be obtained 
+                            for your genome from https://genome.ucsc.edu
+  -i --input <file>        Coordinate file of merged repetitive elements to score.
                             This can be used as an alternative --rmsk.
   -o --out <file>          Output file basename. Required.
   -d --data <file>         Specify one or more bam files to score. This option
@@ -96,7 +95,7 @@ Filtering Options:
   
 
 General:
- --save                    Save the intermediate scored repeat element file.
+ --save                    Save the intermediate scored and merged repeat files.
  -c --cpu <int>            Number of threads to use
  --getdata <path>          Path to get_datasets.pl ($getdata)
  --mandata <path>          Path to manipulate_datasets.pl ($mandata)
@@ -176,15 +175,23 @@ score_repeats();
 filter_repeats();
 
 # finish
-unlink $rmsk_bed_file;
 if ($save) {
-	$out_file =~ s/ \.bed (?:\.gz)? $//xi;
-	$out_file .= '.scored.txt.gz';
+	my $base = $out_file;
+	$base    =~ s/ \.bed (?:\.gz)? $//xi; # just in case
+
+	# merged bed file
+	$out_file = sprintf "%s.merged_repeats.bed", $base;
+	copy( $rmsk_bed_file, $out_file );
+	printf " Saved the merged repeat BED file as '%s'\n", $out_file;
+	
+	# intermediate scored interval file
+	$out_file = sprintf "%s.scored.txt.gz", $base;
 	copy( $rmsk_scr_file, $out_file );
-	printf " Saved intermediate scored interval file '%s'\n", $out_file;
+	printf " Saved the intermediate scored interval file as '%s'\n", $out_file;
 }
 else {
 	unlink $rmsk_scr_file;
+	unlink $rmsk_bed_file;
 }
 exit;
 
