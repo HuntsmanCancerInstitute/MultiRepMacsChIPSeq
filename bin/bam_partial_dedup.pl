@@ -32,7 +32,7 @@ eval {
 	$parallel = 1;
 };
 
-our $VERSION = 5.7;
+our $VERSION = 5.8;
 
 my $DOC = <<END;
 
@@ -165,8 +165,8 @@ END
 my (
 	$fraction, $max,    $infile, $outfile,  $do_optical,  $optical_thresh, $keep_optical,
 	$mark,     $random, $paired, $min_mapq, $chr_exclude, $exclude_file,   $seed, $cpu,
-	$tilepos,
-	$xpos, $ypos, $name_coordinates, $report_distance, $no_sam, $verbose, $help
+	$tilepos,  $insert_size, $insert_min,       $insert_max,
+	$xpos,     $ypos,        $name_coordinates, $report_distance, $no_sam, $verbose, $help
 );
 my @program_options = @ARGV;
 GetOptions(
@@ -181,6 +181,7 @@ GetOptions(
 	'frac=f'       => \$fraction,        # target fraction of duplicates
 	'max=i'        => \$max,             # the maximum number of alignments per position
 	'pe!'          => \$paired,          # treat as paired-end alignments
+	'size=s'       => \$insert_size,     # paired-end insert min,max
 	'qual|mapq=i'  => \$min_mapq,        # minimum mapping quality
 	'chrskip=s'    => \$chr_exclude,     # skip chromosomes
 	'exclude=s'    => \$exclude_file,    # file of high copy repeat regions to avoid
@@ -262,6 +263,22 @@ if ($min_mapq) {
 		die " Invalid minimum mapping quality! Must be an integer between 0-255!\n";
 	}
 }
+if ($insert_size) {
+	if ( $insert_size =~ /^ (\d+) [,\-] (\d+) $/x ) {
+		$insert_min = $1;
+		$insert_max = $2;
+		$insert_min = 1 if $insert_min == 0;
+		if ( $insert_min > $insert_max ) {
+			die sprintf( " insert minimum %d is greater than insert maximum %d\n",
+				$insert_max, $insert_min );
+		}
+		$paired = 1; # just in case
+	}
+	else {
+		die " Malformed insert 'min,max' integer values '$insert_size'";
+	}
+}
+
 
 ### Open bam files
 # input bam file
@@ -329,6 +346,7 @@ $htext .= " --keepoptical"                         if $keep_optical;
 $htext .= " --chrskip='$chr_exclude'"              if $chr_exclude;
 $htext .= " --exclude=$exclude_file"               if $exclude_file;
 $htext .= " --qual=$min_mapq"                      if $min_mapq;
+$htext .= " --size=$insert_size"                   if $insert_size;
 $htext .= " --coord $name_coordinates"             if $name_coordinates;
 $htext .= " --bam $BAM_ADAPTER --in $infile --out $outfile\n";
 
@@ -895,6 +913,12 @@ sub count_pe_callback {
 	else {
 		return if $a->mpos < $a->pos;    # dovetail paired alignment marked as proper
 		return unless $a->mreversed;     # odd scenario
+	}
+	
+	# check insert size
+	if ($insert_min) {
+		my $size = $a->isize;
+		return if ( $size < $insert_min or $size > $insert_max );
 	}
 	
 	# check mapping quality
@@ -1564,6 +1588,25 @@ sub write_pe_callback {
 	# filter reads
 	return unless $a->proper_pair;       # consider only proper pair alignments
 
+	# check pair orientation
+	if ( $a->reversed ) {
+		return if $a->mpos > $a->pos;   # treat dovetail as discordant and skip
+		return if $a->mreversed;        # just in case
+	}
+	else {
+		return if $a->mpos < $a->pos;   # treat dovetail as discordant and skip
+		return unless $a->mreversed;    # just in case
+	}
+	
+	# check insertions size
+	if ( $insert_min ) {
+		my $size = $a->isize;
+		if ( $a->reversed ) {
+			$size *= -1;
+		}
+		return if ( $size < $insert_min or $size > $insert_max );
+	}
+
 	# check mapping quality
 	if ($min_mapq) {
 		
@@ -1574,16 +1617,6 @@ sub write_pe_callback {
 		return if ($a->qual < $min_mapq or $mateq < $min_mapq);
 	}
 	
-	# check pair orientation
-	if ( $a->reversed ) {
-		return if $a->mpos > $a->pos;   # treat dovetail as discordant and skip
-		return if $a->mreversed;        # just in case
-	}
-	else {
-		return if $a->mpos < $a->pos;   # treat dovetail as discordant and skip
-		return unless $a->mreversed;    # just in case
-	}
-
 	# check exclusion region using full insertion fragment size
 	if ( defined $data->{exclusion} ) {
 		my $results;
