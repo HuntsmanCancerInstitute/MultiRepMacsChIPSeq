@@ -19,7 +19,7 @@ use List::Util qw(sum0);
 use Bio::ToolBox 2.03;
 use Bio::ToolBox::utility qw(format_with_commas);
 
-our $VERSION = 0.1;
+our $VERSION = 0.2;
 
 # user variables
 my $rmsk_file;
@@ -317,7 +317,7 @@ sub score_repeats {
 	my $command1 = sprintf
 		"%s --in %s --noparse --method count --fpkm genome --cpu %s --gz --out %s %s",
 		$getdata,
-		$in_file || $rmsk_bed_file,
+		$rmsk_bed_file,
 		$cpu,
 		$rmsk_scr_file,
 		join( q( ), map {"--data $_"} @datasets );
