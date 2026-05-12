@@ -15,7 +15,7 @@ use Bio::MultiRepChIPSeq::Job;
 use base 'Bio::MultiRepChIPSeq::options';
 use base 'Bio::MultiRepChIPSeq::reporter';
 
-our $VERSION = 21.0;
+our $VERSION = 21.2;
 
 sub new {
 	my $class   = shift;
@@ -782,8 +782,6 @@ sub run_bam_filter {
 			croak "no bedtools application in path!\n";
 		}
 
-		# data object to collect all excluded intervals and chromosomes
-		my $Exclusion = Bio::ToolBox->new_data(qw(Chromosome Start Stop));
 
 		# load the intervals from the exclusion file
 		if ( $self->exclude and $self->exclude ne 'none' ) {
@@ -795,51 +793,41 @@ sub run_bam_filter {
 			unless ($Data->feature_type eq 'coordinate') {
 				croak "exclusion file '$ex_file' does not have coordinates!";
 			}
+
+			# we need to extend exclusion intervals by one half of fragment size
+			# this will help exclude alignment fragments that overlap the edges of the
+			# exclusion zone, since samtools is greedy and will still keep alignments
+			# but we need to mind chromosomal limits when adjusting size
+			my $Chrom = Bio::ToolBox->load_file( in => $self->chromofile, noheader => 1 );
+			my %sizes;
+			$Chrom->iterate( sub {
+				my $row = shift;
+				$sizes{ $row->value(1) } = $row->value(2);
+			} );
+			my $extend = int( $self->fragsize / 2 );
+
+			# data object to collect all excluded intervals and chromosomes
+			my $Exclusion = Bio::ToolBox->new_bed(3);
 			$Data->iterate( sub {
 				my $row = shift;
-				$Exclusion->add_row( [$row->seq_id, $row->start, $row->end ] );
+				my $c   = $row->seq_id;
+				my $s   = $row->start - $extend;
+				my $e   = $row->end   + $extend;
+				$s = 0 if $s < 0;
+				$e = $sizes{$c} if $e > $sizes{$c};
+				$Exclusion->add_row( [ $c, $s, $e  ] );
 			} );
-		}
 
-		# add the excluded chromosomes
-		my $example_bam;
-		foreach my $Job ( $self->list_jobs ) {
-			if ( $Job->chip_bams ) {
-				$example_bam = ( $Job->chip_bams )[0];
-				last;
-			}
-		}
-		my $command = sprintf "%s %s", $self->printchr_app, $example_bam;
-		print "\n Executing '$command'\n";
-		my @chroms = qx($command);
-		my $skip   = $self->chrskip;
-		foreach my $c (@chroms) {
-			chomp $c;
-			my ( $seqid, $length ) = split /\t/, $c;
-			next unless ( $seqid and $length =~ /^\d+$/ );
-			if ( $seqid =~ /$skip/i ) {
-				$Exclusion->add_row( [ $seqid, 1, $length ] );
-			}
-		}
-
-		# generate genomic complement file from the temporary exclusion file
-		if ( $Exclusion->number_rows > 0 ) {
+			# save temporary file
 			my $temp_file = catfile($self->dir, 'temp_all_exclusion.bed');
 			$Exclusion->gsort_data;
-			$Exclusion->bed(3);
 			$Exclusion->save($temp_file);
 			
-			# extend exclusion intervals by one half of fragment size on either side
-			# this will help exclude alignment fragments that overlap the edges of the
-			# exclusion zone, since samtools is greedy
-			$command = sprintf
-				"%s slop -b %s -g %s -i %s | %s complement -g %s -i - > %s",
+			# generate complement genomic intervals in which to keep alignments
+			my $command = sprintf "%s complement -g %s -i %s > %s",
 				$self->bedtools_app,
-				int( $self->fragsize / 2 ),
 				$self->chromofile,
 				$temp_file,
-				$self->bedtools_app,
-				$self->chromofile,
 				$filter_file;
 			print "\n Executing '$command'\n";
 			system($command);
