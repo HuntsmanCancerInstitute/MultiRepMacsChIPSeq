@@ -62,43 +62,57 @@ are skipped in both counting and writing.
 USAGE:
 
 	bam_partial_dedup.pl --in input.bam
-	bam_partial_dedup.pl --frac 0.xx --in input.bam --out output.bam
+	
+	bam_partial_dedup.pl --frac 0.1 --in input.bam --out output.bam
+
+VERSION: 5.8
 
 OPTIONS:
 
-	--in <file>        The input bam file, should be sorted and indexed
-	--out <file>       The output bam file containing unique and retained 
-				         duplicates; optional if you're just checking the 
-				         duplication rate.
-	--pe               Bam files contain paired-end alignments and only 
-				         properly paired duplicate fragments will be checked for 
-				         duplication. Singletons are silently dropped.
-	--qual <int>       Skip alignments below indicated mapping quality (0)
-	--mark             Write non-optical alignments to output and mark as 
-				         duplicates with flag bit 0x400.
-	--frac <float>     Decimal fraction representing the target duplication
-				         rate in the final file. 
-	--max <int>        Integer representing the maximum number of alignments 
-				         at each position. Set to 1 to remove all duplicates.
-	--optical          Enable optical duplicate checking
-	--distance         Set optical duplicate distance threshold.
-				         Use 100 for unpatterned flowcell (HiSeq) or 
-				         2500 for patterned flowcell (NovaSeq). Default 100.
-				         Setting this value automatically sets --optical.
-	--report           Write duplicate distance report files only, no de-duplication
-	--keepoptical      Keep optical duplicates in output as marked 
-				        duplicates with flag bit 0x400. Optical duplicates 
-				         are not differentiated from non-optical duplicates.
-	--coord <string>   Provide the tile:X:Y integer 1-base positions in the 
-				         read name for optical checking. For Illumina CASAVA 1.8 
-				         7-element names, this is 5:6:7 (default)
-	--blacklist <file> Provide a bed/gff/text file of repeat regions to skip
-	--chrskip <regex>  Provide a regex for skipping certain chromosomes
-	--seed <int>       Provide an integer to set the random seed generator to 
-				         make the subsampling consistent (non-random).
-	--cpu <int>        Specify the number of threads to use (4) 
-	--verbose          Print more information
-	--help             Print full documentation
-
+	Required:
+	  --in <file>         The input bam file, should be sorted and indexed
+	
+	Alignment Filtering:
+	  --qual <int>        Skip alignments below indicated mapping quality (0)
+	  --pe                Bam files contain paired-end alignments and only 
+							properly paired duplicate fragments will be checked for 
+							duplication. Singletons are silently dropped.
+	  --size <int>,<int>  Set the minimum and maximum allowed paired insert size
+							Pairs outside this range are silently discarded.
+	  --exclude <file>    Provide a bed/gff/text coordinate file of regions to skip
+	  --chrskip <regex>   Provide a regex for skipping unwanted chromosomes
+							Example: "chrm|mt|random|chrun"
+	
+	Duplication Settings:
+	  --frac <float>      Decimal fraction representing the target duplication 
+							rate in the final file. 
+	  --max <int>         Integer representing the maximum number of alignments 
+							at each position. Set to 1 to remove all duplicates.
+	  --optical           Enable optical duplicate checking
+	  --distance <int>    Set optical duplicate distance threshold.
+							Use 100 for unpatterned flowcell (HiSeq) or 
+							2500 for patterned flowcell (NovaSeq). Default 100.
+							Setting this value automatically sets --optical.
+	
+	Options:
+	  --out <file>        The output bam file containing unique and retained 
+							duplicates; optional if you're just checking the 
+							duplication rate.
+	  --mark              Write non-optical duplicate alignments to output marked 
+							with flag bit 0x400.
+	  --report            Write duplicate distance report files only, no de-duplication
+	  --keepoptical       Keep optical duplicates in output as marked 
+							duplicates with flag bit 0x400. Optical duplicates 
+							are not differentiated from non-optical duplicates.
+	  --coord <string>    Provide the tile:X:Y integer 1-base positions in the 
+							read name for optical checking. For Illumina CASAVA 1.8 
+							7-element names, this is 5:6:7 (default)
+	  --seed <int>        Provide an integer to set the random seed generator to 
+							make the subsampling consistent (non-random).
+	
+	General:
+	  --cpu <int>         Specify the number of threads to use (4) 
+	  --verbose           Print more information
+	  --help              Print full documentation
 
 
