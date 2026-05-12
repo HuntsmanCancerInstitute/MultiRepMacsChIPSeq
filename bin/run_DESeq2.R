@@ -178,9 +178,9 @@ if (opt$all == TRUE) {
       allresults <- allresults[,c(1,2,3,8,4:7)]
     }
     # write results
-    write.table(allresults,file=paste0(opt$output,".all.txt"),
+    write.table(allresults,file=paste0(opt$output,".all.tsv"),
                 sep = "\t", row.names = F, quote = F, col.names = T)
-    message("wrote all results to file ", opt$output, ".all.txt")
+    message("wrote all results to file ", opt$output, ".all.tsv")
 }
 
 
@@ -215,9 +215,9 @@ if (length(namecol)) {
 results <- cbind(results, counts(dds,normalized=TRUE)[idx,])
 
 # write results
-write.table(results,file=paste0(opt$output,".txt"),
+write.table(results,file=paste0(opt$output,".tsv"),
             sep = "\t", row.names = F, quote = F, col.names = T)
-message("wrote ", nrow(results), " significant results to file ", opt$output, ".txt")
+message("wrote ", nrow(results), " significant results to file ", opt$output, ".tsv")
 
 
 # write first ChIP enriched merged bed file
