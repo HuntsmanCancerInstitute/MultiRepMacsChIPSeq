@@ -8,7 +8,7 @@ use List::Util qw(min all);
 use base 'Bio::MultiRepChIPSeq::options';
 use Bio::ToolBox::utility qw(simplify_dataset_name format_with_commas);
 
-our $VERSION = 21.0;
+our $VERSION = 21.2;
 
 sub new {
 
@@ -483,6 +483,39 @@ sub generate_dedup_commands {
 		}
 	}
 
+	# generate base command options
+	my $base;
+	if ( $self->paired ) {
+		$base .= sprintf "--pe --size %d,%d ", $self->minsize, $self->maxsize;
+	}
+	elsif ( $self->deduppair ) {
+		$base .= '--pe ';
+	}
+	if ( $self->maxdepth and $self->maxdepth == 1 ) {
+
+		# no other deduplication options need to be set
+		$base .= "--max 1 ";
+	}
+	else {
+		# set random subsampling, maximum duplicates, and/or optical
+		if ( $self->dupfrac > 0 ) {
+			$base .= sprintf "--seed 1 --frac %s ", $self->dupfrac;
+		}
+		if ( $self->maxdepth and $self->maxdepth > 1 ) {
+			$base .= sprintf "--max %s ", $self->maxdepth;
+		}
+		if ( $self->optdist ) {
+			$base .= sprintf "--optical --distance %s ", $self->optdist;
+		}
+	}
+	if ( $self->exclude and $self->exclude ne 'none' ) {
+		$base .= sprintf "--exclude %s ", $self->exclude;
+	}
+	if ( $self->chrskip ) {
+		$base .= sprintf "--chrskip \'%s\' ", $self->chrskip;
+	}
+	$base .= sprintf "--qual %d --cpu %d ", $self->mapq, $self->cpu;
+	
 	# generate the commands
 	my @commands;
 	foreach my $set (@bamfiles) {
@@ -506,38 +539,11 @@ sub generate_dedup_commands {
 		}
 
 		# generate command
-		my $command = sprintf "%s --in %s --out %s --cpu %s --qual %d ",
+		my $command = sprintf "%s --in %s --out %s %s ",
 			$self->bamdedup_app || 'bam_partial_dedup.pl',
 			$in,
 			$out,
-			$self->cpu,
-			$self->mapq;
-		if ( $self->paired or $self->deduppair ) {
-			$command .= "--pe ";
-		}
-		if ( $self->maxdepth and $self->maxdepth == 1 ) {
-
-			# no other deduplication options need to be set
-			$command .= "--max 1 ";
-		}
-		else {
-			# set random subsampling, maximum duplicates, and/or optical
-			if ( $self->dupfrac > 0 ) {
-				$command .= sprintf "--seed 1 --frac %s ", $self->dupfrac;
-			}
-			if ( $self->maxdepth and $self->maxdepth > 1 ) {
-				$command .= sprintf "--max %s ", $self->maxdepth;
-			}
-			if ( $self->optdist ) {
-				$command .= sprintf "--optical --distance %s ", $self->optdist;
-			}
-		}
-		if ( $self->exclude and $self->exclude ne 'none' ) {
-			$command .= sprintf "--exclude %s ", $self->exclude;
-		}
-		if ( $self->chrskip ) {
-			$command .= sprintf "--chrskip \'%s\' ", $self->chrskip;
-		}
+			$base;
 		my $log = $out;
 		$log =~ s/\.bam$/.out.txt/i;
 		$command .= " 2>&1 > $log";
