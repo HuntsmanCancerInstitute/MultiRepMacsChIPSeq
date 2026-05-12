@@ -1,5 +1,22 @@
 ######## MultiRepMacsChIPSeq Revision History #############
 
+v21.2
+	multirep_macs2_pipeline.pl
+	- Fix critical bug where independently called replicate peaks on size
+	  selected fragments were actually called on unselected (and possibly
+	  unfiltered) alignments.
+	- Fix bug that could lead to crash when filtering bam files when chromosomes
+	  were excluded.
+	
+	bam_partial_dedup.pl
+	- Add new option to filter paired-end alignments on insert size, along with
+	  mapping quality and exclusion intervals and/or chromosomes. This is a
+	  convenience option. Pairs not matching size are silently skipped.
+	
+	rmsk2exclusion.pl
+	- Fix bugs with scoring input file.
+	- Save both merged repeat bed file as well as intermediate score file.
+
 v21.1
 	bam_partial_dedup.pl
 	- Fix critical bug that could result in no duplicates being retained if
