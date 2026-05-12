@@ -759,12 +759,11 @@ sub run_dedup {
 sub run_bam_filter {
 	my $self = shift;
 
-	# filtering the bam file is only really required when not de-duplicating and
-	# running independent peak calls
-	# both bam_partial_dedup and bam2wig include these filtration steps
-	# but macs2 does not
-	return if ( $self->dedup );
+	# filtering the bam file is only really required when running independent peak calls
+	# because we use native macs callpeak which does not include these filtering steps
+	# mean-replicate calling is based on coverage tracks which are filtered
 	return unless ( $self->independent );
+
 	print "\n\n======= Filtering bam files\n";
 	if ( $self->{progress}{bamfilter} ) {
 		print "\nStep is completed\n";

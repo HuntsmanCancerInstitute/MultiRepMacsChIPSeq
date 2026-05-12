@@ -563,29 +563,47 @@ sub generate_bam_filter_commands {
 	}
 
 	# first collect all the bam files
+	# this tests whether the dedup bam exists, which should be acceptable....
+	# otherwise need to run the filter
+	# for example if the dup fraction had met threshold, so no dedup file was written
 	my @bamfiles;
 	if ( $self->chip_bams ) {
 		my @b  = $self->chip_bams;
+		my @db = $self->chip_dedup_bams;
 		my @fb = $self->chip_filter_bams;
 		for my $i ( 0 .. $#b ) {
-			push @bamfiles, [
-				$i,
-				'chip',
-				$b[$i],    # input bam
-				$fb[$i]    # output filter bam
-			];
+			if ( -e $db[$i] and -s _ ) {
+				# de-deduplicated file exists so skip
+				next;
+			}
+			else {
+				push @bamfiles, [
+					$i,
+					'chip',
+					@b[$i],    	# input bam
+					$fb[$i] 	# output filter bam
+				];
+			}
 		}
 	}
 	if ( $self->control_bams ) {
 		my @b  = $self->control_bams;
-		my @db = $self->control_filter_bams;
+		my @db = $self->control_dedup_bams;
+		my @fb = $self->control_filter_bams;
 		for my $i ( 0 .. $#b ) {
-			push @bamfiles, [
-				$i,
-				'control',
-				$b[$i],    # input bam
-				$db[$i]    # output filter bam
-			];
+			my $in;
+			if ( -e $db[$i] and -s _ ) {
+				# de-deduplicated file exists so skip
+				next;
+			}
+			else {
+				push @bamfiles, [
+					$i,
+					'control',
+					@b[$i],    	# input bam
+					$fb[$i] 	# output filter bam
+				];
+			}
 		}
 	}
 
@@ -595,12 +613,14 @@ sub generate_bam_filter_commands {
 
 		# exclude filter: UNMAP,MUNMAP,SECONDARY,QCFAIL,DUP,SUPPLEMENTARY
 		# include filter: PROPER_PAIR
-		$filter = "--require-flags 2 --excl-flags 3852 ";
+		$filter = '--require-flags 2 --excl-flags 3852 ';
 
-		# add length filters
-		$filter .= sprintf 
-			"--expr '(tlen >= %s && tlen <= %s) || (tlen <= -%s && tlen >= -%s)' ",
-			$self->minsize, $self->maxsize, $self->minsize, $self->maxsize;
+		# add insert length filters for paired only
+		if ( $self->paired ) {
+			$filter .= sprintf 
+"--expr '(!flag.reverse && tlen >= %s && tlen <= %s) || (flag.reverse && tlen <= -%s && tlen >= -%s)' ",
+				$self->minsize, $self->maxsize, $self->minsize, $self->maxsize;
+		}
 	}
 	else {
 		# exclude filter: UNMAP,SECONDARY,QCFAIL,DUP,SUPPLEMENTARY
@@ -663,8 +683,8 @@ sub find_new_bams {
 		my @fb = $self->chip_filter_bams;
 		for my $i ( 0 .. $#b ) {
 			my $in   = $b[$i];
-			my $out1 = $db[$i];
-			my $out2 = $fb[$i];
+			my $out1 = $fb[$i];
+			my $out2 = $db[$i];
 			if ( -e $out1 and -s _ ) {
 				$self->chip_use_bams($out1);
 				printf "  Found $out1\n";
